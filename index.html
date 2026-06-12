@@ -1,0 +1,3423 @@
+<!doctype html>
+<html lang="th" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบบันทึกและติดตามการปฏิบัติเวร | โรงเรียนมูลนิธิอาซิซสถาน</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              300: '#86efac',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#14532d',
+              950: '#052e16',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Supabase client JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+
+  <!-- Leaflet Map CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- SheetJS (Excel) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    * { font-family: 'Sarabun', sans-serif; }
+    .sidebar-item { transition: all 0.2s; }
+    .sidebar-item:hover, .sidebar-item.active { background: rgba(255, 255, 255, 0.12); }
+    .card-stat { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .card-stat:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    .signature-pad { border: 2px dashed #cbd5e1; border-radius: 8px; cursor: crosshair; touch-action: none; }
+    @media print { 
+      .no-print { display: none !important; }
+      body { background-color: white !important; color: black !important; }
+      .print-container { padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
+    }
+    .fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes fadeIn { 
+      from { opacity: 0; transform: translateY(8px); } 
+      to { opacity: 1; transform: translateY(0); } 
+    }
+  </style>
+</head>
+<body class="h-full text-slate-800 flex flex-col">
+  <div id="app" class="h-full w-full overflow-hidden flex flex-col relative">
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- SQL SETUP INSTRUCTION MODAL (HELP GUIDE) -->
+    <div id="sql-modal" class="fixed inset-0 bg-black/75 z-[10000] hidden flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border flex flex-col max-h-[85vh]">
+        <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <i data-lucide="database" class="w-5 h-5"></i>
+            <h3 class="font-bold text-sm">การนำเข้าตารางฐานข้อมูล Supabase</h3>
+          </div>
+          <button onclick="closeSqlModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        <div class="p-6 overflow-y-auto text-xs space-y-4 leading-relaxed">
+          <p class="font-bold text-slate-700">กรุณาคัดลอกโค้ด SQL ด้านล่างนี้ ไปวางในเมนู <strong class="text-brand-800">SQL Editor</strong> บนหน้าต่าง Dashboard ของ Supabase ของคุณเพื่อสร้างตารางทั้งหมด:</p>
+          <div class="relative">
+            <pre class="bg-slate-900 text-slate-100 p-4 rounded-xl overflow-x-auto text-[10px] select-all max-h-80" id="sql-code-block"></pre>
+            <button onclick="copySQLCode()" class="absolute top-2 right-2 bg-brand-800 hover:bg-brand-700 text-white font-bold py-1 px-2.5 rounded transition">คัดลอก SQL</button>
+          </div>
+          <div class="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-lg flex items-start gap-2">
+            <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5 text-amber-700 flex-shrink-0"></i>
+            <p>ระบบจะตรวจเช็คโครงสร้างตารางโดยอัตโนมัติ เมื่อสร้างตารางด้านบนเสร็จสิ้นและเปิด RLS แล้ว ระบบจะเปลี่ยนเป็นโหมดออนไลน์ทันทีเมื่อคุณรีเฟรชหน้าเว็บ</p>
+          </div>
+        </div>
+        <div class="p-4 bg-slate-50 border-t flex justify-end">
+          <button onclick="closeSqlModal()" class="bg-brand-850 hover:bg-brand-700 text-white font-bold px-6 py-2 rounded shadow transition">รับทราบ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGIN PAGE -->
+    <div id="page-login" class="h-full w-full flex items-center justify-center p-4 min-h-screen" style="background: linear-gradient(135deg, #14532d 0%, #166534 50%, #14532d 100%);">
+      <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl w-full max-w-md p-8 border border-white/20 fade-in">
+        <div class="text-center mb-6">
+          <div class="w-20 h-20 mx-auto mb-3 bg-brand-800 rounded-full flex items-center justify-center shadow-lg border border-white/20">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <circle cx="24" cy="24" r="20" stroke="white" stroke-width="2" />
+              <path d="M24 12 L24 36 M16 20 L24 12 L32 20" stroke="white" stroke-width="2" fill="none" />
+              <text x="24" y="34" text-anchor="middle" fill="white" font-size="8" font-weight="bold">อซ</text>
+            </svg>
+          </div>
+          <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
+          <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
+          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.5.0</p>
+        </div>
+        
+        <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+          <div>
+            <label for="login-id" class="block text-sm font-medium text-slate-700 mb-1">รหัสครู / เบอร์โทรศัพท์</label>
+            <div class="relative">
+              <i data-lucide="user" class="absolute left-3 top-3 w-5 h-5 text-slate-400"></i>
+              <input id="login-id" type="text" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition" placeholder="กรอกรหัสครู (T001 - T006) หรือเบอร์โทร">
+            </div>
+          </div>
+          <div>
+            <label for="login-pass" class="block text-sm font-medium text-slate-700 mb-1">รหัสผ่าน</label>
+            <div class="relative">
+              <i data-lucide="lock" class="absolute left-3 top-3 w-5 h-5 text-slate-400"></i>
+              <input id="login-pass" type="password" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition" placeholder="กรอกรหัสผ่านใดๆ">
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500"> 
+              <span>จดจำฉัน</span>
+            </label>
+            <a href="#" onclick="showToast('ระบบรองรับการเข้าสู่ระบบแบบรวดเร็วผ่านเมนูด้านล่างสำหรับการทดสอบ', 'info')" class="text-brand-700 hover:underline">ลืมรหัสผ่าน?</a>
+          </div>
+          <button type="submit" class="w-full bg-brand-800 text-white py-3 rounded-lg font-semibold hover:bg-brand-700 shadow-md hover:shadow-lg transition">เข้าสู่ระบบ</button>
+        </form>
+
+        <div class="relative my-6">
+          <div class="absolute inset-0 flex items-center" aria-hidden="true">
+            <div class="w-full border-t border-slate-200"></div>
+          </div>
+          <div class="relative flex justify-center text-xs uppercase">
+            <span class="bg-white px-2 text-slate-400">เข้าใช้งานแบบทดสอบด่วน (Quick Test)</span>
+          </div>
+        </div>
+
+        <div id="login-roles" class="grid grid-cols-3 gap-2">
+          <button onclick="loginAs('admin')" class="text-xs border border-brand-200 rounded-lg p-2.5 hover:bg-brand-50 text-center transition flex flex-col items-center">
+            <i data-lucide="shield" class="w-4 h-4 mb-1 text-brand-700"></i>
+            <span class="font-medium text-brand-900">แอดมิน</span>
+          </button>
+          <button onclick="loginAs('head')" class="text-xs border border-brand-200 rounded-lg p-2.5 hover:bg-brand-50 text-center transition flex flex-col items-center">
+            <i data-lucide="crown" class="w-4 h-4 mb-1 text-amber-600"></i>
+            <span class="font-medium text-brand-900">หัวหน้าเวร</span>
+          </button>
+          <button onclick="loginAs('teacher')" class="text-xs border border-brand-200 rounded-lg p-2.5 hover:bg-brand-50 text-center transition flex flex-col items-center">
+            <i data-lucide="user-check" class="w-4 h-4 mb-1 text-blue-600"></i>
+            <span class="font-medium text-brand-900">ครูเวร (ศราวุธ)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN APP LAYOUT -->
+    <div id="page-main" class="h-full w-full hidden flex flex-col overflow-hidden">
+      
+      <!-- Top Mobile Navigation Bar -->
+      <header class="bg-brand-900 text-white lg:hidden px-4 py-3 flex items-center justify-between no-print z-40 shadow-md">
+        <div class="flex items-center gap-2">
+          <button onclick="toggleSidebar()" class="p-1.5 hover:bg-white/10 rounded-lg transition">
+            <i data-lucide="menu" class="w-6 h-6"></i>
+          </button>
+          <span class="font-bold text-sm tracking-wide" id="mobile-header-school">ร.ร.มูลนิธิอาซิซสถาน</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <!-- Database status indicator on mobile header -->
+          <button onclick="openSqlModal()" id="db-status-mobile" class="text-[10px] px-2 py-0.5 rounded-full font-bold border"></button>
+          
+          <button onclick="toggleNotificationPanel()" class="p-1.5 hover:bg-white/10 rounded-full relative">
+            <i data-lucide="bell" class="w-5 h-5"></i>
+            <span id="mobile-notification-badge" class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full hidden"></span>
+          </button>
+        </div>
+      </header>
+
+      <div class="flex h-full overflow-hidden">
+        
+        <!-- Sidebar Drawer (Large screen desktop default, side bar menu) -->
+        <aside id="sidebar" class="w-64 bg-brand-900 text-white flex-shrink-0 hidden lg:flex flex-col border-r border-brand-950 shadow-xl z-25">
+          <div class="p-4 border-b border-brand-850">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-sm font-bold shadow-inner">อซ</div>
+              <div>
+                <p class="font-bold text-sm text-white" id="sidebar-school">ร.ร.มูลนิธิอาซิซสถาน</p>
+                <p class="text-[10px] text-brand-200 bg-brand-950/40 px-2 py-0.5 rounded-full inline-block mt-0.5">เวรวันอังคาร (ครูชาย)</p>
+              </div>
+            </div>
+          </div>
+          <div class="p-3 border-b border-brand-850 bg-brand-950/30 flex justify-between items-center text-[10px]">
+            <span class="text-brand-200">สถานะคลาวด์:</span>
+            <button onclick="openSqlModal()" id="db-status-sidebar" class="px-2 py-0.5 font-bold rounded-full border transition hover:opacity-85"></button>
+          </div>
+          <nav class="flex-1 p-3 space-y-1 overflow-y-auto" id="sidebar-nav"></nav>
+          <div class="p-4 border-t border-brand-850 bg-brand-950/20">
+            <div class="flex items-center justify-between mb-3 text-xs text-brand-200">
+              <span>สถานะพิกัดจำลอง:</span>
+              <span id="gps-indicator" class="font-semibold text-green-400">ปกติ</span>
+            </div>
+            <button onclick="logout()" class="flex items-center gap-2 text-sm text-brand-200 hover:text-white w-full py-2 hover:bg-white/5 rounded px-2 transition">
+              <i data-lucide="log-out" class="w-4 h-4"></i>
+              <span>ออกจากระบบ</span>
+            </button>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.0</div>
+          </div>
+        </aside>
+
+        <!-- Main Content Container -->
+        <div class="flex-1 flex flex-col h-full overflow-hidden">
+          
+          <!-- Top Sticky Title Bar (Desktop Only) -->
+          <header class="bg-white border-b border-slate-200 px-6 py-3.5 hidden lg:flex items-center justify-between no-print flex-shrink-0 z-10 shadow-sm">
+            <h2 id="page-title" class="font-bold text-lg text-brand-900">Dashboard</h2>
+            
+            <div class="flex items-center gap-4">
+              <!-- Live Notification Panel Toggle -->
+              <div class="relative">
+                <button onclick="toggleNotificationPanel()" class="p-2 hover:bg-slate-100 rounded-full text-slate-500 relative transition">
+                  <i data-lucide="bell" class="w-5 h-5"></i>
+                  <span id="notification-badge" class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full hidden"></span>
+                </button>
+                
+                <!-- Quick notification list panel -->
+                <div id="notification-panel" class="absolute right-0 mt-2 w-80 bg-white border rounded-xl shadow-xl z-[100] hidden overflow-hidden">
+                  <div class="p-3 bg-brand-900 text-white font-bold text-xs flex justify-between items-center">
+                    <span>ประวัติพุชการแจ้งเตือน (จำลอง)</span>
+                    <button onclick="clearNotificationLogs()" class="text-[10px] bg-brand-800 hover:bg-brand-700 px-2 py-0.5 rounded transition">ล้างประวัติ</button>
+                  </div>
+                  <div id="notification-list" class="max-h-60 overflow-y-auto divide-y text-xs">
+                    <p class="p-4 text-center text-slate-400">ไม่มีประวัติการแจ้งเตือน</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- GPS Test Control Panel (Global Float/Bar) -->
+              <div class="border-l pl-4 flex items-center gap-2">
+                <span class="text-[11px] text-slate-500 font-semibold">📍 สภาพตำแหน่ง:</span>
+                <select id="gps-simulator" onchange="changeGPSSimulation()" class="text-xs bg-slate-100 border rounded-lg px-2.5 py-1.5 text-slate-700 outline-none">
+                  <option value="real">🛰️ ใช้ GPS จริงผ่านโทรศัพท์</option>
+                  <option value="point1" selected>📍 จำลองเวรจุดที่ 1 (ในขอบเขต)</option>
+                  <option value="point2">📍 จำลองเวรจุดที่ 2 (ในขอบเขต)</option>
+                  <option value="far">❌ จำลองอยู่นอกพื้นที่เวร</option>
+                </select>
+              </div>
+
+              <div class="flex items-center gap-2 border-l pl-4">
+                <div class="text-right">
+                  <p id="user-name" class="text-xs font-bold text-slate-700"></p>
+                  <span id="user-role-badge" class="text-[9px] px-2 py-0.5 rounded-full font-bold"></span>
+                </div>
+                <div class="w-8 h-8 bg-brand-100 rounded-full flex items-center justify-center shadow-inner">
+                  <i data-lucide="user" class="w-4 h-4 text-brand-800"></i>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <!-- Mobile GPS Status Bar (Only displays on smaller viewports) -->
+          <div class="bg-brand-50 border-b px-4 py-2 flex lg:hidden items-center justify-between no-print flex-shrink-0 text-[10px]">
+            <span class="text-slate-600 font-medium">📍 พิกัดปฏิบัติงาน:</span>
+            <select id="gps-simulator-mobile" onchange="syncGPSSimulationMobile(this)" class="bg-white border rounded px-1.5 py-1 text-slate-700 outline-none">
+              <option value="real">🛰️ ใช้ GPS จริงผ่านโทรศัพท์</option>
+              <option value="point1" selected>📍 จำลองเวรจุดที่ 1</option>
+              <option value="point2">📍 จำลองเวรจุดที่ 2</option>
+              <option value="far">❌ จำลองอยู่นอกพื้นที่</option>
+            </select>
+          </div>
+
+          <!-- Main Content Area -->
+          <main class="flex-1 overflow-y-auto p-4 md:p-6" id="main-content"></main>
+        </div>
+      </div>
+
+      <!-- Mobile Sidebar Overlay -->
+      <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden" onclick="toggleSidebar()"></div>
+      
+      <!-- Mobile Sidebar Drawer -->
+      <aside id="sidebar-mobile" class="fixed left-0 top-0 h-full w-64 bg-brand-900 text-white z-50 transform -translate-x-full transition-transform lg:hidden flex flex-col shadow-2xl">
+        <div class="p-4 border-b border-brand-850 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-sm font-bold shadow-inner">อซ</div>
+            <div>
+              <p class="font-bold text-sm">ร.ร.มูลนิธิอาซิซสถาน</p>
+              <p class="text-[10px] text-brand-200" id="mobile-sidebar-subtitle">เวรวันอังคาร (ครูชาย)</p>
+            </div>
+          </div>
+          <button onclick="toggleSidebar()" class="text-white hover:bg-white/10 p-1.5 rounded-lg transition">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <nav class="flex-1 p-3 space-y-1 overflow-y-auto" id="sidebar-nav-mobile"></nav>
+        <div class="p-4 border-t border-brand-850 bg-brand-950/20 text-xs">
+          <div class="mb-3 text-[10px] flex justify-between">
+            <span class="text-brand-200">ระบบฐานข้อมูล:</span>
+            <button onclick="openSqlModal()" id="db-status-mobile-drawer" class="px-2 py-0.5 rounded font-bold border"></button>
+          </div>
+          <button onclick="logout()" class="flex items-center gap-2 text-sm text-brand-200 hover:text-white w-full py-2 hover:bg-white/5 rounded px-2 transition">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+            <span>ออกจากระบบ</span>
+          </button>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.0</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. SUPABASE CONNECTION CONFIGURATION & SYNCING
+    // =========================================================================
+    const supabaseUrl = 'https://zhjqkylesnhcotpkzoxr.supabase.co';
+    const supabaseKey = 'sb_publishable_3vZV2TYujjhEmQcpdSk_1A_-B3AJK0n';
+    let supabaseClient = null;
+    let useSupabase = false;
+
+    // --- DATABASE MAPPING FUNCTIONS (DTO MAPPERS) ---
+    function mapDutyPointFromDB(dbPt) {
+      if (!dbPt) return null;
+      return {
+        id: dbPt.id,
+        name: dbPt.name,
+        time: dbPt.time,
+        lat: dbPt.lat,
+        lng: dbPt.lng,
+        radius: dbPt.radius,
+        assignedTo: dbPt.assigned_to || dbPt.assignedTo || []
+      };
+    }
+
+    function mapDutyPointToDB(jsPt) {
+      if (!jsPt) return null;
+      return {
+        id: jsPt.id,
+        name: jsPt.name,
+        time: jsPt.time,
+        lat: jsPt.lat,
+        lng: jsPt.lng,
+        radius: jsPt.radius,
+        assigned_to: jsPt.assignedTo || jsPt.assigned_to || []
+      };
+    }
+
+    function mapReportFromDB(dbRep) {
+      if (!dbRep) return null;
+      return {
+        id: dbRep.id,
+        date: dbRep.date,
+        pointId: dbRep.point_id !== undefined ? dbRep.point_id : dbRep.pointId,
+        teacherId: dbRep.teacher_id || dbRep.teacherId,
+        status: dbRep.status,
+        time: dbRep.time,
+        distance: dbRep.distance,
+        result: dbRep.result,
+        problem: dbRep.problem,
+        solution: dbRep.solution,
+        photo: dbRep.photo,
+        signature: dbRep.signature
+      };
+    }
+
+    function mapReportToDB(jsRep) {
+      if (!jsRep) return null;
+      return {
+        id: jsRep.id,
+        date: jsRep.date,
+        point_id: jsRep.pointId !== undefined ? jsRep.pointId : jsRep.point_id,
+        teacher_id: jsRep.teacherId || jsRep.teacher_id,
+        status: jsRep.status,
+        time: jsRep.time,
+        distance: jsRep.distance,
+        result: jsRep.result,
+        problem: jsRep.problem,
+        solution: jsRep.solution,
+        photo: jsRep.photo,
+        signature: jsRep.signature
+      };
+    }
+
+    function mapSettingsFromDB(dbSett) {
+      if (!dbSett) return null;
+      return {
+        schoolName: dbSett.school_name || dbSett.schoolName || '',
+        headName: dbSett.head_name || dbSett.headName || '',
+        directorName: dbSett.director_name || dbSett.directorName || '',
+        lineToken: dbSett.line_token || dbSett.lineToken || '',
+        telegramToken: dbSett.telegram_token || dbSett.telegramToken || '',
+        telegramChatId: dbSett.telegram_chat_id || dbSett.telegramChatId || '',
+        autoNotifyMinutes: dbSett.auto_notify_minutes !== undefined ? dbSett.auto_notify_minutes : (dbSett.autoNotifyMinutes || 15),
+        dutyDay: dbSett.duty_day || dbSett.dutyDay || 'อังคาร',
+        dutyGroup: dbSett.duty_group || dbSett.dutyGroup || 'ครูชาย',
+        defaultRadius: dbSett.default_radius !== undefined ? dbSett.default_radius : (dbSett.defaultRadius !== undefined ? dbSett.defaultRadius : 50),
+        centerLat: dbSett.center_lat !== undefined ? dbSett.center_lat : (dbSett.centerLat !== undefined ? dbSett.centerLat : 6.787680),
+        centerLng: dbSett.center_lng !== undefined ? dbSett.center_lng : (dbSett.centerLng !== undefined ? dbSett.centerLng : 101.408120)
+      };
+    }
+
+    function mapSettingsToDB(jsSett) {
+      if (!jsSett) return null;
+      return {
+        id: 'config',
+        school_name: jsSett.schoolName,
+        head_name: jsSett.headName,
+        director_name: jsSett.directorName,
+        line_token: jsSett.lineToken,
+        telegram_token: jsSett.telegramToken,
+        telegram_chat_id: jsSett.telegramChatId,
+        auto_notify_minutes: jsSett.autoNotifyMinutes,
+        duty_day: jsSett.dutyDay || 'อังคาร',
+        duty_group: jsSett.dutyGroup || 'ครูชาย',
+        default_radius: jsSett.defaultRadius !== undefined ? jsSett.defaultRadius : 50,
+        center_lat: jsSett.centerLat !== undefined ? jsSett.centerLat : 6.787680,
+        center_lng: jsSett.centerLng !== undefined ? jsSett.centerLng : 101.408120
+      };
+    }
+
+    // Default Mock Data in case Supabase tables do not exist yet
+    const defaultTeachers = [
+      { id: 'T001', name: 'นาย ศราวุธ เส้นสะนา',           role: 'teacher', phone: '0811111101', signature: null },
+      { id: 'T002', name: 'นาย ตูวันอับดุลเลาะ ตูวันหะยี', role: 'teacher', phone: '0811111102', signature: null },
+      { id: 'T003', name: 'นาย มูอัมหมัดเปาซี ลาเต็ะ',     role: 'teacher', phone: '0811111103', signature: null },
+      { id: 'T004', name: 'นาย นัสรี บินรัตแก้ว',           role: 'teacher', phone: '0811111104', signature: null },
+      { id: 'T005', name: 'นาย อาหามะ สือแม',               role: 'teacher', phone: '0811111105', signature: null },
+      { id: 'T006', name: 'นาย ฮัมบาลี วาจิ',               role: 'head',    phone: '0811111106', signature: null },
+      { id: 'T007', name: 'นาย นัทธีร์ หะยีเต็ะ',           role: 'teacher', phone: '0811111107', signature: null },
+      { id: 'T008', name: 'นาย อับดุลราฟาร์ ตาเยะ',         role: 'teacher', phone: '0811111108', signature: null },
+      { id: 'T009', name: 'นาย นิมิตร เจะยามา',             role: 'teacher', phone: '0811111109', signature: null },
+      { id: 'T010', name: 'นาย นูรุดีน ดือราแม',            role: 'teacher', phone: '0811111110', signature: null },
+      { id: 'T011', name: 'นาย สาฬูดี บือราเฮง',            role: 'teacher', phone: '0811111111', signature: null },
+      { id: 'T012', name: 'นาย อดินัน สะอิด',               role: 'teacher', phone: '0811111112', signature: null },
+      { id: 'T013', name: 'นาย อับดุลเราะมาน เส้นสะนา',    role: 'teacher', phone: '0811111113', signature: null },
+      { id: 'T014', name: 'นาย บัสรี โนรัตแก้ว',            role: 'teacher', phone: '0811111114', signature: null },
+    ];
+
+    const defaultDutyPoints = [
+      { id: 1,  name: 'ประจำประตูกับอาแซ',                                                          time: '08:00-09:00', lat: 6.787680, lng: 101.408120, radius: 50, assignedTo: ['T001'] },
+      { id: 2,  name: 'ประจำโตะปิงปอง',                                                             time: '08:00-09:15', lat: 6.787800, lng: 101.408200, radius: 40, assignedTo: ['T002', 'T003'] },
+      { id: 3,  name: 'ลงแถวจัดระเบียบแถว ตรวจเครื่องแบบ (ปวช/สามัญ)',                            time: '07:50-08:20', lat: 6.787500, lng: 101.408050, radius: 50, assignedTo: ['T004', 'T005', 'T006', 'T007', 'T008'] },
+      { id: 4,  name: 'อาคาร 5-6 และปิดประตู เร่งนักเรียนเข้าแถว',                                time: '07:55-08:20', lat: 6.787600, lng: 101.408300, radius: 40, assignedTo: ['T009'] },
+      { id: 5,  name: 'อาคาร 5 เร่งนักเรียนเข้าแถว',                                               time: '07:50-08:20', lat: 6.787700, lng: 101.408400, radius: 40, assignedTo: ['T010'] },
+      { id: 6,  name: 'คาบแรกอาคาร 5 เร่งนักเรียนเข้าเรียน',                                      time: '08:20-08:40', lat: 6.787700, lng: 101.408400, radius: 40, assignedTo: ['T008', 'T007'] },
+      { id: 7,  name: 'ลาดตระเวน คาบ 3',                                                           time: '10:00-10:45', lat: 6.788000, lng: 101.408600, radius: 60, assignedTo: ['T011', 'T012'] },
+      { id: 8,  name: 'ลาดตระเวน คาบ 4',                                                           time: '10:45-11:30', lat: 6.788000, lng: 101.408600, radius: 60, assignedTo: ['T005', 'T002'] },
+      { id: 9,  name: 'ก่อนหมดคาบ 5 ตรวจตรานักเรียนหนีลงเขาโรงอาหาร',                           time: '11:50-12:15', lat: 6.787900, lng: 101.408500, radius: 50, assignedTo: ['T007', 'T012'] },
+      { id: 10, name: 'บริเวณโตะปิงปองถึงประตูใหญ่ ตรวจตรานักเรียนหนีกลับบ้าน (คาบ 5)',          time: '11:45-12:10', lat: 6.787800, lng: 101.408200, radius: 50, assignedTo: ['T013'] },
+      { id: 11, name: 'บริเวณโตะปิงปองถึงประตูใหญ่ ตรวจตรานักเรียนหนีกลับบ้าน (คาบ 6)',          time: '12:15-13:00', lat: 6.787800, lng: 101.408200, radius: 50, assignedTo: ['T001'] },
+      { id: 12, name: 'ประจำมูซอลลา/มัสยิด เป็นอีม่ามและจัดระเบียบการละหมาดของนักเรียน',         time: '12:15-13:10', lat: 6.788200, lng: 101.408800, radius: 60, assignedTo: ['T009', 'T005', 'T006', 'T011', 'T010', 'T004'] },
+      { id: 13, name: 'ลาดตระเวณคาบ 7 (เน้นหน้าห้องน้ำโรงยิมและห้องน้ำใกล้มูซอลลา/มัสยิด)',     time: '13:55-14:40', lat: 6.788100, lng: 101.408700, radius: 60, assignedTo: ['T013', 'T002'] },
+      { id: 14, name: 'ลาดตระเวณคาบ 8',                                                            time: '14:40-15:40', lat: 6.788000, lng: 101.408600, radius: 60, assignedTo: [] },
+      { id: 15, name: 'ช่องแตเบาแลกเอกสาร ตรวจตรานักเรียนหนีกลับบ้านก่อนหมดคาบ 9',              time: '15:40-16:10', lat: 6.787650, lng: 101.408150, radius: 50, assignedTo: ['T003'] },
+      { id: 16, name: 'บริเวณทิจอตรถมอเตอร์ไซด์ชาย',                                              time: '15:40-16:10', lat: 6.787400, lng: 101.407900, radius: 50, assignedTo: ['T014'] },
+      { id: 17, name: 'บริเวณหน้าห้องพักอุสตาสหน้าโรงยิม ตรวจตรานักเรียนหนีกลับบ้านก่อนหมดคาบ 9', time: '15:40-16:10', lat: 6.788300, lng: 101.409000, radius: 50, assignedTo: ['T006'] },
+      { id: 18, name: 'บริเวณส่วนก สวนเกษตรทางลงนักเรียนหนีกลับบ้านก่อนหมดคาบ',                  time: '15:40-16:10', lat: 6.787200, lng: 101.407800, radius: 50, assignedTo: ['T010'] },
+      { id: 19, name: 'หัวมุมอาคาร 3 และห้องน้ำหญิง',                                             time: '15:40-16:10', lat: 6.787550, lng: 101.408250, radius: 40, assignedTo: ['T008'] },
+      { id: 20, name: 'หน้าอาคาร 5 ตรวจตรานักเรียนหนีลงก่อนหมดคาบ',                             time: '15:40-16:10', lat: 6.787700, lng: 101.408400, radius: 50, assignedTo: ['T011', 'T009'] },
+    ];
+
+    const defaultReports = [];
+
+    const defaultSettings = {
+      schoolName: 'โรงเรียนมูลนิธิอาซิซสถาน',
+      headName: 'นาย ฮัมบาลี วาจิ',
+      directorName: 'ดร.มูฮัมหมัด ซากี',
+      lineToken: '',
+      telegramToken: '',
+      telegramChatId: '',
+      autoNotifyMinutes: 15,
+      dutyDay: 'อังคาร',
+      dutyGroup: 'ครูชาย',
+      defaultRadius: 50,
+      centerLat: 6.787680,
+      centerLng: 101.408120
+    };
+
+    // SQL code block template string
+    const sqlCode = `-- คัดลอกคำสั่งด้านล่างนี้ไปรันในเมนู SQL Editor ของ Supabase
+
+-- 1. สร้างตารางข้อมูลคุณครู
+CREATE TABLE IF NOT EXISTS teachers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'teacher',
+  phone TEXT,
+  signature TEXT
+);
+
+-- 2. สร้างตารางจุดปฏิบัติหน้าที่เวรประจำวัน
+CREATE TABLE IF NOT EXISTS duty_points (
+  id BIGINT PRIMARY KEY,
+  name TEXT NOT NULL,
+  time TEXT NOT NULL,
+  lat DOUBLE PRECISION NOT NULL,
+  lng DOUBLE PRECISION NOT NULL,
+  radius INTEGER NOT NULL DEFAULT 50,
+  assigned_to TEXT[] NOT NULL DEFAULT '{}'::text[]
+);
+
+-- 3. สร้างตารางรายงานผลการปฏิบัติหน้าที่เวร
+CREATE TABLE IF NOT EXISTS reports (
+  id TEXT PRIMARY KEY,
+  date DATE NOT NULL,
+  point_id BIGINT NOT NULL,
+  teacher_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'not_reported',
+  time TEXT NOT NULL,
+  distance DOUBLE PRECISION NOT NULL,
+  result TEXT,
+  problem TEXT,
+  solution TEXT,
+  photo TEXT,
+  signature TEXT
+);
+
+-- 4. สร้างตารางจัดการการตั้งค่าระบบและ Token ต่างๆ
+CREATE TABLE IF NOT EXISTS settings (
+  id TEXT PRIMARY KEY,
+  school_name TEXT NOT NULL,
+  head_name TEXT NOT NULL,
+  director_name TEXT NOT NULL,
+  line_token TEXT,
+  telegram_token TEXT,
+  telegram_chat_id TEXT,
+  auto_notify_minutes INTEGER NOT NULL DEFAULT 15,
+  duty_day TEXT DEFAULT 'อังคาร',
+  duty_group TEXT DEFAULT 'ครูชาย',
+  default_radius INTEGER DEFAULT 50,
+  center_lat DOUBLE PRECISION DEFAULT 6.787680,
+  center_lng DOUBLE PRECISION DEFAULT 101.408120
+);
+
+-- 5. ปิดการตั้งค่า RLS เพื่ออนุญาตให้เขียนอ่านตรงได้สำหรับเว็บสาธิตนี้
+ALTER TABLE teachers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE duty_points DISABLE ROW LEVEL SECURITY;
+ALTER TABLE reports DISABLE ROW LEVEL SECURITY;
+ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
+
+-- 6. นำเข้าข้อมูลเริ่มต้นที่จำเป็นลงในตาราง
+-- [ลบข้อมูลเก่าก่อน แล้วค่อยใส่ใหม่ เพื่อป้องกันข้อมูลซ้ำ]
+DELETE FROM duty_points;
+DELETE FROM teachers;
+
+INSERT INTO teachers (id, name, role, phone, signature) VALUES
+('T001', 'นาย ศราวุธ เส้นสะนา',           'teacher', '0811111101', NULL),
+('T002', 'นาย ตูวันอับดุลเลาะ ตูวันหะยี', 'teacher', '0811111102', NULL),
+('T003', 'นาย มูอัมหมัดเปาซี ลาเต็ะ',     'teacher', '0811111103', NULL),
+('T004', 'นาย นัสรี บินรัตแก้ว',           'teacher', '0811111104', NULL),
+('T005', 'นาย อาหามะ สือแม',               'teacher', '0811111105', NULL),
+('T006', 'นาย ฮัมบาลี วาจิ',               'head',    '0811111106', NULL),
+('T007', 'นาย นัทธีร์ หะยีเต็ะ',           'teacher', '0811111107', NULL),
+('T008', 'นาย อับดุลราฟาร์ ตาเยะ',         'teacher', '0811111108', NULL),
+('T009', 'นาย นิมิตร เจะยามา',             'teacher', '0811111109', NULL),
+('T010', 'นาย นูรุดีน ดือราแม',            'teacher', '0811111110', NULL),
+('T011', 'นาย สาฬูดี บือราเฮง',            'teacher', '0811111111', NULL),
+('T012', 'นาย อดินัน สะอิด',               'teacher', '0811111112', NULL),
+('T013', 'นาย อับดุลเราะมาน เส้นสะนา',    'teacher', '0811111113', NULL),
+('T014', 'นาย บัสรี โนรัตแก้ว',            'teacher', '0811111114', NULL)
+ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, role=EXCLUDED.role, phone=EXCLUDED.phone;
+
+INSERT INTO duty_points (id, name, time, lat, lng, radius, assigned_to) VALUES
+(1,  'ประจำประตูกับอาแซ',                                                             '08:00-09:00', 6.787680, 101.408120, 50, ARRAY['T001']),
+(2,  'ประจำโตะปิงปอง',                                                                '08:00-09:15', 6.787800, 101.408200, 40, ARRAY['T002','T003']),
+(3,  'ลงแถวจัดระเบียบแถว ตรวจเครื่องแบบ (ปวช/สามัญ)',                               '07:50-08:20', 6.787500, 101.408050, 50, ARRAY['T004','T005','T006','T007','T008']),
+(4,  'อาคาร 5-6 และปิดประตู เร่งนักเรียนเข้าแถว',                                   '07:55-08:20', 6.787600, 101.408300, 40, ARRAY['T009']),
+(5,  'อาคาร 5 เร่งนักเรียนเข้าแถว',                                                  '07:50-08:20', 6.787700, 101.408400, 40, ARRAY['T010']),
+(6,  'คาบแรกอาคาร 5 เร่งนักเรียนเข้าเรียน',                                         '08:20-08:40', 6.787700, 101.408400, 40, ARRAY['T008','T007']),
+(7,  'ลาดตระเวน คาบ 3',                                                              '10:00-10:45', 6.788000, 101.408600, 60, ARRAY['T011','T012']),
+(8,  'ลาดตระเวน คาบ 4',                                                              '10:45-11:30', 6.788000, 101.408600, 60, ARRAY['T005','T002']),
+(9,  'ก่อนหมดคาบ 5 ตรวจตรานักเรียนหนีลงเขาโรงอาหาร',                              '11:50-12:15', 6.787900, 101.408500, 50, ARRAY['T007','T012']),
+(10, 'บริเวณโตะปิงปองถึงประตูใหญ่ ตรวจตรานักเรียนหนีกลับบ้าน (คาบ 5)',             '11:45-12:10', 6.787800, 101.408200, 50, ARRAY['T013']),
+(11, 'บริเวณโตะปิงปองถึงประตูใหญ่ ตรวจตรานักเรียนหนีกลับบ้าน (คาบ 6)',             '12:15-13:00', 6.787800, 101.408200, 50, ARRAY['T001']),
+(12, 'ประจำมูซอลลา/มัสยิด เป็นอีม่ามและจัดระเบียบการละหมาดของนักเรียน',            '12:15-13:10', 6.788200, 101.408800, 60, ARRAY['T009','T005','T006','T011','T010','T004']),
+(13, 'ลาดตระเวณคาบ 7 (เน้นหน้าห้องน้ำโรงยิมและห้องน้ำใกล้มูซอลลา/มัสยิด)',        '13:55-14:40', 6.788100, 101.408700, 60, ARRAY['T013','T002']),
+(14, 'ลาดตระเวณคาบ 8',                                                               '14:40-15:40', 6.788000, 101.408600, 60, ARRAY[]::text[]),
+(15, 'ช่องแตเบาแลกเอกสาร ตรวจตรานักเรียนหนีกลับบ้านก่อนหมดคาบ 9',               '15:40-16:10', 6.787650, 101.408150, 50, ARRAY['T003']),
+(16, 'บริเวณทิจอตรถมอเตอร์ไซด์ชาย',                                                 '15:40-16:10', 6.787400, 101.407900, 50, ARRAY['T014']),
+(17, 'บริเวณหน้าห้องพักอุสตาสหน้าโรงยิม ตรวจตรานักเรียนหนีกลับบ้านก่อนหมดคาบ 9', '15:40-16:10', 6.788300, 101.409000, 50, ARRAY['T006']),
+(18, 'บริเวณส่วนก สวนเกษตรทางลงนักเรียนหนีกลับบ้านก่อนหมดคาบ',                   '15:40-16:10', 6.787200, 101.407800, 50, ARRAY['T010']),
+(19, 'หัวมุมอาคาร 3 และห้องน้ำหญิง',                                                '15:40-16:10', 6.787550, 101.408250, 40, ARRAY['T008']),
+(20, 'หน้าอาคาร 5 ตรวจตรานักเรียนหนีลงก่อนหมดคาบ',                               '15:40-16:10', 6.787700, 101.408400, 50, ARRAY['T011','T009'])
+ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, time=EXCLUDED.time, lat=EXCLUDED.lat, lng=EXCLUDED.lng, radius=EXCLUDED.radius, assigned_to=EXCLUDED.assigned_to;
+
+-- 6.5 [สำคัญ!] เพิ่มคอลัมน์ใหม่ในตาราง settings ก่อน INSERT (รันได้ปลอดภัยหากมีคอลัมน์แล้ว)
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS duty_day TEXT DEFAULT 'อังคาร';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS duty_group TEXT DEFAULT 'ครูชาย';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_radius INTEGER DEFAULT 50;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS center_lat DOUBLE PRECISION DEFAULT 6.787680;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS center_lng DOUBLE PRECISION DEFAULT 101.408120;
+
+INSERT INTO settings (id, school_name, head_name, director_name, line_token, telegram_token, telegram_chat_id, auto_notify_minutes, duty_day, duty_group, default_radius, center_lat, center_lng) VALUES
+('config', 'โรงเรียนมูลนิธิอาซิซสถาน', 'นาย ฮัมบาลี วาจิ', 'ดร.มูฮัมหมัด ซากี', '', '', '', 15, 'อังคาร', 'ครูชาย', 50, 6.787680, 101.408120)
+ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLUDED.head_name, director_name=EXCLUDED.director_name, duty_day=EXCLUDED.duty_day, duty_group=EXCLUDED.duty_group, default_radius=EXCLUDED.default_radius, center_lat=EXCLUDED.center_lat, center_lng=EXCLUDED.center_lng;
+`;
+
+    // Local DB backup
+    const db = {
+      getTeachers: () => JSON.parse(localStorage.getItem('wen_teachers')) || defaultTeachers,
+      saveTeachers: (data) => localStorage.setItem('wen_teachers', JSON.stringify(data)),
+      getDutyPoints: () => {
+        const raw = JSON.parse(localStorage.getItem('wen_dutyPoints'));
+        if (!raw || !Array.isArray(raw)) return defaultDutyPoints;
+        return raw.map(mapDutyPointFromDB);
+      },
+      saveDutyPoints: (data) => localStorage.setItem('wen_dutyPoints', JSON.stringify(data)),
+      getReports: () => {
+        const raw = JSON.parse(localStorage.getItem('wen_reports'));
+        if (!raw || !Array.isArray(raw)) return defaultReports;
+        return raw.map(mapReportFromDB);
+      },
+      saveReports: (data) => localStorage.setItem('wen_reports', JSON.stringify(data)),
+      getSettings: () => {
+        const raw = JSON.parse(localStorage.getItem('wen_settings'));
+        if (!raw) return defaultSettings;
+        return mapSettingsFromDB(raw);
+      },
+      saveSettings: (data) => localStorage.setItem('wen_settings', JSON.stringify(data)),
+      getNotificationLogs: () => JSON.parse(localStorage.getItem('wen_notification_logs')) || [],
+      saveNotificationLogs: (data) => localStorage.setItem('wen_notification_logs', JSON.stringify(data))
+    };
+
+    // Clear stale local data if app version changed
+    const APP_VERSION = '1.5.0';
+    if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
+      localStorage.removeItem('wen_teachers');
+      localStorage.removeItem('wen_dutyPoints');
+      localStorage.removeItem('wen_reports');
+      localStorage.removeItem('wen_settings');
+      localStorage.setItem('wen_app_version', APP_VERSION);
+      console.log('App version changed to', APP_VERSION, '- local cache cleared.');
+    }
+
+    // Initialize Supabase Client Connection Check
+    async function initSupabase() {
+      try {
+        if (window.supabase && window.supabase.createClient) {
+          supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+          
+          // Verify tables by running a simple query
+          const { data, error } = await supabaseClient.from('teachers').select('id').limit(1);
+          if (error) {
+            console.warn("Supabase configuration exists but tables not found:", error);
+            useSupabase = false;
+          } else {
+            useSupabase = true;
+            console.log("Supabase Online Connection Successful!");
+            
+            // Sync current cloud tables data to local storage as cache
+            await syncCloudDataToLocal();
+            updateDynamicTitles();
+          }
+        }
+      } catch (err) {
+        console.error("Supabase initialize connection failed:", err);
+        useSupabase = false;
+      }
+      updateDatabaseStatusUI();
+    }
+
+    // Sync cloud tables to cache
+    async function syncCloudDataToLocal() {
+      try {
+        const teachers = await supabaseClient.from('teachers').select('*');
+        if (teachers.data && teachers.data.length > 0) db.saveTeachers(teachers.data);
+
+        const points = await supabaseClient.from('duty_points').select('*').order('id');
+        if (points.data && points.data.length > 0) {
+          const mappedPoints = points.data.map(mapDutyPointFromDB);
+          db.saveDutyPoints(mappedPoints);
+        }
+
+        const reports = await supabaseClient.from('reports').select('*');
+        if (reports.data) {
+          const mappedReports = reports.data.map(mapReportFromDB);
+          db.saveReports(mappedReports);
+        }
+
+        const settings = await supabaseClient.from('settings').select('*').eq('id', 'config');
+        if (settings.data && settings.data.length > 0) {
+          const mappedSettings = mapSettingsFromDB(settings.data[0]);
+          db.saveSettings(mappedSettings);
+        }
+      } catch (err) {
+        console.warn("Failed to sync cloud tables", err);
+      }
+    }
+
+    // Update Indicators
+    function updateDatabaseStatusUI() {
+      const texts = useSupabase 
+        ? '🔌 Supabase Online' 
+        : '📁 Local Offline (ตั้งค่า)';
+      
+      const clses = useSupabase 
+        ? 'bg-green-100 border-green-300 text-green-800' 
+        : 'bg-amber-100 border-amber-300 text-amber-800 animate-pulse';
+
+      // Desktop
+      const badgeS = document.getElementById('db-status-sidebar');
+      if (badgeS) {
+        badgeS.textContent = texts;
+        badgeS.className = `px-2 py-0.5 rounded-full border transition hover:opacity-85 ${clses}`;
+      }
+
+      // Mobile
+      const badgeM = document.getElementById('db-status-mobile');
+      if (badgeM) {
+        badgeM.textContent = texts;
+        badgeM.className = `text-[10px] px-2 py-0.5 rounded-full font-bold border ${clses}`;
+      }
+
+      const badgeDrawer = document.getElementById('db-status-mobile-drawer');
+      if (badgeDrawer) {
+        badgeDrawer.textContent = texts;
+        badgeDrawer.className = `px-2 py-0.5 rounded font-bold border ${clses}`;
+      }
+    }
+
+    // SQL modal helpers
+    function openSqlModal() {
+      document.getElementById('sql-code-block').textContent = sqlCode;
+      document.getElementById('sql-modal').classList.remove('hidden');
+    }
+    function closeSqlModal() {
+      document.getElementById('sql-modal').classList.add('hidden');
+    }
+    function copySQLCode() {
+      navigator.clipboard.writeText(sqlCode);
+      showToast('คัดลอก SQL Code ลงคลิปบอร์ดสำเร็จแล้ว!', 'success');
+    }
+
+    // =========================================================================
+    // 2. STATE & VIEW CONFIGURATIONS
+    // =========================================================================
+    let currentUser = null;
+    let currentPage = 'dashboard';
+    let sidebarOpen = false;
+    let mockLatitude = 6.787680;  // Default simulation coordinates
+    let mockLongitude = 101.408120;
+    let signatureCanvas = null;
+    let signatureCtx = null;
+    let signatureDrawing = false;
+    let reportModalActivePointId = null;
+    let uploadedReportPhotoBase64 = null;
+    let currentMapInstance = null; // Leaflet map reference
+    let pointMarkerInstance = null;
+    let modalMapInstance = null; // Map picker inside the point creation/edit modal
+    let modalMapMarker = null;
+
+    const adminMenus = [
+      { id: 'dashboard', icon: 'layout-dashboard', label: 'Dashboard' },
+      { id: 'today-report', icon: 'clipboard-list', label: 'รายงานเวรวันนี้' },
+      { id: 'schedule', icon: 'calendar', label: 'ตารางเวร' },
+      { id: 'teachers', icon: 'users', label: 'ครูผู้ปฏิบัติหน้าที่' },
+      { id: 'duty-points', icon: 'map-pin', label: 'จุดเวรและพิกัด' },
+      { id: 'documents', icon: 'file-text', label: 'เอกสารรายงาน' },
+      { id: 'memo', icon: 'file-warning', label: 'บันทึกข้อความติดตาม' },
+      { id: 'settings', icon: 'settings', label: 'ตั้งค่าระบบ' },
+    ];
+
+    const teacherMenus = [
+      { id: 'my-duty', icon: 'clipboard-check', label: 'จุดเวรของฉัน' },
+      { id: 'my-history', icon: 'history', label: 'ประวัติการรายงาน' },
+    ];
+
+    // =========================================================================
+    // 3. AUTHENTICATION & NAVIGATION
+    // =========================================================================
+    
+    function loginAs(role) {
+      const teachers = db.getTeachers();
+      if (role === 'admin') {
+        currentUser = { id: 'A001', name: 'แอดมินฝ่ายปกครอง', role: 'admin' };
+      } else if (role === 'head') {
+        currentUser = teachers.find(t => t.role === 'head') || { id: 'T004', name: 'นายอับดุลเลาะ ดอเลาะ', role: 'head' };
+      } else {
+        currentUser = teachers.find(t => t.role === 'teacher') || teachers[0];
+      }
+      
+      document.getElementById('page-login').classList.add('hidden');
+      document.getElementById('page-main').classList.remove('hidden');
+      
+      document.getElementById('user-role-badge').textContent = 
+        currentUser.role === 'admin' ? 'ผู้ดูแลระบบ' : currentUser.role === 'head' ? 'หัวหน้าเวร' : 'ครูเวร';
+      
+      const badge = document.getElementById('user-role-badge');
+      badge.className = "text-[9px] px-2 py-0.5 rounded-full font-bold " + 
+        (currentUser.role === 'admin' ? 'bg-red-100 text-red-800' : currentUser.role === 'head' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800');
+        
+      document.getElementById('user-name').textContent = currentUser.name;
+      
+      buildSidebar();
+      updateDynamicTitles();
+      navigateTo(currentUser.role === 'teacher' ? 'my-duty' : 'dashboard');
+      showToast(`เข้าสู่ระบบในฐานะ: ${currentUser.name}`, 'success');
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const loginId = document.getElementById('login-id').value.trim();
+      const teachers = db.getTeachers();
+      
+      // Find teacher matching ID or Phone
+      const matched = teachers.find(t => t.id.toLowerCase() === loginId.toLowerCase() || t.phone === loginId);
+      
+      if (matched) {
+        currentUser = matched;
+        document.getElementById('page-login').classList.add('hidden');
+        document.getElementById('page-main').classList.remove('hidden');
+        
+        document.getElementById('user-role-badge').textContent = 
+          currentUser.role === 'admin' ? 'ผู้ดูแลระบบ' : currentUser.role === 'head' ? 'หัวหน้าเวร' : 'ครูเวร';
+        
+        const badge = document.getElementById('user-role-badge');
+        badge.className = "text-[9px] px-2 py-0.5 rounded-full font-bold " + 
+          (currentUser.role === 'admin' ? 'bg-red-100 text-red-800' : currentUser.role === 'head' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800');
+          
+        document.getElementById('user-name').textContent = currentUser.name;
+        
+        buildSidebar();
+        updateDynamicTitles();
+        navigateTo(currentUser.role === 'teacher' ? 'my-duty' : 'dashboard');
+        showToast(`เข้าสู่ระบบสำเร็จ! สวัสดีครับ ${currentUser.name}`, 'success');
+      } else if (loginId.toLowerCase() === 'admin') {
+        loginAs('admin');
+      } else {
+        showToast('ไม่พบข้อมูลผู้ใช้นี้ในระบบ กรุณาใช้ T001-T006 หรือ "admin" เพื่อจำลองระบบ', 'error');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('page-login').classList.remove('hidden');
+      document.getElementById('page-main').classList.add('hidden');
+      if (sidebarOpen) toggleSidebar();
+      showToast('ออกจากระบบเรียบร้อยแล้ว', 'info');
+    }
+
+    function buildSidebar() {
+      const menus = currentUser.role === 'teacher' ? teacherMenus : adminMenus;
+      const html = menus.map(m => `
+        <button onclick="navigateTo('${m.id}')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition" data-page="${m.id}">
+          <i data-lucide="${m.icon}" class="w-4.5 h-4.5 text-brand-200"></i>
+          <span>${m.label}</span>
+        </button>
+      `).join('');
+      document.getElementById('sidebar-nav').innerHTML = html;
+      document.getElementById('sidebar-nav-mobile').innerHTML = html;
+      lucide.createIcons();
+    }
+
+    function toggleSidebar() {
+      sidebarOpen = !sidebarOpen;
+      document.getElementById('sidebar-overlay').classList.toggle('hidden', !sidebarOpen);
+      document.getElementById('sidebar-mobile').classList.toggle('-translate-x-full', !sidebarOpen);
+    }
+
+    function navigateTo(page) {
+      currentPage = page;
+      if (sidebarOpen) toggleSidebar();
+      document.querySelectorAll('.sidebar-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+      
+      const titles = {
+        dashboard: 'แผงควบคุมหลัก (Dashboard)',
+        'today-report': 'ติดตามการปฏิบัติเวรวันนี้',
+        schedule: 'จัดการตารางเวรประจำวัน',
+        teachers: 'ข้อมูลครูผู้ปฏิบัติหน้าที่',
+        'duty-points': 'ตั้งค่าจุดเวรและพิกัด Geofence',
+        documents: 'เอกสารรายงานทางการ',
+        memo: 'บันทึกข้อความติดตามผล',
+        settings: 'ตั้งค่าระบบและการเชื่อมต่อ',
+        'my-duty': 'บันทึกรายงานการปฏิบัติเวรของฉัน',
+        'my-history': 'ประวัติการบันทึกรายงานเวรย้อนหลัง'
+      };
+      
+      const titleEl = document.getElementById('page-title');
+      if (titleEl) titleEl.textContent = titles[page] || page;
+      renderPage(page);
+    }
+
+    // =========================================================================
+    // 4. RENDERING PAGES
+    // =========================================================================
+    function renderPage(page) {
+      const mc = document.getElementById('main-content');
+      settingsMapInstance = null;
+      settingsMapMarker = null;
+      switch (page) {
+        case 'dashboard':
+        case 'today-report':
+          mc.innerHTML = renderDashboardView();
+          break;
+        case 'schedule':
+          mc.innerHTML = renderScheduleView();
+          break;
+        case 'teachers':
+          mc.innerHTML = renderTeachersView();
+          break;
+        case 'duty-points':
+          mc.innerHTML = renderDutyPointsView();
+          initDutyPointsMap();
+          break;
+        case 'documents':
+          mc.innerHTML = renderDocumentsView();
+          break;
+        case 'memo':
+          mc.innerHTML = renderMemoView();
+          break;
+        case 'settings':
+          mc.innerHTML = renderSettingsView();
+          break;
+        case 'my-duty':
+          mc.innerHTML = renderMyDutyView();
+          updateTeacherLocationStatus();
+          break;
+        case 'my-history':
+          mc.innerHTML = renderMyHistoryView();
+          break;
+        default:
+          mc.innerHTML = `<div class="p-4 text-center text-slate-500">กำลังพัฒนาเนื้อหาหน้า: ${page}</div>`;
+      }
+      lucide.createIcons();
+    }
+
+    // =========================================================================
+    // 5. VIEW DEFINITIONS
+    // =========================================================================
+
+    // A. DASHBOARD VIEW (Admin / Head of Duty)
+    function renderDashboardView() {
+      const settings = db.getSettings();
+      const points = db.getDutyPoints();
+      const reports = db.getReports().filter(r => r.date === getTodayISODate());
+      
+      const totalPoints = points.length;
+      const reportedCount = reports.filter(r => r.status === 'reported').length;
+      const problemCount = reports.filter(r => r.status === 'problem').length;
+      const pendingCount = reports.filter(r => r.status === 'pending').length;
+      const totalActiveReported = reportedCount + problemCount + pendingCount;
+      const notReportedCount = totalPoints - totalActiveReported;
+
+      const ratePercent = totalPoints > 0 ? Math.round((totalActiveReported / totalPoints) * 100) : 0;
+
+      return `
+        <div class="fade-in space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b pb-4">
+            <div>
+              <p class="text-xs text-slate-500 flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4 text-brand-700"></i> ${getTodayThaiFullDate()}</p>
+              <h3 class="text-lg font-bold text-slate-900 mt-1">สรุปการปฏิบัติหน้าที่เวรประจำวันนี้</h3>
+            </div>
+            <div class="text-[10px] text-slate-500 bg-white border px-3 py-1.5 rounded-lg inline-flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
+              <span>เรียลไทม์ซิงค์ Supabase</span>
+            </div>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            ${statCard('จุดเวรทั้งหมด', totalPoints, 'map-pin', 'bg-blue-50 text-blue-700 border-blue-100')}
+            ${statCard('รายงานแล้ว', reportedCount, 'check-circle', 'bg-green-50 text-green-700 border-green-100')}
+            ${statCard('พบปัญหา', problemCount, 'alert-triangle', 'bg-red-50 text-red-700 border-red-100')}
+            ${statCard('ยังไม่รายงาน', notReportedCount, 'x-circle', 'bg-amber-50 text-amber-700 border-amber-100')}
+            <div class="col-span-2 lg:col-span-1 bg-gradient-to-br from-brand-900 to-brand-800 text-white rounded-xl p-4 shadow-sm flex flex-col justify-between">
+              <div>
+                <p class="text-[10px] text-brand-100">อัตราการรายงาน</p>
+                <p class="text-2xl font-black mt-1">${ratePercent}%</p>
+              </div>
+              <div class="w-full bg-brand-950/40 rounded-full h-1.5 mt-2 overflow-hidden">
+                <div class="bg-brand-300 h-full rounded-full" style="width: ${ratePercent}%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm no-print">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+                <input type="text" id="dash-filter-teacher" oninput="filterDashboardTable()" placeholder="ค้นชื่อคุณครู..." class="w-full text-xs pl-9 pr-4 py-2 border rounded-lg outline-none focus:ring-1 focus:ring-brand-500">
+              </div>
+              <select id="dash-filter-point" onchange="filterDashboardTable()" class="text-xs border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-brand-500 text-slate-600">
+                <option value="all">ทุกจุดเวร</option>
+                ${points.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+              </select>
+              <select id="dash-filter-status" onchange="filterDashboardTable()" class="text-xs border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-brand-500 text-slate-600">
+                <option value="all">ทุกสถานะรายงาน</option>
+                <option value="reported">รายงานแล้ว (ปกติ)</option>
+                <option value="problem">พบปัญหา</option>
+                <option value="not_reported">ยังไม่ได้รายงาน</option>
+              </select>
+              <div class="flex gap-2">
+                <button onclick="exportToExcel()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-lg px-2 py-2 font-medium transition flex items-center justify-center gap-1">
+                  <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Excel
+                </button>
+                <button onclick="navigateTo('documents')" class="flex-1 bg-brand-850 hover:bg-brand-700 text-white text-xs rounded-lg px-2 py-2 font-medium transition flex items-center justify-center gap-1">
+                  <i data-lucide="printer" class="w-3.5 h-3.5"></i> พิมพ์ใบเวร
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dashboard Duty Table & Mobile List View -->
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+              <h4 class="font-bold text-xs text-brand-950">สถานะความคืบหน้ารายบุคคล</h4>
+              <span class="text-[10px] text-slate-400">เวรตรวจวัน${settings.dutyDay || 'อังคาร'} (${settings.dutyGroup || 'ครูชาย'})</span>
+            </div>
+            
+            <!-- Wide screen Table (hidden on mobile) -->
+            <div class="overflow-x-auto hidden md:block">
+              <table class="w-full text-xs text-left" id="dashboard-table">
+                <thead class="bg-slate-100 text-slate-600 uppercase border-b border-slate-200">
+                  <tr>
+                    <th class="px-4 py-3 text-center">จุดเวร</th>
+                    <th class="px-4 py-3">รายละเอียดจุดปฏิบัติงาน</th>
+                    <th class="px-4 py-3">เวลาเวร</th>
+                    <th class="px-4 py-3">ผู้ปฏิบัติ</th>
+                    <th class="px-4 py-3 text-center">สถานะ</th>
+                    <th class="px-4 py-3 text-center">เวลา</th>
+                    <th class="px-4 py-3 text-center">ระยะทาง GPS</th>
+                    <th class="px-4 py-3">บันทึกผล / ปัญหา</th>
+                    <th class="px-4 py-3 text-center">ลายเซ็น</th>
+                    <th class="px-4 py-3 text-center no-print">ดู</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-150">
+                  ${points.flatMap(p => {
+                    const assignedList = p.assignedTo || p.assigned_to || [];
+                    return assignedList.map(teacherId => {
+                      const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
+                      const status = rep ? rep.status : 'not_reported';
+                      
+                      let badge = '';
+                      if (status === 'reported') badge = '<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold">เรียบร้อย</span>';
+                      else if (status === 'problem') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold animate-pulse">พบปัญหา!</span>';
+                      else badge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">ยังไม่ลงชื่อ</span>';
+
+                      return `
+                        <tr class="hover:bg-slate-50 transition cursor-default dash-row" data-point-id="${p.id}" data-status="${status}" data-teacher-name="${getTeacherName(teacherId)}">
+                          <td class="px-4 py-3 text-center font-bold text-brand-900">จุดที่ ${p.id}</td>
+                          <td class="px-4 py-3 font-semibold text-slate-800">${p.name}</td>
+                          <td class="px-4 py-3 text-slate-500">${p.time} น.</td>
+                          <td class="px-4 py-3 font-bold text-slate-800">${getTeacherName(teacherId)}</td>
+                          <td class="px-4 py-3 text-center">${badge}</td>
+                          <td class="px-4 py-3 text-center font-bold text-slate-600">${rep ? rep.time + ' น.' : '-'}</td>
+                          <td class="px-4 py-3 text-center text-slate-500">${rep ? rep.distance.toFixed(1) + ' ม.' : '-'}</td>
+                          <td class="px-4 py-3 max-w-[150px] truncate">
+                            ${rep ? (rep.status === 'problem' ? `<span class="text-red-650 font-bold">[ปัญหา] ${rep.problem}</span>` : rep.result) : '<span class="text-slate-400">-</span>'}
+                          </td>
+                          <td class="px-4 py-3 text-center">
+                            ${rep ? '<span class="text-green-700 bg-green-50 px-1 py-0.5 border rounded font-semibold">✓ เซ็นแล้ว</span>' : '<span class="text-slate-400">-</span>'}
+                          </td>
+                          <td class="px-4 py-3 text-center no-print">
+                            ${rep ? `
+                              <button onclick="viewReportDetails('${rep.id}')" class="text-brand-700 hover:text-brand-900 font-bold inline-flex items-center gap-0.5">
+                                <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                              </button>
+                            ` : `
+                              <button onclick="triggerSimulatedTeacherReport('${p.id}', '${teacherId}')" class="text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-0.5" title="จำลองการลงทะเบียนเวร">
+                                <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                              </button>
+                            `}
+                          </td>
+                        </tr>
+                      `;
+                    });
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Mobile List Card View (Displays on screen sizes below md) -->
+            <div class="block md:hidden p-4 space-y-3 bg-slate-50" id="dashboard-mobile-list">
+              ${points.flatMap(p => {
+                const assignedList = p.assignedTo || p.assigned_to || [];
+                return assignedList.map(teacherId => {
+                  const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
+                  const status = rep ? rep.status : 'not_reported';
+                  
+                  let badge = '';
+                  if (status === 'reported') badge = '<span class="bg-green-150 text-green-800 px-2 py-0.5 rounded text-[10px] font-bold">เรียบร้อย</span>';
+                  else if (status === 'problem') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-[10px] font-bold">พบปัญหา!</span>';
+                  else badge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-bold">ยังไม่ส่งเวร</span>';
+
+                  return `
+                    <div class="bg-white border rounded-xl p-3 shadow-sm space-y-2 dash-row" data-point-id="${p.id}" data-status="${status}" data-teacher-name="${getTeacherName(teacherId)}">
+                      <div class="flex justify-between items-center">
+                        <span class="font-bold text-slate-800 text-[11px]">จุดที่ ${p.id}: ${p.name}</span>
+                        ${badge}
+                      </div>
+                      <div class="text-[10px] text-slate-500 space-y-0.5">
+                        <p><strong>ผู้เข้าเวร:</strong> ${getTeacherName(teacherId)}</p>
+                        <p><strong>เวลาเวร:</strong> ${p.time} น. ${rep ? `| <strong>ส่งเวลา:</strong> ${rep.time} น.` : ''}</p>
+                        ${rep ? `<p><strong>ระยะ GPS ยืนยัน:</strong> ${rep.distance.toFixed(1)} ม.</p>` : ''}
+                      </div>
+                      <div class="border-t pt-1.5 flex justify-between items-center text-[10px]">
+                        <span class="text-slate-700 truncate max-w-[200px]">
+                          ${rep ? (rep.status === 'problem' ? `🚨 ปัญหา: ${rep.problem}` : rep.result) : 'ยังไม่ส่งรายงาน'}
+                        </span>
+                        ${rep ? `
+                          <button onclick="viewReportDetails('${rep.id}')" class="text-brand-700 font-bold flex items-center gap-0.5">
+                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> รายละเอียด
+                          </button>
+                        ` : `
+                          <button onclick="triggerSimulatedTeacherReport('${p.id}', '${teacherId}')" class="text-blue-650 font-bold flex items-center gap-0.5">
+                            <i data-lucide="edit-2" class="w-3.5 h-3.5"></i> จำลอง
+                          </button>
+                        `}
+                      </div>
+                    </div>
+                  `;
+                });
+              }).join('')}
+            </div>
+
+          </div>
+        </div>
+
+        <!-- REPORT VIEW MODAL -->
+        <div id="report-view-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border">
+            <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
+              <h3 class="font-bold text-xs">รายละเอียดข้อมูลการปฏิบัติเวร</h3>
+              <button onclick="closeReportDetails()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div id="report-view-content" class="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function statCard(label, value, icon, cls) {
+      return `
+        <div class="card-stat bg-white rounded-xl border p-3.5 flex items-center gap-3 shadow-sm ${cls}">
+          <div class="p-2 rounded-lg bg-white/50">
+            <i data-lucide="${icon}" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <p class="text-xl font-black">${value}</p>
+            <p class="text-[9px] text-slate-500 font-bold mt-0.5">${label}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    // Mobile GPS Sync Selector
+    function syncGPSSimulationMobile(selectEl) {
+      const val = selectEl.value;
+      const mainSelect = document.getElementById('gps-simulator');
+      if (mainSelect) {
+        mainSelect.value = val;
+        changeGPSSimulation();
+      }
+    }
+
+    // B. SCHEDULE VIEW (Admin View)
+    function renderScheduleView() {
+      const points = db.getDutyPoints();
+      const teachers = db.getTeachers();
+
+      return `
+        <div class="fade-in space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">จัดการตารางปฏิบัติหน้าที่เวร</h3>
+              <p class="text-xs text-slate-500 mt-1">มอบหมายตำแหน่งตรวจเวรตามตารางคุณครูประจำสัปดาห์</p>
+            </div>
+            <button onclick="showToast('เชื่อมโยงและบันทึกตารางลง Supabase แล้ว', 'success')" class="bg-brand-850 text-white text-xs px-3 py-2 rounded-lg hover:bg-brand-700 transition flex items-center gap-1 shadow-sm font-semibold">
+              <i data-lucide="save" class="w-4 h-4"></i> บันทึกตารางเวรหลัก
+            </button>
+          </div>
+
+          <div class="bg-white border rounded-xl shadow-sm overflow-hidden text-xs">
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+              <span class="font-bold text-slate-950">จุดเวรวันอังคารของคณะครูชาย</span>
+              <span class="bg-green-100 text-green-800 text-[10px] px-2 py-0.5 rounded-full font-bold">ตารางปัจจุบัน</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left min-w-[600px]">
+                <thead class="bg-slate-100 border-b">
+                  <tr>
+                    <th class="px-4 py-3 text-center">จุดที่</th>
+                    <th class="px-4 py-3">รายละเอียดจุดปฏิบัติงาน</th>
+                    <th class="px-4 py-3">ช่วงเวลาปฏิบัติ</th>
+                    <th class="px-4 py-3">ครูเวรผู้รับผิดชอบ</th>
+                    <th class="px-4 py-3 text-center">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y">
+                  ${points.map(p => {
+                    const assignedList = p.assignedTo || p.assigned_to || [];
+                    return `
+                      <tr class="hover:bg-slate-50 transition">
+                        <td class="px-4 py-3 text-center font-bold text-slate-700">จุดที่ ${p.id}</td>
+                        <td class="px-4 py-3 font-semibold text-slate-800">${p.name}</td>
+                        <td class="px-4 py-3 text-slate-500">${p.time} น.</td>
+                        <td class="px-4 py-3 font-bold text-brand-950">
+                          <div class="flex flex-wrap gap-1.5">
+                            ${assignedList.map(teacherId => `
+                              <span class="bg-brand-50 text-brand-900 border border-brand-200 px-2 py-1 rounded flex items-center gap-1">
+                                <span>${getTeacherName(teacherId)}</span>
+                                <button onclick="removeTeacherFromPoint(${p.id}, '${teacherId}')" class="text-red-500 hover:text-red-700 hover:bg-slate-100 rounded-full w-4 h-4 flex items-center justify-center font-bold">×</button>
+                              </span>
+                            `).join('')}
+                            <button onclick="openAddTeacherToPointModal(${p.id})" class="border border-dashed border-slate-300 hover:border-brand-500 text-slate-500 hover:text-brand-700 px-2 py-1 rounded flex items-center gap-1 transition">
+                              <i data-lucide="plus" class="w-3 h-3"></i> มอบหมายเวร
+                            </button>
+                          </div>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                          <button onclick="navigateTo('duty-points')" class="text-brand-700 hover:text-brand-900 font-semibold inline-flex items-center gap-1">
+                            <i data-lucide="settings" class="w-3.5 h-3.5"></i> ปรับพิกัดรัศมี
+                          </button>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add Teacher to Point Modal -->
+        <div id="add-teacher-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden border">
+            <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
+              <h3 class="font-bold text-sm">แต่งตั้งคุณครูประจำจุดเวร</h3>
+              <button onclick="closeAddTeacherModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-5 space-y-4 text-xs">
+              <input type="hidden" id="add-teacher-point-id">
+              <div>
+                <label class="block text-slate-500 mb-1.5 font-bold">รายชื่อคุณครูในระบบ:</label>
+                <select id="select-new-teacher-opt" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500"></select>
+              </div>
+              <div class="flex gap-2 pt-2">
+                <button onclick="closeAddTeacherModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ยกเลิก</button>
+                <button onclick="saveTeacherToPoint()" class="flex-1 bg-brand-850 hover:bg-brand-700 py-2.5 rounded-lg text-white font-semibold shadow transition">บันทึกแต่งตั้ง</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // C. TEACHERS VIEW (Admin View)
+    function renderTeachersView() {
+      const teachers = db.getTeachers();
+      
+      return `
+        <div class="fade-in space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">ฐานข้อมูลบุคลากรครู</h3>
+              <p class="text-xs text-slate-500 mt-1">แก้ไขข้อมูล เบอร์โทร และดูประวัติการบันทึกลายเซ็นของคุณครูแต่ละท่าน</p>
+            </div>
+            <button onclick="openTeacherFormModal()" class="bg-brand-850 text-white text-xs px-3 py-2 rounded-lg hover:bg-brand-700 font-bold transition flex items-center gap-1 shadow">
+              <i data-lucide="user-plus" class="w-4 h-4"></i> เพิ่มข้อมูลครูใหม่
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            ${teachers.map(t => {
+              const roleBadge = t.role === 'head' 
+                ? '<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">หัวหน้าเวร</span>'
+                : t.role === 'admin'
+                  ? '<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">ผู้ดูแลระบบ</span>'
+                  : '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">ครูเวรทั่วไป</span>';
+
+              const hasSig = t.signature ? true : false;
+              
+              return `
+                <div class="bg-white border rounded-xl p-4 shadow-sm space-y-4 hover:shadow-md transition">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-brand-100 text-brand-800 flex items-center justify-center font-bold text-xs shadow-inner">
+                      ${t.name.split(' ')[1] ? t.name.split(' ')[1].substring(0,2) : t.name.substring(3,5)}
+                    </div>
+                    <div>
+                      <h4 class="font-bold text-slate-800 text-xs">${t.name}</h4>
+                      <p class="text-[10px] text-slate-400 mt-0.5">ID: ${t.id} | โทร: ${t.phone}</p>
+                    </div>
+                  </div>
+                  
+                  <div class="flex items-center justify-between border-t border-slate-100 pt-3 text-[10px]">
+                    <div>${roleBadge}</div>
+                    <span class="font-bold ${hasSig ? 'text-green-700 bg-green-50 px-2 py-0.5 border border-green-200 rounded' : 'text-red-500 bg-red-50 px-2 py-0.5 border border-red-200 rounded'}">
+                      ${hasSig ? '✓ ลงชื่อแล้ว' : '× ไม่มีลายเซ็น'}
+                    </span>
+                  </div>
+
+                  ${hasSig ? `
+                    <div class="bg-slate-50 border rounded-lg p-2 flex flex-col items-center">
+                      <p class="text-[9px] text-slate-400 mb-1">รูปภาพตัวอย่างลายเซ็น:</p>
+                      <img src="${t.signature}" class="max-h-8 object-contain p-1 border rounded bg-white" alt="ลายเซ็น">
+                    </div>
+                  ` : `
+                    <div class="bg-red-50/50 border border-dashed border-red-200 rounded-lg p-2.5 text-center text-[9px] text-red-750">
+                      คุณครูยังไม่ได้บันทึกลายเซ็นดิจิทัลในระบบ
+                    </div>
+                  `}
+
+                  <div class="flex gap-2 pt-1 border-t border-slate-150">
+                    <button onclick="openTeacherFormModal('${t.id}')" class="flex-1 border border-slate-200 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50 font-semibold rounded-lg transition flex items-center justify-center gap-1">
+                      <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> แก้ไข
+                    </button>
+                    <button onclick="deleteTeacher('${t.id}')" class="flex-1 border border-red-150 text-red-650 py-1.5 text-[11px] hover:bg-red-50 font-semibold rounded-lg transition flex items-center justify-center gap-1">
+                      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> ลบออก
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Add/Edit Teacher Modal -->
+        <div id="teacher-form-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden border">
+            <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
+              <h3 class="font-bold text-xs" id="teacher-modal-title">ข้อมูลครูผู้ปฏิบัติหน้าที่</h3>
+              <button onclick="closeTeacherFormModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form onsubmit="saveTeacherData(event)" class="p-5 space-y-4 text-xs">
+              <input type="hidden" id="teacher-form-id-flag">
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">รหัสประจำตัวครู (ห้ามซ้ำ):</label>
+                <input type="text" id="teacher-form-id" required placeholder="เช่น T007" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">ชื่อ-นามสกุลจริง:</label>
+                <input type="text" id="teacher-form-name" required placeholder="เช่น นายมูฮัมหมัด ดอเลาะ" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">เบอร์โทรศัพท์ติดต่อ:</label>
+                <input type="text" id="teacher-form-phone" required placeholder="เช่น 089xxxxxxx" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">บทบาทหน้าที่:</label>
+                <select id="teacher-form-role" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+                  <option value="teacher">ครูเวรทั่วไป</option>
+                  <option value="head">หัวหน้าเวร</option>
+                  <option value="admin">ผู้ดูแลระบบ</option>
+                </select>
+              </div>
+              <div class="flex gap-2 pt-2">
+                <button type="button" onclick="closeTeacherFormModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ยกเลิก</button>
+                <button type="submit" class="flex-1 bg-brand-850 hover:bg-brand-700 py-2.5 rounded-lg text-white font-semibold shadow transition">บันทึกข้อมูล</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    // D. DUTY POINTS VIEW (Admin View)
+    function renderDutyPointsView() {
+      const points = db.getDutyPoints();
+      
+      return `
+        <div class="fade-in space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">ตั้งค่าพิกัดจุดปฏิบัติหน้าที่และรัศมี Geofence</h3>
+              <p class="text-xs text-slate-500 mt-1">เพิ่ม ลบ หรือแก้ไขจุดปฏิบัติงาน และปรับพิกัดทางภูมิศาสตร์ให้สอดคล้องกับพิกัดจริง</p>
+            </div>
+            <button onclick="openDutyPointModal()" class="bg-brand-850 text-white text-xs px-3 py-2 rounded-lg hover:bg-brand-700 font-bold transition flex items-center gap-1 shadow">
+              <i data-lucide="map-pin" class="w-4 h-4"></i> เพิ่มจุดเวรใหม่
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <!-- Duty Points Grid -->
+            <div class="xl:col-span-1 space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+              ${points.map(p => `
+                <div class="bg-white border rounded-xl p-4 shadow-sm hover:border-brand-500 transition cursor-pointer" onclick="focusOnPointInMap(${p.lat}, ${p.lng}, ${p.radius}, '${p.name}')">
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <h4 class="font-bold text-slate-800 text-xs">จุดที่ ${p.id}: ${p.name}</h4>
+                      <p class="text-[9px] text-slate-400 mt-0.5 flex items-center gap-1"><i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i> เวลาเวร: ${p.time} น.</p>
+                    </div>
+                    <span class="bg-brand-100 text-brand-900 border border-brand-200 text-[9px] font-bold px-2 py-0.5 rounded-full">
+                      รัศมี ${p.radius} ม.
+                    </span>
+                  </div>
+
+                  <div class="bg-slate-50 border rounded-lg p-2.5 text-[9px] mt-3 space-y-1 text-slate-500">
+                    <p class="flex items-center gap-1 text-slate-700">
+                      <i data-lucide="map-pin" class="w-3.5 h-3.5 text-red-500"></i> 
+                      <span>${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}</span>
+                      <a href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" class="text-blue-600 hover:underline inline-flex items-center gap-0.5 ml-2 font-bold" title="เปิดแผนที่ Google Maps">
+                        <i data-lucide="external-link" class="w-3 h-3"></i> ดู Google Maps
+                      </a>
+                    </p>
+                    <p class="flex items-center gap-1"><i data-lucide="users" class="w-3.5 h-3.5 text-slate-400"></i> ผู้ดูแล: ${(p.assignedTo || p.assigned_to || []).map(id => getTeacherName(id)).join(', ') || '<span class="text-red-500">ยังไม่มีผู้รับผิดชอบ</span>'}</p>
+                  </div>
+
+                  <div class="flex gap-2 pt-2 border-t mt-3 border-slate-100">
+                    <button onclick="event.stopPropagation(); openDutyPointModal(${p.id})" class="flex-1 bg-white border text-slate-700 py-1 hover:bg-slate-50 text-[10px] font-bold rounded transition flex items-center justify-center gap-0.5">
+                      <i data-lucide="edit" class="w-3.5 h-3.5"></i> แก้ไขข้อมูล
+                    </button>
+                    <button onclick="event.stopPropagation(); deleteDutyPoint(${p.id})" class="flex-1 bg-white border border-red-100 text-red-650 py-1 hover:bg-red-50 text-[10px] font-bold rounded transition flex items-center justify-center gap-0.5">
+                      <i data-lucide="trash" class="w-3.5 h-3.5"></i> ลบพอยท์
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <!-- Leaflet Interactive Map Preview -->
+            <div class="xl:col-span-2 bg-white border rounded-xl shadow-sm p-4 h-[420px] flex flex-col space-y-2">
+              <span class="text-[10px] font-bold text-slate-500">แผนผังจำลองขอบเขตรูปวงกลมรอบจุดเวรของโรงเรียน</span>
+              <div id="duty-map" class="w-full flex-1 rounded-lg border z-10"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add/Edit Duty Point Modal -->
+        <div id="point-form-modal" class="fixed inset-0 bg-black/65 z-50 hidden flex items-center justify-center p-0 sm:p-4">
+          <div class="bg-white w-full h-full sm:max-w-xl sm:h-auto sm:max-h-[92vh] sm:rounded-2xl shadow-2xl border flex flex-col overflow-hidden">
+            <div class="bg-brand-900 text-white p-4 flex justify-between items-center flex-shrink-0">
+              <h3 class="font-bold text-sm" id="point-modal-title">จัดการข้อมูลพิกัดจุดเวร</h3>
+              <button type="button" onclick="closeDutyPointModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form onsubmit="saveDutyPointData(event)" class="p-5 space-y-4 text-xs overflow-y-auto flex-1">
+              <input type="hidden" id="point-form-id-flag">
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">ชื่อจุดปฏิบัติหน้าที่:</label>
+                <input type="text" id="point-form-name" required placeholder="เช่น หน้าประตูทางออกหลังโรงเรียน" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">ช่วงเวลาปฏิบัติงานเวร:</label>
+                <input type="text" id="point-form-time" required placeholder="เช่น 06:30-07:30" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-slate-500 mb-1 font-bold">ละติจูด (Lat):</label>
+                  <input type="number" step="any" id="point-form-lat" required placeholder="6.787680" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+                </div>
+                <div>
+                  <label class="block text-slate-500 mb-1 font-bold">ลองจิจูด (Lng):</label>
+                  <input type="number" step="any" id="point-form-lng" required placeholder="101.408120" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-slate-500 mb-1 font-bold">ขอบเขตรัศมี (เมตร):</label>
+                  <input type="number" id="point-form-radius" required placeholder="50" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+                </div>
+                <div class="flex items-end">
+                  <button type="button" onclick="autoDetectCoordinates()" class="w-full bg-blue-50 text-blue-750 border border-blue-200 py-2.5 rounded-lg hover:bg-blue-100 transition font-bold flex items-center justify-center gap-1">
+                    <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ใช้พิกัดจำลอง
+                  </button>
+                </div>
+              </div>
+              <div class="border-t pt-2 mt-2">
+                <button type="button" onclick="toggleModalMapPicker()" class="w-full bg-slate-100 hover:bg-slate-200 border border-slate-250 py-2.5 rounded-lg transition font-bold flex items-center justify-center gap-1 text-center text-slate-700">
+                  <i data-lucide="map" class="w-3.5 h-3.5"></i> เลือกพิกัดจากแผนที่ในตัว
+                </button>
+                
+                <!-- Expanded Map Picker Container -->
+                <div id="modal-map-picker-container" class="mt-2 hidden border rounded-lg overflow-hidden flex flex-col space-y-2 p-2 bg-slate-50">
+                  <!-- Nominatim Place Search Bar -->
+                  <div class="flex gap-1 relative">
+                    <input type="text" id="modal-map-search-input" onkeydown="if(event.key === 'Enter') { event.preventDefault(); searchLocationOnMap(); }" placeholder="🔍 ค้นหาชื่อสถานที่ เช่น โรงเรียนมูลนิธิอาซิซสถาน..." class="flex-1 border rounded px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-brand-500">
+                    <button type="button" onclick="searchLocationOnMap()" class="bg-brand-800 hover:bg-brand-700 text-white font-bold px-3 py-1.5 rounded text-xs transition">ค้นหา</button>
+                    <!-- Search Results Popup Box -->
+                    <div id="modal-map-search-results" class="absolute left-0 right-0 top-full mt-1 bg-white border rounded shadow-lg z-[100] hidden max-h-36 overflow-y-auto text-[10px] divide-y"></div>
+                  </div>
+
+                  <div class="flex justify-between items-center text-[10px]">
+                    <span class="text-slate-400 font-bold">คลิกตำแหน่งบนแผนที่ดาวเทียมเพื่อเลือกพิกัด</span>
+                    <button type="button" onclick="focusPickerMapOnCurrentLocation()" class="bg-blue-50 text-blue-750 border border-blue-200 hover:bg-blue-100 font-bold px-2 py-0.5 rounded transition flex items-center gap-0.5" title="เล็งแผนที่ไปที่ตำแหน่งจำลองปัจจุบัน">
+                      <i data-lucide="locate" class="w-3 h-3"></i> ไปยังพิกัดปัจจุบัน
+                    </button>
+                  </div>
+                  <div id="modal-picker-map" class="w-full h-64 bg-slate-100 z-10 border rounded"></div>
+                </div>
+              </div>
+              <div class="flex gap-2 pt-2 border-t mt-2 flex-shrink-0">
+                <button type="button" onclick="closeDutyPointModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ยกเลิก</button>
+                <button type="submit" class="flex-1 bg-brand-850 hover:bg-brand-700 py-2.5 rounded-lg text-white font-semibold shadow transition">บันทึกพอยท์</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    // E. DRAFT REPORT PRINT DOCUMENT VIEW
+    function renderDocumentsView() {
+      const settings = db.getSettings();
+      const points = db.getDutyPoints();
+      const reports = db.getReports().filter(r => r.date === getTodayISODate());
+
+      return `
+        <div class="fade-in space-y-6">
+          <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-4 no-print">
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">เอกสารรายงานผลปฏิบัติงานเวรราชการ</h3>
+              <p class="text-xs text-slate-500 mt-1">ใบรับรองรายงานตรวจเวรประจำวันเพื่อนำเสนอผู้อำนวยการโรงเรียน</p>
+            </div>
+            <button onclick="window.print()" class="bg-brand-800 text-white text-xs px-3.5 py-2.5 rounded-lg hover:bg-brand-700 transition flex items-center gap-1 shadow font-bold">
+              <i data-lucide="printer" class="w-4 h-4"></i> พิมพ์เอกสารรายงาน
+            </button>
+          </div>
+
+          <!-- Document Box -->
+          <div class="bg-white border rounded-xl shadow-lg p-6 md:p-12 max-w-4xl mx-auto print-container text-black" style="font-family: 'Sarabun', sans-serif;">
+            
+            <div class="text-center space-y-2 mb-8">
+              <div class="w-16 h-16 mx-auto bg-brand-850 rounded-full flex items-center justify-center text-white font-bold text-base border-2 border-brand-900">
+                อซ
+              </div>
+              <h2 class="text-base font-bold">${settings.schoolName}</h2>
+              <p class="text-[11px] text-slate-600">รายงานผลการปฏิบัติหน้าที่เวรประจำวันครูเวรชาย</p>
+              <h3 class="text-xs font-bold text-slate-800">วันอังคาร</h3>
+              <p class="text-[10px] text-slate-400">วันที่ตรวจเวร: ${getTodayThaiFullDate()}</p>
+            </div>
+
+            <!-- Table Document -->
+            <table class="w-full text-[10px] border-collapse border border-slate-400">
+              <thead>
+                <tr class="bg-slate-50">
+                  <th class="border border-slate-400 px-2 py-2 text-center font-bold" style="width: 8%">จุดที่</th>
+                  <th class="border border-slate-400 px-3 py-2 text-left font-bold" style="width: 25%">จุดปฏิบัติหน้าที่</th>
+                  <th class="border border-slate-400 px-2 py-2 text-center font-bold" style="width: 15%">ช่วงเวลา</th>
+                  <th class="border border-slate-400 px-3 py-2 text-left font-bold" style="width: 20%">ครูเวรผู้รับผิดชอบ</th>
+                  <th class="border border-slate-400 px-3 py-2 text-left font-bold" style="width: 32%">ผลการปฏิบัติหน้าที่และหลักฐานลงชื่อ</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${points.flatMap((p, idx) => {
+                  const assignedList = p.assignedTo || p.assigned_to || [];
+                  return assignedList.map((teacherId, tIdx) => {
+                    const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
+                    const teacher = db.getTeachers().find(t => t.id === teacherId);
+                    
+                    let resultText = '';
+                    let sigMarkup = '';
+
+                    if (rep) {
+                      if (rep.status === 'reported') {
+                        resultText = `✓ ${rep.result}`;
+                      } else if (rep.status === 'problem') {
+                        resultText = `⚠️ พบปัญหา: ${rep.problem} (แก้ไข: ${rep.solution})`;
+                      } else {
+                        resultText = 'รอยืนยัน';
+                      }
+
+                      const sigSrc = rep.signature || (teacher ? teacher.signature : null);
+                      if (sigSrc) {
+                        sigMarkup = `
+                          <div class="mt-1.5 text-center">
+                            <img src="${sigSrc}" class="max-h-7 mx-auto border rounded bg-white p-0.5" alt="Signature">
+                            <span class="text-[8px] text-slate-400 block mt-0.5">ลงชื่อแล้วเวลา ${rep.time} น.</span>
+                          </div>
+                        `;
+                      } else {
+                        sigMarkup = `<span class="text-green-700 font-bold block text-center mt-1">ยืนยันการรายงานแล้ว</span>`;
+                      }
+                    } else {
+                      resultText = '<span class="text-red-500 font-bold">ยังไม่ได้รับการส่งรายงาน</span>';
+                      sigMarkup = '<span class="text-slate-400 block text-center mt-1">-</span>';
+                    }
+
+                    return `
+                      <tr>
+                        ${tIdx === 0 ? `
+                          <td class="border border-slate-400 px-2 py-2 text-center font-bold" rowspan="${assignedList.length}">${p.id}</td>
+                          <td class="border border-slate-400 px-3 py-2 font-bold text-slate-800" rowspan="${assignedList.length}">${p.name}</td>
+                          <td class="border border-slate-400 px-2 py-2 text-center text-slate-700" rowspan="${assignedList.length}">${p.time} น.</td>
+                        ` : ''}
+                        <td class="border border-slate-400 px-3 py-2">${getTeacherName(teacherId)}</td>
+                        <td class="border border-slate-400 px-3 py-2">
+                          <p class="text-slate-700 leading-relaxed">${resultText}</p>
+                          ${sigMarkup}
+                        </td>
+                      </tr>
+                    `;
+                  });
+                }).join('')}
+              </tbody>
+            </table>
+
+            <!-- Foot signatures -->
+            <div class="mt-12 grid grid-cols-2 gap-12 text-center text-[10px]">
+              <div class="space-y-1">
+                <p>ลงชื่อ.......................................................... หัวหน้าเวร</p>
+                <p class="font-bold text-slate-800">(${settings.headName})</p>
+                <p class="text-slate-400">ผู้ประมวลใบเวร</p>
+              </div>
+              <div class="space-y-1">
+                <p>ลงชื่อ.......................................................... ผู้อำนวยการ</p>
+                <p class="font-bold text-slate-800">(${settings.directorName})</p>
+                <p class="text-slate-400">ผู้อำนวยการ${settings.schoolName}</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      `;
+    }
+
+    // F. WARNING MEMO VIEW (Head of Duty View)
+    function renderMemoView() {
+      const settings = db.getSettings();
+      const points = db.getDutyPoints();
+      const reports = db.getReports().filter(r => r.date === getTodayISODate());
+
+      const unReports = [];
+      points.forEach(p => {
+        const assignedList = p.assignedTo || p.assigned_to || [];
+        assignedList.forEach(teacherId => {
+          const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
+          if (!rep) {
+            unReports.push({ point: p, teacherId: teacherId, teacherName: getTeacherName(teacherId) });
+          }
+        });
+      });
+
+      let selectOptions = unReports.map((un, idx) => `
+        <option value="${idx}">จุดเวรที่ ${un.point.id} - ${un.teacherName}</option>
+      `).join('');
+
+      return `
+        <div class="fade-in space-y-6 text-xs">
+          <div class="flex justify-between items-center border-b pb-4 no-print">
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">การออกบันทึกข้อความติดตามเวร</h3>
+              <p class="text-xs text-slate-500 mt-1">ใช้เขียนบันทึกชี้แจงสำหรับจัดส่งย้อนหลังกรณีครูไม่ได้รายงานเวร</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Memo Editor Panel -->
+            <div class="lg:col-span-1 bg-white border rounded-xl p-4 shadow-sm space-y-4 no-print">
+              <h4 class="font-bold text-sm text-brand-950">ตัวกรองครูที่ไม่รายงานเวร</h4>
+              
+              ${unReports.length === 0 ? `
+                <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 text-center font-medium">
+                  คุณครูทุกคนรายงานเวรครบถ้วนสมบูรณ์แล้ววันนี้
+                </div>
+              ` : `
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-slate-500 font-bold mb-1.5">เลือกคุณครูผู้ไม่รายงาน:</label>
+                    <select id="memo-teacher-selector" onchange="loadMemoWarningTemplate()" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                      ${selectOptions}
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-slate-500 font-bold mb-1.5">เรื่องบันทึกข้อความ:</label>
+                    <input type="text" id="memo-subject-input" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700" value="ขอความอนุเคราะห์ชี้แจงเหตุผลไม่เข้ารายงานเวรดิจิทัล">
+                  </div>
+                  <div>
+                    <label class="block text-slate-500 font-bold mb-1.5">ข้อความแจ้งชี้แจงเพิ่มเติม:</label>
+                    <textarea id="memo-content-textarea" rows="8" oninput="updateMemoPreview()" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 leading-relaxed"></textarea>
+                  </div>
+                  <div class="flex gap-2">
+                    <button onclick="window.print()" class="flex-1 bg-brand-850 hover:bg-brand-700 text-white font-semibold py-2 rounded-lg transition flex items-center justify-center gap-1 shadow">
+                      <i data-lucide="printer" class="w-3.5 h-3.5"></i> พิมพ์ข้อความ
+                    </button>
+                    <button onclick="simulateSendDirectWarning()" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg transition flex items-center justify-center gap-1 shadow">
+                      <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i> เตือนไลน์ด่วน
+                    </button>
+                  </div>
+                </div>
+              `}
+            </div>
+
+            <!-- Memo Preview -->
+            <div class="lg:col-span-2 bg-white border rounded-xl shadow-lg p-6 md:p-12 print-container text-black" style="font-family: 'Sarabun', sans-serif;">
+              <div class="flex items-center gap-3 border-b-2 border-slate-900 pb-2 mb-6">
+                <div class="text-2xl font-black italic select-none">บันทึกข้อความ</div>
+              </div>
+
+              <!-- Meta Data -->
+              <div class="text-[10px] space-y-2 text-slate-800 mb-6">
+                <div class="flex"><span class="font-bold w-20">ส่วนราชการ</span><span class="flex-1 border-b border-dotted border-slate-400 pb-0.5" id="memo-school-field">${settings.schoolName}</span></div>
+                <div class="flex"><span class="font-bold w-20">ที่</span><span class="flex-1 border-b border-dotted border-slate-400 pb-0.5" id="memo-ref-field">ฝปก. ${new Date().getFullYear() + 543}/เวร-ชาย</span></div>
+                <div class="flex"><span class="font-bold w-20">วันที่</span><span class="flex-1 border-b border-dotted border-slate-400 pb-0.5" id="memo-date-field">${getTodayThaiFullDate()}</span></div>
+                <div class="flex"><span class="font-bold w-20">เรื่อง</span><span class="flex-1 border-b border-dotted border-slate-400 pb-0.5 font-bold text-slate-900" id="memo-subject-field">ขอส่งคำชี้แจงกรณีไม่รายงานการปฏิบัติหน้าที่เวรประจำวัน</span></div>
+                <div class="flex"><span class="font-bold w-20">เรียน</span><span class="flex-1 border-b border-dotted border-slate-400 pb-0.5" id="memo-to-field">คุณครูผู้เกี่ยวข้องเวรประจำจุด</span></div>
+              </div>
+
+              <!-- Content Body -->
+              <div class="text-[10px] leading-relaxed text-slate-850 text-justify space-y-4 min-h-[200px]" id="memo-preview-content-box"></div>
+
+              <!-- Signatures -->
+              <div class="mt-12 flex justify-end text-[10px] text-center">
+                <div class="w-56 space-y-2">
+                  <p>ลงชื่อ............................................................</p>
+                  <p class="font-bold">(${settings.headName})</p>
+                  <p class="text-slate-500">หัวหน้าคณะเวรวันอังคาร</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Memo warnings loader
+    function loadMemoWarningTemplate() {
+      const idx = document.getElementById('memo-teacher-selector').value;
+      if (idx === "") return;
+
+      const points = db.getDutyPoints();
+      const reports = db.getReports().filter(r => r.date === getTodayISODate());
+
+      const unReports = [];
+      points.forEach(p => {
+        const assignedList = p.assignedTo || p.assigned_to || [];
+        assignedList.forEach(teacherId => {
+          const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
+          if (!rep) {
+            unReports.push({ point: p, teacherId: teacherId, teacherName: getTeacherName(teacherId) });
+          }
+        });
+      });
+
+      const selected = unReports[idx];
+      if (!selected) return;
+
+      const sub = `ขอความร่วมมือชี้แจงเหตุผลไม่เข้ารายงานเวร จุดที่ ${selected.point.id} (${selected.point.name})`;
+      document.getElementById('memo-subject-input').value = sub;
+      document.getElementById('memo-subject-field').textContent = sub;
+
+      const text = `เนื่องจากคณะกรรมการจัดเก็บข้อมูลเวรประจำวัน โรงเรียนมูลนิธิอาซิซสถาน ประจำวันที่ ${getTodayThaiFullDate()} ได้ตรวจวิเคราะห์รายงานพิกัดเวรประจำจุด ช่วงเวลา ${selected.point.time} น. ณ บริเวณ "${selected.point.name}"
+
+พบว่า คุณครู "${selected.teacherName}" ยังไม่ได้รายงานบันทึกรูปภาพและลายมือชื่อเข้าระบบ จึงเรียนมาเพื่อโปรดชี้แจงเหตุผลเพื่อฝ่ายปกครองจะได้จัดส่งรวบรวมรายงานต่อท่านผู้อำนวยการโรงเรียนต่อไป`;
+
+      document.getElementById('memo-content-textarea').value = text;
+      updateMemoPreview();
+    }
+
+    function updateMemoPreview() {
+      const text = document.getElementById('memo-content-textarea').value;
+      const html = text.split('\n').map(p => `<p class="indent-8">${p}</p>`).join('');
+      document.getElementById('memo-preview-content-box').innerHTML = html;
+    }
+
+    function simulateSendDirectWarning() {
+      const idx = document.getElementById('memo-teacher-selector').value;
+      const points = db.getDutyPoints();
+      const reports = db.getReports().filter(r => r.date === getTodayISODate());
+
+      const unReports = [];
+      points.forEach(p => {
+        const assignedList = p.assignedTo || p.assigned_to || [];
+        assignedList.forEach(teacherId => {
+          const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
+          if (!rep) {
+            unReports.push({ point: p, teacherId: teacherId, teacherName: getTeacherName(teacherId) });
+          }
+        });
+      });
+
+      const selected = unReports[idx];
+      if (!selected) return;
+
+      const warningText = `⚠️ แจ้งเตือน: คุณครู ${selected.teacherName} ยังไม่ส่งรายงานเวร จุดเวรที่ ${selected.point.id} (${selected.point.name}) เวลา ${selected.point.time} น. กรุณาเข้าระบบเพื่อเซ็นชื่อด่วน!`;
+      
+      triggerTelegramNotification(warningText);
+      showToast(`ส่งพุชแจ้งเตือนจำลองหาคุณครู ${selected.teacherName} แล้ว`, 'success');
+    }
+
+    // G. SYSTEM SETTINGS VIEW
+    function renderSettingsView() {
+      const settings = db.getSettings();
+
+      return `
+        <div class="fade-in space-y-6 max-w-2xl text-xs">
+          <div class="bg-white border rounded-xl shadow-sm p-6 space-y-6">
+            <h3 class="text-sm font-bold text-slate-800 border-b pb-3">ตั้งค่าข้อกำหนดระบบและช่องทางเชื่อมคลาวด์</h3>
+            
+            <form onsubmit="saveSystemSettings(event)" class="space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">ชื่อสถาบัน/โรงเรียน:</label>
+                  <input type="text" id="sett-school" value="${settings.schoolName}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                </div>
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">หัวหน้าเวรผู้ลงชื่อสรุป:</label>
+                  <input type="text" id="sett-head" value="${settings.headName}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                </div>
+              </div>
+              
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">ผู้อำนวยการโรงเรียน:</label>
+                  <input type="text" id="sett-director" value="${settings.directorName}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                </div>
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">ระยะเวลาแจ้งเตือนสาย (นาที):</label>
+                  <input type="number" id="sett-minutes" value="${settings.autoNotifyMinutes}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                </div>
+              </div>
+
+              <!-- Custom School Coordinates and Defaults -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-4">
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">วันปฏิบัติหน้าที่เวรประจำสัปดาห์:</label>
+                  <select id="sett-duty-day" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-semibold">
+                    <option value="จันทร์" ${settings.dutyDay === 'จันทร์' ? 'selected' : ''}>วันจันทร์</option>
+                    <option value="อังคาร" ${settings.dutyDay === 'อังคาร' ? 'selected' : ''}>วันอังคาร</option>
+                    <option value="พุธ" ${settings.dutyDay === 'พุธ' ? 'selected' : ''}>วันพุธ</option>
+                    <option value="พฤหัสบดี" ${settings.dutyDay === 'พฤหัสบดี' ? 'selected' : ''}>วันพฤหัสบดี</option>
+                    <option value="ศุกร์" ${settings.dutyDay === 'ศุกร์' ? 'selected' : ''}>วันศุกร์</option>
+                    <option value="เสาร์" ${settings.dutyDay === 'เสาร์' ? 'selected' : ''}>วันเสาร์</option>
+                    <option value="อาทิตย์" ${settings.dutyDay === 'อาทิตย์' ? 'selected' : ''}>วันอาทิตย์</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">กลุ่มผู้ปฏิบัติหน้าที่เวร (เช่น ครูชาย, ครูหญิง):</label>
+                  <input type="text" id="sett-duty-group" value="${settings.dutyGroup || 'ครูชาย'}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b pb-4">
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">รัศมีเวรเริ่มต้น (เมตร):</label>
+                  <input type="number" id="sett-radius" value="${settings.defaultRadius || 50}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                </div>
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">พิกัดละติจูดโรงเรียน (Lat Center):</label>
+                  <input type="number" step="any" id="sett-center-lat" value="${settings.centerLat || 6.787680}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                </div>
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">พิกัดลองจิจูดโรงเรียน (Lng Center):</label>
+                  <input type="number" step="any" id="sett-center-lng" value="${settings.centerLng || 101.408120}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                </div>
+              </div>
+
+              <!-- School Center Map Picker -->
+              <div class="border-t pt-2 mt-2">
+                <button type="button" onclick="toggleSettingsMapPicker()" class="w-full bg-slate-100 hover:bg-slate-200 border border-slate-250 py-2.5 rounded-lg transition font-bold flex items-center justify-center gap-1 text-center text-slate-700">
+                  <i data-lucide="map" class="w-3.5 h-3.5"></i> เลือกพิกัดศูนย์กลางโรงเรียนจากแผนที่ดาวเทียม
+                </button>
+                
+                <div id="settings-map-picker-container" class="mt-2 hidden border rounded-lg overflow-hidden flex-col space-y-2 p-2 bg-slate-50">
+                  <!-- Nominatim Place Search Bar -->
+                  <div class="flex gap-1 relative">
+                    <input type="text" id="settings-map-search-input" onkeydown="if(event.key === 'Enter') { event.preventDefault(); searchLocationOnSettingsMap(); }" placeholder="🔍 ค้นหาชื่อสถานที่/ตำบล/อำเภอ เช่น โรงเรียนมูลนิธิอาซิซสถาน..." class="flex-1 border rounded px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-brand-500">
+                    <button type="button" onclick="searchLocationOnSettingsMap()" class="bg-brand-800 hover:bg-brand-700 text-white font-bold px-3 py-1.5 rounded text-xs transition">ค้นหา</button>
+                    <!-- Search Results Popup Box -->
+                    <div id="settings-map-search-results" class="absolute left-0 right-0 top-full mt-1 bg-white border rounded shadow-lg z-[100] hidden max-h-36 overflow-y-auto text-[10px] divide-y"></div>
+                  </div>
+
+                  <div class="flex justify-between items-center text-[10px]">
+                    <span class="text-slate-400 font-bold">คลิกตำแหน่งบนแผนที่ดาวเทียมเพื่อเลือกเป็นศูนย์กลางโรงเรียน</span>
+                    <button type="button" onclick="focusSettingsMapOnBrowserLocation()" class="bg-blue-50 text-blue-750 border border-blue-200 hover:bg-blue-100 font-bold px-2 py-0.5 rounded transition flex items-center gap-0.5" title="จับพิกัดปัจจุบันจากเบราว์เซอร์จริง">
+                      <i data-lucide="locate" class="w-3 h-3"></i> ใช้พิกัดจริงของคุณ
+                    </button>
+                  </div>
+                  <div id="settings-picker-map" class="w-full h-64 bg-slate-100 z-10 border rounded"></div>
+                </div>
+              </div>
+
+              <div class="border-t pt-4 space-y-3">
+                <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="bell" class="w-4 h-4 text-brand-700"></i>การตั้งค่า LINE / Telegram Group API</h4>
+                
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">Telegram Bot Token API:</label>
+                  <input type="password" id="sett-tele-token" value="${settings.telegramToken}" placeholder="ตัวอย่าง: 1234567890:ABCdef..." class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-slate-500 font-bold mb-1">Telegram Group Chat ID:</label>
+                    <input type="text" id="sett-tele-chat" value="${settings.telegramChatId}" placeholder="เช่น -100xxxxxxxxxx" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                  </div>
+                  <div>
+                    <label class="block text-slate-500 font-bold mb-1">LINE OA Alert Token (จำลองพุชแจ้งเตือน):</label>
+                    <input type="password" id="sett-line-token" value="${settings.lineToken}" placeholder="ใส่ Token ของกลุ่มเวรเพื่อทำการจำลองแจ้งเตือน" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex justify-end pt-3">
+                <button type="submit" class="bg-brand-850 hover:bg-brand-700 text-white font-bold px-6 py-2.5 rounded-lg shadow transition">
+                  บันทึกข้อมูลและอัปเดต Supabase
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    function saveSystemSettings(e) {
+      e.preventDefault();
+      const settings = {
+        schoolName: document.getElementById('sett-school').value.trim(),
+        headName: document.getElementById('sett-head').value.trim(),
+        directorName: document.getElementById('sett-director').value.trim(),
+        telegramToken: document.getElementById('sett-tele-token').value.trim(),
+        telegramChatId: document.getElementById('sett-tele-chat').value.trim(),
+        lineToken: document.getElementById('sett-line-token').value.trim(),
+        autoNotifyMinutes: parseInt(document.getElementById('sett-minutes').value),
+        
+        dutyDay: document.getElementById('sett-duty-day').value,
+        dutyGroup: document.getElementById('sett-duty-group').value.trim(),
+        defaultRadius: parseInt(document.getElementById('sett-radius').value),
+        centerLat: parseFloat(document.getElementById('sett-center-lat').value),
+        centerLng: parseFloat(document.getElementById('sett-center-lng').value)
+      };
+
+      saveSettingsDB(settings);
+    }
+
+    async function saveSettingsDB(settings) {
+      db.saveSettings(settings);
+      
+      // Update global mock coordinates focus
+      mockLatitude = settings.centerLat || mockLatitude;
+      mockLongitude = settings.centerLng || mockLongitude;
+
+      if (useSupabase) {
+        const dbSettings = mapSettingsToDB(settings);
+        const { error } = await supabaseClient.from('settings').upsert(dbSettings);
+        if (error) {
+          console.warn("Failed to upsert settings with new columns, attempting base settings upsert:", error);
+          const baseDbSettings = {
+            id: 'config',
+            school_name: settings.schoolName,
+            head_name: settings.headName,
+            director_name: settings.directorName,
+            line_token: settings.lineToken,
+            telegram_token: settings.telegramToken,
+            telegram_chat_id: settings.telegramChatId,
+            auto_notify_minutes: settings.autoNotifyMinutes
+          };
+          const fallbackResult = await supabaseClient.from('settings').upsert(baseDbSettings);
+          if (fallbackResult.error) {
+            console.error("Base settings upsert failed:", fallbackResult.error);
+            showToast('ไม่สามารถเชื่อมต่อบันทึกข้อมูลตั้งค่าบน Supabase ได้', 'error');
+          } else {
+            showToast('บันทึกข้อมูลตั้งค่าหลักลงระบบคลาวด์แล้ว (ข้อมูลการจำลองบันทึกเฉพาะที่เครื่องนี้)', 'warning');
+          }
+        } else {
+          showToast('อัปเดตระบบคลาวด์และบันทึกการตั้งค่าเสร็จสิ้น', 'success');
+        }
+      } else {
+        showToast('บันทึกการตั้งค่าลงเครื่องแบบออฟไลน์เรียบร้อย', 'success');
+      }
+      
+      updateDynamicTitles();
+      navigateTo('settings');
+    }
+
+    // H. MY DUTY VIEW (Teacher View)
+    function renderMyDutyView() {
+      const points = db.getDutyPoints();
+      const myPoints = points.filter(p => (p.assignedTo || p.assigned_to || []).includes(currentUser.id));
+      const reports = db.getReports().filter(r => r.date === getTodayISODate() && r.teacherId === currentUser.id);
+
+      return `
+        <div class="fade-in space-y-6 text-xs">
+          <!-- Welcome Bar -->
+          <div class="bg-gradient-to-r from-brand-900 to-brand-800 text-white rounded-xl p-5 shadow flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <p class="text-brand-200">สวัสดีครับคุณครูผู้ปฏิบัติหน้าที่</p>
+              <h3 class="text-base font-bold mt-1">${currentUser.name} (รหัส: ${currentUser.id})</h3>
+              <p class="text-[10px] text-brand-100 mt-0.5">มีจุดตรวจดูแลความปลอดภัยที่ต้องลงบันทึก <b>${myPoints.length}</b> จุดเวรในวันนี้</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-brand-200">พิกัดปัจจุบัน:</span>
+              <span id="teacher-gps-status-badge" class="bg-white/10 px-2.5 py-1 rounded border border-white/20 font-bold">กำลังตรวจสอบสัญญาณดาวเทียม...</span>
+            </div>
+          </div>
+
+          <!-- My Points List -->
+          <div class="space-y-4">
+            ${myPoints.length === 0 ? `
+              <div class="bg-white border rounded-xl p-6 text-center text-slate-500 font-medium">
+                ไม่มีข้อมูลตำแหน่งงานเวรแต่งตั้งสำหรับคุณในวันวันนี้
+              </div>
+            ` : myPoints.map(p => {
+              const rep = reports.find(r => r.pointId === p.id);
+              const isDone = rep ? true : false;
+              
+              const coTeachers = (p.assignedTo || p.assigned_to || [])
+                .filter(id => id !== currentUser.id)
+                .map(id => getTeacherName(id));
+
+              return `
+                <div class="bg-white border rounded-xl p-4 shadow-sm hover:border-brand-500 transition">
+                  <div class="flex justify-between items-center gap-3">
+                    <div>
+                      <h4 class="font-bold text-slate-800 text-xs">จุดที่ ${p.id}: ${p.name}</h4>
+                      <p class="text-slate-400 mt-0.5 font-medium">เวลาประจำจุดเวร: ${p.time} น.</p>
+                    </div>
+                    <div>
+                      ${isDone 
+                        ? (rep.status === 'problem' 
+                            ? '<span class="bg-red-100 text-red-800 px-3 py-1 rounded text-[10px] font-bold">แจ้งเหตุปัญหาน้ำท่วม/อุบัติเหตุ</span>'
+                            : '<span class="bg-green-100 text-green-800 px-3 py-1 rounded text-[10px] font-bold">ส่งรายงานแล้ว</span>')
+                        : '<span class="bg-amber-100 text-amber-800 px-3 py-1 rounded text-[10px] font-bold">ยังไม่บันทึกรายงาน</span>'}
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 my-4 bg-slate-50 border rounded-lg p-3 text-slate-600 text-[10px]">
+                    <div>
+                      <strong class="text-slate-450 block font-normal">คณะครูร่วมจุด:</strong>
+                      <span class="font-semibold text-slate-800">${coTeachers.join(', ') || 'ไม่มี (ปฏิบัติเวรผู้เดียว)'}</span>
+                    </div>
+                    <div>
+                      <strong class="text-slate-450 block font-normal">เป้าหมาย Geofence:</strong>
+                      <span class="font-semibold text-slate-800">${p.lat.toFixed(6)}, ${p.lng.toFixed(6)} (รัศมี ${p.radius} ม.)</span>
+                      <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" class="text-brand-800 hover:text-brand-900 font-bold block mt-1 hover:underline inline-flex items-center gap-0.5">
+                        <i data-lucide="navigation" class="w-3 h-3 text-brand-850"></i> นำทางด้วย Google Maps
+                      </a>
+                    </div>
+                    <div>
+                      <strong class="text-slate-450 block font-normal">ระยะพิกัดห่าง:</strong>
+                      <span class="font-bold text-brand-900" id="my-distance-check-${p.id}">กำลังคำนวณสัญญาณดาวเทียม...</span>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                    ${isDone ? `
+                      <button onclick="viewReportDetails('${rep.id}')" class="border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg transition inline-flex items-center gap-1">
+                        <i data-lucide="eye" class="w-4 h-4"></i> ดูใบข้อมูล
+                      </button>
+                    ` : `
+                      <button id="btn-report-point-${p.id}" onclick="openReportForm(${p.id})" class="bg-brand-800 hover:bg-brand-700 text-white font-bold px-5 py-2.5 rounded-lg shadow transition flex items-center justify-center gap-1.5">
+                        <i data-lucide="clipboard-check" class="w-4 h-4"></i> เริ่มเขียนบันทึกรายงานเวร
+                      </button>
+                    `}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- REPORTING FORM MODAL -->
+        <div id="report-form-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-end md:items-center justify-center p-0 md:p-4">
+          <div class="bg-white rounded-t-2xl md:rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border">
+            <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
+              <h3 class="font-bold text-xs" id="form-modal-title">รายงานผลการปฏิบัติหน้าที่</h3>
+              <button onclick="closeReportForm()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            
+            <form onsubmit="handleReportSubmit(event)" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
+              
+              <!-- Target Point Status Alert -->
+              <div id="modal-distance-alert" class="p-3 rounded-lg border font-bold flex items-center gap-2"></div>
+
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">ระบุสภาพความเรียบร้อย:</label>
+                <select id="rep-status-select" onchange="toggleReportProblemsInput()" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 font-bold text-slate-700">
+                  <option value="reported">ปฏิบัติเวรเรียบร้อย (ปกติ/ไม่พบปัญหา)</option>
+                  <option value="problem">⚠️ พบประเด็นความผิดปกติ หรืออุบัติเหตุ (แจ้งปัญหา)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">ผลการปฏิบัติงานโดยรวม:</label>
+                <textarea id="rep-result-text" rows="3" required placeholder="ระบุการปฏิบัติหน้าที่เวรเบื้องต้น..." class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 leading-relaxed"></textarea>
+              </div>
+
+              <!-- Problem inputs -->
+              <div id="rep-problem-fields" class="hidden grid grid-cols-1 gap-3 bg-red-50 border border-red-150 rounded-lg p-3">
+                <div>
+                  <label class="block text-red-800 font-bold mb-1">ปัญหาที่พบ:</label>
+                  <input type="text" id="rep-problem-text" placeholder="เช่น ก๊อกน้ำอ่างล้างมือนักเรียนชำรุดน้ำไหลท่วม" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-red-500 text-slate-750 font-medium">
+                </div>
+                <div>
+                  <label class="block text-brand-900 font-bold mb-1">แนวทางดำเนินการแก้ไขเบื้องต้น:</label>
+                  <input type="text" id="rep-solution-text" placeholder="เช่น หมุนปิดประตูน้ำหลักและนำใบช่างส่งแจ้งเพื่อซ่อมบำรุง" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-750 font-medium">
+                </div>
+              </div>
+
+              <!-- Evidence Photo Upload -->
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">ถ่ายรูปภาพหรืออัปโหลดรูปถ่ายหลักฐานเวร:</label>
+                <div class="flex items-center gap-3">
+                  <input type="file" accept="image/*" id="rep-photo-input" onchange="previewReportPhoto(event)" class="hidden">
+                  <button type="button" onclick="document.getElementById('rep-photo-input').click()" class="border border-brand-300 hover:border-brand-500 text-brand-850 hover:bg-brand-50/50 py-2 px-3.5 rounded-lg font-bold transition flex items-center gap-1.5">
+                    <i data-lucide="camera" class="w-4 h-4"></i> อัปโหลดรูปภาพเวร
+                  </button>
+                  <span id="rep-photo-filename" class="text-[9px] text-slate-400">ยังไม่ได้ส่งรูปหลักฐาน</span>
+                </div>
+                <div id="rep-photo-preview-box" class="mt-2 border rounded-lg bg-slate-50 hidden overflow-hidden justify-center items-center max-h-32">
+                  <img id="rep-photo-preview" src="" class="object-contain max-h-32" alt="รูปพรีวิว">
+                </div>
+              </div>
+
+              <!-- Signature Area -->
+              <div id="teacher-signature-section" class="border-t pt-4"></div>
+
+              <!-- Button Actions -->
+              <div class="flex gap-2 pt-2 border-t">
+                <button type="button" onclick="closeReportForm()" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ปิดหน้าต่าง</button>
+                <button type="submit" id="btn-submit-report" class="flex-1 bg-brand-850 hover:bg-brand-700 text-white font-bold py-2.5 rounded-lg shadow hover:shadow-md transition">
+                  บันทึกส่งรายงานเวร
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+
+        <!-- Signature Drawer Canvas Modal -->
+        <div id="signature-draw-modal" class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden border">
+            <div class="bg-brand-900 text-white p-3 flex justify-between items-center">
+              <h4 class="font-bold text-xs">เขียนลายเซ็นดิจิทัลของคุณ</h4>
+              <button onclick="closeSignatureDrawer()" class="p-1 hover:bg-white/10 rounded text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+              <p class="text-[10px] text-slate-500">กรุณาลากนิ้วเซ็นชื่อลงในกรอบด้านล่างให้เรียบร้อย (ลายเซ็นนี้จะเซฟและนำไปใช้ประทับใบตรวจโดยอัตโนมัติ)</p>
+              
+              <div class="flex justify-center bg-slate-50 border rounded-lg">
+                <canvas id="sig-canvas" class="signature-pad bg-white shadow-inner" width="300" height="130"></canvas>
+              </div>
+
+              <div class="flex gap-2">
+                <button onclick="clearSignatureCanvas()" class="flex-1 border border-slate-200 hover:bg-slate-50 py-2 text-slate-700 font-bold rounded transition text-[10px]">ล้างวาดใหม่</button>
+                <button onclick="saveSignatureFromCanvas()" class="flex-1 bg-brand-800 hover:bg-brand-700 text-white font-bold py-2 rounded shadow transition text-[10px]">บันทึกลายเซ็นใช้งาน</button>
+              </div>
+
+              <div class="relative py-2">
+                <div class="absolute inset-0 flex items-center"><div class="w-full border-t"></div></div>
+                <div class="relative flex justify-center text-[9px] uppercase"><span class="bg-white px-2 text-slate-400">หรืออัปโหลดรูปภาพลายเซ็น</span></div>
+              </div>
+
+              <div class="text-center">
+                <input type="file" id="sig-image-upload" accept="image/*" onchange="uploadSignatureImage(event)" class="hidden">
+                <button onclick="document.getElementById('sig-image-upload').click()" class="w-full border border-dashed hover:border-brand-500 py-2.5 rounded-lg text-slate-650 hover:text-brand-800 transition font-bold text-[10px]">
+                  📂 อัปโหลดรูปภาพลายเซ็นที่มีอยู่แล้ว
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // touch coordinate helper
+    function getTouchPos(canvasDom, touchEvent) {
+      const rect = canvasDom.getBoundingClientRect();
+      return {
+        x: touchEvent.touches[0].clientX - rect.left,
+        y: touchEvent.touches[0].clientY - rect.top
+      };
+    }
+
+    // Submit report and sync with Supabase
+    async function handleReportSubmit(e) {
+      e.preventDefault();
+      
+      const teacher = db.getTeachers().find(t => t.id === currentUser.id);
+      if (!teacher || !teacher.signature) {
+        showToast('กรุณาทำการลงทะเบียนวาดลายมือชื่ออิเล็กทรอนิกส์ก่อนส่งรายงาน', 'error');
+        return;
+      }
+
+      const points = db.getDutyPoints();
+      const pt = points.find(p => p.id === reportModalActivePointId);
+      if (!pt) return;
+
+      const distance = checkTeacherDistanceToPoint(mockLatitude, mockLongitude, pt.lat, pt.lng);
+      if (distance > pt.radius) {
+        showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้', 'error');
+        return;
+      }
+
+      const statusSelect = document.getElementById('rep-status-select').value;
+      const resultText = document.getElementById('rep-result-text').value.trim();
+      const problemText = document.getElementById('rep-problem-text').value.trim();
+      const solutionText = document.getElementById('rep-solution-text').value.trim();
+
+      const newReportId = 'R' + Date.now();
+      const timeNow = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
+
+      const newReport = {
+        id: newReportId,
+        date: getTodayISODate(),
+        pointId: pt.id,
+        teacherId: currentUser.id,
+        status: statusSelect,
+        time: timeNow,
+        distance: distance,
+        result: resultText,
+        problem: statusSelect === 'problem' ? problemText : '',
+        solution: statusSelect === 'problem' ? solutionText : '',
+        photo: uploadedReportPhotoBase64 || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="%23f1f5f9"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Sarabun" font-size="12" fill="%2394a3b8">ไม่มีภาพถ่ายประกอบ</text></svg>',
+        signature: teacher.signature
+      };
+
+      // Save database (with Supabase sync)
+      await saveReportDB(newReport);
+
+      // Simulated notification message
+      let alertMsg = `📢 แจ้งผลปฏิบัติเวร โรงเรียนมูลนิธิอาซิซสถาน \n`;
+      alertMsg += `จุดเวร: จุดที่ ${pt.id} (${pt.name})\n`;
+      alertMsg += `ผู้ปฏิบัติ: ${currentUser.name}\n`;
+      alertMsg += `เวลาบันทึก: ${timeNow} น.\n`;
+      alertMsg += `สถานะ: ${statusSelect === 'problem' ? '⚠️ พบประเด็นขัดข้อง!' : '✅ ปกติเรียบร้อยดี'}\n`;
+      if (statusSelect === 'problem') {
+        alertMsg += `ปัญหาที่พบ: ${problemText}\nแนวทางดำเนินการ: ${solutionText}\n`;
+      } else {
+        alertMsg += `ผลตรวจเวร: ${resultText}\n`;
+      }
+      alertMsg += `GPS ตรวจสอบ: อยู่ห่าง ${distance.toFixed(1)} เมตร (ภายในรัศมี)`;
+
+      triggerTelegramNotification(alertMsg);
+
+      closeReportForm();
+      navigateTo('my-duty');
+    }
+
+    async function saveReportDB(newReport) {
+      const reports = db.getReports();
+      // Clear older report for same point/teacher today
+      const cleanReports = reports.filter(r => !(r.date === getTodayISODate() && r.pointId === newReport.pointId && r.teacherId === newReport.teacherId));
+      cleanReports.push(newReport);
+      db.saveReports(cleanReports);
+
+      if (useSupabase) {
+        const dbReport = mapReportToDB(newReport);
+        const { error } = await supabaseClient.from('reports').upsert(dbReport);
+        if (error) {
+          console.error("Supabase upsert error:", error);
+          showToast('บันทึกลงคลาวด์ผิดพลาด บันทึกออฟไลน์ในเครื่องเรียบร้อย', 'warning');
+        } else {
+          showToast('บันทึกรายงานและซิงค์คลาวด์ Supabase สำเร็จ!', 'success');
+        }
+      } else {
+        showToast('บันทึกข้อมูลรายงานออฟไลน์สำเร็จ (Local Storage)', 'success');
+      }
+    }
+
+    // I. MY HISTORY VIEW (Teacher View)
+    function renderMyHistoryView() {
+      const reports = db.getReports().filter(r => r.teacherId === currentUser.id);
+
+      return `
+        <div class="fade-in space-y-6 text-xs">
+          <div class="border-b pb-4">
+            <h3 class="text-lg font-bold text-slate-900">ประวัติการลงบันทึกรายงานผล</h3>
+            <p class="text-slate-500 mt-1">ประวัติการยืนยันตัวตนและการตรวจเวรสะสมของคุณ</p>
+          </div>
+
+          <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
+            <div class="p-4 bg-slate-50 border-b border-slate-200">
+              <span class="font-bold text-brand-950">ประวัติรายงานของฉัน</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left min-w-[500px]">
+                <thead class="bg-slate-100 text-slate-600 border-b">
+                  <tr>
+                    <th class="px-4 py-3 text-center">วันที่</th>
+                    <th class="px-4 py-3">จุดเวร</th>
+                    <th class="px-4 py-3 text-center">เวลารายงาน</th>
+                    <th class="px-4 py-3 text-center">ระยะตรวจสอบ GPS</th>
+                    <th class="px-4 py-3 text-center">สถานะ</th>
+                    <th class="px-4 py-3">รายละเอียดบันทึก</th>
+                    <th class="px-4 py-3 text-center">รายละเอียด</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y text-slate-700">
+                  ${reports.length === 0 ? `
+                    <tr>
+                      <td colspan="7" class="p-6 text-center text-slate-400 font-medium">คุณยังไม่มีข้อมูลประวัติส่งรายงาน</td>
+                    </tr>
+                  ` : reports.map(r => {
+                    const pt = db.getDutyPoints().find(p => p.id === r.pointId);
+                    return `
+                      <tr class="hover:bg-slate-50 transition cursor-default">
+                        <td class="px-4 py-3 text-center font-bold text-slate-600">${getTodayThaiFullDate(r.date)}</td>
+                        <td class="px-4 py-3 font-semibold text-brand-950">${pt ? `จุดที่ ${pt.id}: ${pt.name}` : `จุดที่ ${r.pointId}`}</td>
+                        <td class="px-4 py-3 text-center font-semibold text-slate-800">${r.time} น.</td>
+                        <td class="px-4 py-3 text-center">${r.distance.toFixed(1)} ม.</td>
+                        <td class="px-4 py-3 text-center">
+                          ${r.status === 'problem' 
+                            ? '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">พบปัญหา</span>' 
+                            : '<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">ปกติ</span>'}
+                        </td>
+                        <td class="px-4 py-3 max-w-[200px] truncate">${r.status === 'problem' ? `[ปัญหา] ${r.problem}` : r.result}</td>
+                        <td class="px-4 py-3 text-center">
+                          <button onclick="viewReportDetails('${r.id}')" class="text-brand-700 hover:text-brand-900 font-bold inline-flex items-center gap-0.5">
+                            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 6. DOWLOADS AND simulated line/telegram notification methods
+    // =========================================================================
+    
+    // EXCEL EXPORTER
+    function exportToExcel() {
+      const reports = db.getReports().filter(r => r.date === getTodayISODate());
+      const points = db.getDutyPoints();
+      
+      const rows = [];
+      points.forEach(p => {
+        const assignedList = p.assignedTo || p.assigned_to || [];
+        assignedList.forEach(teacherId => {
+          const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
+          rows.push({
+            'จุดเวร': `จุดที่ ${p.id}`,
+            'จุดปฏิบัติงาน': p.name,
+            'ช่วงเวลาเวร': p.time,
+            'ชื่อคุณครู': getTeacherName(teacherId),
+            'สถานะปฏิบัติเวร': rep ? (rep.status === 'problem' ? 'พบปัญหา!' : 'ปกติ / รายงานเรียบร้อย') : 'ยังไม่ได้รายงานเวร',
+            'เวลารายงาน': rep ? rep.time : '-',
+            'ระยะขอบเขต GPS (เมตร)': rep ? rep.distance.toFixed(1) : '-',
+            'บันทึกผลการปฏิบัติหน้าที่': rep ? (rep.status === 'problem' ? rep.problem : rep.result) : '-',
+            'แนวทางการแก้ไขปัญหา': rep ? rep.solution : '-'
+          });
+        });
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "รายงานตรวจเวรประจำวัน");
+      
+      const filename = `รายงานตรวจเวรประจำวัน_วันอังคาร_${getTodayISODate()}.xlsx`;
+      XLSX.writeFile(wb, filename);
+      showToast('ดาวน์โหลดเอกสาร Excel เรียบร้อยแล้ว', 'success');
+    }
+
+    // TELEGRAM NOTIFICATION API
+    function triggerTelegramNotification(messageText) {
+      const settings = db.getSettings();
+      
+      // Save notification log locally
+      const logs = db.getNotificationLogs();
+      logs.unshift({
+        id: 'L' + Date.now(),
+        message: messageText,
+        time: new Date().toLocaleTimeString('th-TH'),
+        date: getTodayISODate()
+      });
+      db.saveNotificationLogs(logs);
+      updateNotificationLogsUI();
+
+      // Show temporary web notification toast
+      showToast('ส่งข้อความแจ้งเตือนจำลองผ่าน Line Notify สำเร็จ', 'info');
+
+      // Check if credentials are set to trigger real telegram bot
+      if (settings.telegramToken && settings.telegramChatId) {
+        const url = `https://api.telegram.org/bot${settings.telegramToken}/sendMessage`;
+        const payload = {
+          chat_id: settings.telegramChatId,
+          text: messageText
+        };
+
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        .then(res => {
+          if (res.ok) showToast('ส่งข้อมูลแจ้งเตือนไปยังกลุ่ม Telegram เรียบร้อยแล้ว!', 'success');
+          else showToast('การตั้งค่า Telegram ไม่ถูกต้อง หรือ API ปฏิเสธการส่งข้อความ', 'error');
+        })
+        .catch(err => {
+          console.error(err);
+          showToast('ไม่สามารถเชื่อมต่ออินเทอร์เน็ตเพื่อยิง Telegram Bot API ได้', 'error');
+        });
+      }
+    }
+
+    // Notification Panel Drawer Controls
+    function toggleNotificationPanel() {
+      const panel = document.getElementById('notification-panel');
+      panel.classList.toggle('hidden');
+      updateNotificationLogsUI();
+    }
+
+    function clearNotificationLogs() {
+      db.saveNotificationLogs([]);
+      updateNotificationLogsUI();
+      showToast('เคลียร์ประวัติพุชเรียบร้อย', 'info');
+    }
+
+    function updateNotificationLogsUI() {
+      const list = document.getElementById('notification-list');
+      const badge = document.getElementById('notification-badge');
+      const mobileBadge = document.getElementById('mobile-notification-badge');
+      const logs = db.getNotificationLogs();
+
+      const badgeShow = logs.length > 0;
+      if (badge) badge.classList.toggle('hidden', !badgeShow);
+      if (mobileBadge) mobileBadge.classList.toggle('hidden', !badgeShow);
+
+      if (logs.length > 0) {
+        list.innerHTML = logs.map(l => `
+          <div class="p-3 hover:bg-slate-50 transition border-b space-y-1 text-slate-700">
+            <div class="flex justify-between items-center text-[9px] text-slate-400 font-bold">
+              <span class="text-brand-900">แจ้งเตือน LINE/Telegram</span>
+              <span>${l.time} น.</span>
+            </div>
+            <p class="text-[10px] whitespace-pre-line leading-relaxed font-semibold">${l.message}</p>
+          </div>
+        `).join('');
+      } else {
+        list.innerHTML = `<p class="p-4 text-center text-slate-400">ไม่มีประวัติการแจ้งเตือน</p>`;
+      }
+    }
+
+    // =========================================================================
+    // 7. TOAST NOTIFICATION ENGINE & GLOBAL CONTROL UTILITIES
+    // =========================================================================
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      const colors = {
+        success: 'bg-green-800 border-green-950 text-white',
+        error: 'bg-red-700 border-red-950 text-white',
+        info: 'bg-slate-800 border-slate-950 text-white',
+        warning: 'bg-amber-600 border-amber-850 text-white'
+      };
+
+      toast.className = `flex items-center gap-2 px-4 py-3 border text-xs font-bold rounded-xl shadow-2xl transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto max-w-sm ${colors[type] || colors.info}`;
+      
+      let icon = 'info';
+      if (type === 'success') icon = 'check-circle';
+      else if (type === 'error') icon = 'alert-octagon';
+      else if (type === 'warning') icon = 'alert-triangle';
+
+      toast.innerHTML = `
+        <i data-lucide="${icon}" class="w-4 h-4 flex-shrink-0"></i>
+        <span>${message}</span>
+      `;
+      
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 50);
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-[-10px]', 'opacity-0');
+        setTimeout(() => { toast.remove(); }, 300);
+      }, 4000);
+    }
+
+    // Helper functions
+    function getTodayISODate() { return new Date().toISOString().split('T')[0]; }
+    
+    function getTodayThaiFullDate(customDateStr) {
+      const d = customDateStr ? new Date(customDateStr) : new Date();
+      return d.toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function getTeacherName(id) {
+      const t = db.getTeachers().find(x => x.id === id);
+      return t ? t.name : id;
+    }
+
+    // =========================================================================
+    // 8. ON STARTUP & INITIAL EVENTS LOADING
+    // =========================================================================
+    window.addEventListener('load', () => {
+      // Sync mock coordinates focus to settings center coordinates on startup
+      const settings = db.getSettings();
+      mockLatitude = settings.centerLat || mockLatitude;
+      mockLongitude = settings.centerLng || mockLongitude;
+
+      // Initialize Supabase Online connection
+      initSupabase();
+      updateDynamicTitles();
+      lucide.createIcons();
+      updateNotificationLogsUI();
+    });
+
+    // Handle touch coordinate actions in Canvas signature drawing modal
+    function startDrawing(e) {
+      signatureDrawing = true;
+      const rect = signatureCanvas.getBoundingClientRect();
+      signatureCtx.beginPath();
+      signatureCtx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    }
+
+    function draw(e) {
+      if (!signatureDrawing) return;
+      const rect = signatureCanvas.getBoundingClientRect();
+      signatureCtx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+      signatureCtx.stroke();
+    }
+
+    function stopDrawing() {
+      signatureDrawing = false;
+    }
+
+    function clearSignatureCanvas() {
+      if (signatureCanvas) {
+        signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+      }
+    }
+
+    function saveSignatureFromCanvas() {
+      const dataUrl = signatureCanvas.toDataURL('image/png');
+      const blank = document.createElement('canvas');
+      blank.width = signatureCanvas.width;
+      blank.height = signatureCanvas.height;
+      if (dataUrl === blank.toDataURL('image/png')) {
+        showToast('กรุณาวาดลายมือชื่อของท่านให้สมบูรณ์ก่อนบันทึก', 'error');
+        return;
+      }
+      saveSignatureToDatabase(dataUrl);
+    }
+
+    function uploadSignatureImage(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        saveSignatureToDatabase(evt.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function saveSignatureToDatabase(base64Data) {
+      const teachers = db.getTeachers();
+      const tIndex = teachers.findIndex(t => t.id === currentUser.id);
+      if (tIndex !== -1) {
+        teachers[tIndex].signature = base64Data;
+        db.saveTeachers(teachers);
+
+        if (useSupabase) {
+          const { error } = await supabaseClient.from('teachers').upsert(teachers[tIndex]);
+          if (error) console.error("Cloud save signature error:", error);
+        }
+
+        closeSignatureDrawer();
+        loadTeacherSignatureStatus();
+        showToast('ลงทะเบียนบันทึกลายเซ็นของคุณเรียบร้อยแล้ว', 'success');
+      }
+    }
+
+    function openSignatureDrawer() {
+      document.getElementById('signature-draw-modal').classList.remove('hidden');
+      setTimeout(() => {
+        signatureCanvas = document.getElementById('sig-canvas');
+        signatureCtx = signatureCanvas.getContext('2d');
+        
+        signatureCtx.strokeStyle = '#14532d'; // Forest green
+        signatureCtx.lineWidth = 2.5;
+        signatureCtx.lineJoin = 'round';
+        signatureCtx.lineCap = 'round';
+
+        // Mouse Events
+        signatureCanvas.addEventListener('mousedown', startDrawing);
+        signatureCanvas.addEventListener('mousemove', draw);
+        signatureCanvas.addEventListener('mouseup', stopDrawing);
+        signatureCanvas.addEventListener('mouseout', stopDrawing);
+
+        // Mobile touch support
+        signatureCanvas.addEventListener("touchstart", function (e) {
+          e.preventDefault();
+          const touch = e.touches[0];
+          const mouseEvent = new MouseEvent("mousedown", {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+          });
+          signatureCanvas.dispatchEvent(mouseEvent);
+        }, false);
+
+        signatureCanvas.addEventListener("touchend", function (e) {
+          e.preventDefault();
+          const mouseEvent = new MouseEvent("mouseup", {});
+          signatureCanvas.dispatchEvent(mouseEvent);
+        }, false);
+
+        signatureCanvas.addEventListener("touchmove", function (e) {
+          e.preventDefault();
+          const touch = e.touches[0];
+          const mouseEvent = new MouseEvent("mousemove", {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+          });
+          signatureCanvas.dispatchEvent(mouseEvent);
+        }, false);
+
+      }, 200);
+      lucide.createIcons();
+    }
+
+    function closeSignatureDrawer() {
+      document.getElementById('signature-draw-modal').classList.add('hidden');
+    }
+
+    function loadTeacherSignatureStatus() {
+      const container = document.getElementById('teacher-signature-section');
+      const teacher = db.getTeachers().find(t => t.id === currentUser.id);
+
+      if (teacher && teacher.signature) {
+        container.innerHTML = `
+          <div class="bg-brand-50/50 border border-brand-100 rounded-lg p-3 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="shield-check" class="w-5 h-5 text-brand-700"></i>
+              <div>
+                <p class="font-bold text-slate-800">พบลายมือชื่อในฐานข้อมูลของท่านแล้ว</p>
+                <p class="text-[8px] text-slate-450">ระบบจะทำการประทับลายเซ็นนี้ลงใบรายงานยศอัตโนมัติเมื่อกดบันทึก</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <img src="${teacher.signature}" class="max-h-7 border p-0.5 bg-white rounded" alt="Signature">
+              <button type="button" onclick="openSignatureDrawer()" class="text-brand-700 hover:underline font-bold text-[9px]">แก้ไข</button>
+            </div>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center space-y-2">
+            <p class="font-bold text-amber-900">⚠️ คุณยังไม่มีข้อมูลลายเซ็นในฐานข้อมูล</p>
+            <p class="text-[9px] text-amber-700 font-medium">กรุณาวาดลายเซ็นสำหรับใช้งานบันทึกตรวจเวร</p>
+            <button type="button" onclick="openSignatureDrawer()" class="bg-brand-800 text-white font-bold px-4 py-1.5 rounded hover:bg-brand-700 text-[10px] transition inline-flex items-center gap-1">
+              <i data-lucide="feather" class="w-3.5 h-3.5"></i> วาด/อัปโหลดลายเซ็นของฉัน
+            </button>
+          </div>
+        `;
+      }
+      lucide.createIcons();
+    }
+
+    function changeGPSSimulation() {
+      const val = document.getElementById('gps-simulator').value;
+      const ind = document.getElementById('gps-indicator');
+      const mobSelect = document.getElementById('gps-simulator-mobile');
+      
+      if (mobSelect) mobSelect.value = val;
+      const settings = db.getSettings();
+      const baseLat = settings.centerLat || 6.787680;
+      const baseLng = settings.centerLng || 101.408120;
+
+      if (val === 'real') {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              mockLatitude = pos.coords.latitude;
+              mockLongitude = pos.coords.longitude;
+              ind.textContent = "ใช้ GPS จริง";
+              ind.className = "font-bold text-blue-400";
+              showToast("เชื่อมโยงสัญญาณ GPS ของโทรศัพท์คุณเรียบร้อยแล้ว", "success");
+              if (currentPage === 'my-duty') updateTeacherLocationStatus();
+            },
+            (err) => {
+              showToast("ไม่สามารถเรียกดูพิกัดของโทรศัพท์ได้ เปลี่ยนกลับไปใช้โหมดจำลอง", "error");
+              document.getElementById('gps-simulator').value = 'point1';
+              changeGPSSimulation();
+            }
+          );
+        } else {
+          showToast("อุปกรณ์ไม่รองรับการทำงาน GPS", "error");
+        }
+      } else if (val === 'point1') {
+        mockLatitude = baseLat;
+        mockLongitude = baseLng;
+        ind.textContent = "จำลองจุดเวรที่ 1";
+        ind.className = "font-bold text-green-400";
+        if (currentPage === 'my-duty') updateTeacherLocationStatus();
+      } else if (val === 'point2') {
+        mockLatitude = baseLat + 0.000420;
+        mockLongitude = baseLng + 0.000380;
+        ind.textContent = "จำลองจุดเวรที่ 2";
+        ind.className = "font-bold text-green-400";
+        if (currentPage === 'my-duty') updateTeacherLocationStatus();
+      } else {
+        mockLatitude = baseLat + 0.500000;
+        mockLongitude = baseLng + 0.500000;
+        ind.textContent = "นอกรัศมีควบคุม";
+        ind.className = "font-bold text-red-500";
+        if (currentPage === 'my-duty') updateTeacherLocationStatus();
+      }
+    }
+
+    function removeTeacherFromPoint(pointId, teacherId) {
+      const points = db.getDutyPoints();
+      const pt = points.find(p => p.id === pointId);
+      if (pt) {
+        const assignedList = pt.assignedTo || pt.assigned_to || [];
+        pt.assignedTo = assignedList.filter(id => id !== teacherId);
+        saveDutyPointsDB(points);
+        renderPage('schedule');
+        showToast('ลบครูผู้รับผิดชอบเวรออกแล้ว', 'success');
+      }
+    }
+
+    async function saveDutyPointsDB(points) {
+      db.saveDutyPoints(points);
+      if (useSupabase) {
+        const dbPoints = points.map(mapDutyPointToDB);
+        const { error } = await supabaseClient.from('duty_points').upsert(dbPoints);
+        if (error) console.error("Cloud save points error:", error);
+      }
+    }
+
+    function openAddTeacherToPointModal(pointId) {
+      const points = db.getDutyPoints();
+      const pt = points.find(p => p.id === pointId);
+      const teachers = db.getTeachers();
+
+      const assignedList = pt.assignedTo || pt.assigned_to || [];
+      const nonAssigned = teachers.filter(t => !assignedList.includes(t.id));
+      const select = document.getElementById('select-new-teacher-opt');
+      
+      document.getElementById('add-teacher-point-id').value = pointId;
+
+      if (nonAssigned.length === 0) {
+        select.innerHTML = '<option value="">-- คุณครูทุกคนได้รับการแต่งตั้งแล้ว --</option>';
+      } else {
+        select.innerHTML = nonAssigned.map(t => `<option value="${t.id}">${t.name} (${t.id})</option>`).join('');
+      }
+
+      document.getElementById('add-teacher-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeAddTeacherModal() {
+      document.getElementById('add-teacher-modal').classList.add('hidden');
+    }
+
+    function saveTeacherToPoint() {
+      const pointId = parseInt(document.getElementById('add-teacher-point-id').value);
+      const teacherId = document.getElementById('select-new-teacher-opt').value;
+      
+      if (!teacherId) {
+        closeAddTeacherModal();
+        return;
+      }
+
+      const points = db.getDutyPoints();
+      const pt = points.find(p => p.id === pointId);
+      if (pt) {
+        if (!pt.assignedTo) pt.assignedTo = pt.assigned_to || [];
+        pt.assignedTo.push(teacherId);
+        saveDutyPointsDB(points);
+        closeAddTeacherModal();
+        renderPage('schedule');
+        showToast('แต่งตั้งครูเข้าคุมจุดเวรเรียบร้อย', 'success');
+      }
+    }
+
+    function autoDetectCoordinates() {
+      document.getElementById('point-form-lat').value = mockLatitude.toFixed(6);
+      document.getElementById('point-form-lng').value = mockLongitude.toFixed(6);
+      updateGmapsModalLink();
+      showToast('จำลองพิกัดสำเร็จ', 'info');
+    }
+
+    // Leaflet map setup for admin
+    function initDutyPointsMap() {
+      const settings = db.getSettings();
+      const lat = settings.centerLat || 6.787680;
+      const lng = settings.centerLng || 101.408120;
+      currentMapInstance = L.map('duty-map').setView([lat, lng], 17);
+      
+      L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        attribution: '&copy; Google Maps'
+      }).addTo(currentMapInstance);
+
+      const points = db.getDutyPoints();
+      points.forEach(p => {
+        L.marker([p.lat, p.lng]).addTo(currentMapInstance)
+          .bindPopup(`<b>จุดที่ ${p.id}: ${p.name}</b><br>เวลาเวร: ${p.time}`);
+
+        L.circle([p.lat, p.lng], {
+          color: '#15803d',
+          fillColor: '#86efac',
+          fillOpacity: 0.3,
+          radius: p.radius
+        }).addTo(currentMapInstance);
+      });
+    }
+
+    function focusOnPointInMap(lat, lng, radius, name) {
+      if (!currentMapInstance) return;
+      currentMapInstance.setView([lat, lng], 18);
+      
+      if (pointMarkerInstance) {
+        currentMapInstance.removeLayer(pointMarkerInstance);
+      }
+
+      pointMarkerInstance = L.circle([lat, lng], {
+        color: '#dc2626',
+        fillColor: '#fee2e2',
+        fillOpacity: 0.2,
+        radius: radius
+      }).addTo(currentMapInstance);
+
+      L.popup().setLatLng([lat, lng]).setContent(`<strong>จุดเวร: ${name}</strong>`).openOn(currentMapInstance);
+    }
+
+    // --- MISSING JS FUNCTIONS FOR ADMIN MODALS & UTILITIES ---
+
+    function openTeacherFormModal(teacherId = null) {
+      const modal = document.getElementById('teacher-form-modal');
+      const title = document.getElementById('teacher-modal-title');
+      const idFlag = document.getElementById('teacher-form-id-flag');
+      const idInput = document.getElementById('teacher-form-id');
+      const nameInput = document.getElementById('teacher-form-name');
+      const phoneInput = document.getElementById('teacher-form-phone');
+      const roleSelect = document.getElementById('teacher-form-role');
+
+      if (teacherId) {
+        const t = db.getTeachers().find(x => x.id === teacherId);
+        title.textContent = 'แก้ไขข้อมูลผู้ปฏิบัติงาน';
+        idFlag.value = t.id;
+        idInput.value = t.id;
+        idInput.disabled = true;
+        nameInput.value = t.name;
+        phoneInput.value = t.phone;
+        roleSelect.value = t.role;
+      } else {
+        title.textContent = 'เพิ่มครูผู้ปฏิบัติเวรท่านใหม่';
+        idFlag.value = '';
+        idInput.value = '';
+        idInput.disabled = false;
+        nameInput.value = '';
+        phoneInput.value = '';
+        roleSelect.value = 'teacher';
+      }
+
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeTeacherFormModal() {
+      document.getElementById('teacher-form-modal').classList.add('hidden');
+    }
+
+    async function saveTeacherData(e) {
+      e.preventDefault();
+      const idFlag = document.getElementById('teacher-form-id-flag').value;
+      const idInput = document.getElementById('teacher-form-id').value.trim();
+      const nameInput = document.getElementById('teacher-form-name').value.trim();
+      const phoneInput = document.getElementById('teacher-form-phone').value.trim();
+      const roleSelect = document.getElementById('teacher-form-role').value;
+
+      const teachers = db.getTeachers();
+      let tObj = null;
+
+      if (idFlag) {
+        const tIndex = teachers.findIndex(x => x.id === idFlag);
+        if (tIndex !== -1) {
+          teachers[tIndex].name = nameInput;
+          teachers[tIndex].phone = phoneInput;
+          teachers[tIndex].role = roleSelect;
+          tObj = teachers[tIndex];
+        }
+      } else {
+        if (teachers.some(t => t.id.toLowerCase() === idInput.toLowerCase())) {
+          showToast('รหัสครูนี้มีอยู่ในระบบแล้ว กรุณาใช้รหัสอื่น', 'error');
+          return;
+        }
+        tObj = {
+          id: idInput,
+          name: nameInput,
+          phone: phoneInput,
+          role: roleSelect,
+          signature: null
+        };
+        teachers.push(tObj);
+      }
+
+      db.saveTeachers(teachers);
+
+      if (useSupabase && tObj) {
+        const { error } = await supabaseClient.from('teachers').upsert(tObj);
+        if (error) console.error("Cloud save teacher error:", error);
+      }
+
+      closeTeacherFormModal();
+      renderPage('teachers');
+      showToast('บันทึกข้อมูลบุคลากรเรียบร้อยแล้ว', 'success');
+    }
+
+    async function deleteTeacher(teacherId) {
+      if (confirm(`คุณต้องการลบข้อมูลครู ${getTeacherName(teacherId)} ออกจากระบบหรือไม่?`)) {
+        let teachers = db.getTeachers();
+        teachers = teachers.filter(t => t.id !== teacherId);
+        db.saveTeachers(teachers);
+
+        if (useSupabase) {
+          const { error } = await supabaseClient.from('teachers').delete().eq('id', teacherId);
+          if (error) console.error("Cloud delete teacher error:", error);
+        }
+
+        const points = db.getDutyPoints();
+        points.forEach(p => {
+          const assignedList = p.assignedTo || p.assigned_to || [];
+          p.assignedTo = assignedList.filter(id => id !== teacherId);
+        });
+        saveDutyPointsDB(points);
+
+        renderPage('teachers');
+        showToast('ลบข้อมูลครูออกเรียบร้อยแล้ว', 'success');
+      }
+    }
+
+    function openDutyPointModal(pointId = null) {
+      const modal = document.getElementById('point-form-modal');
+      const title = document.getElementById('point-modal-title');
+      const idFlag = document.getElementById('point-form-id-flag');
+      const nameInput = document.getElementById('point-form-name');
+      const timeInput = document.getElementById('point-form-time');
+      const latInput = document.getElementById('point-form-lat');
+      const lngInput = document.getElementById('point-form-lng');
+      const radInput = document.getElementById('point-form-radius');
+
+      if (pointId) {
+        const p = db.getDutyPoints().find(x => x.id === pointId);
+        title.textContent = 'แก้ไขพิกัดจุดเวร';
+        idFlag.value = p.id;
+        nameInput.value = p.name;
+        timeInput.value = p.time;
+        latInput.value = p.lat;
+        lngInput.value = p.lng;
+        radInput.value = p.radius;
+      } else {
+        const settings = db.getSettings();
+        title.textContent = 'สร้างพิกัดจุดเวรเพิ่มเติม';
+        idFlag.value = '';
+        nameInput.value = '';
+        timeInput.value = '08:00-08:30';
+        latInput.value = settings.centerLat || mockLatitude;
+        lngInput.value = settings.centerLng || mockLongitude;
+        radInput.value = settings.defaultRadius || 50;
+      }
+
+      modal.classList.remove('hidden');
+      updateGmapsModalLink();
+      
+      // Bind updates on manual coordinate entry
+      latInput.oninput = updateGmapsModalLink;
+      lngInput.oninput = updateGmapsModalLink;
+      
+      lucide.createIcons();
+    }
+
+    function updateGmapsModalLink() {
+      const lat = parseFloat(document.getElementById('point-form-lat').value) || mockLatitude;
+      const lng = parseFloat(document.getElementById('point-form-lng').value) || mockLongitude;
+      const btn = document.getElementById('btn-open-gmaps');
+      if (btn) {
+        btn.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+      }
+      
+      // Update modal picker map if active and visible
+      const container = document.getElementById('modal-map-picker-container');
+      if (modalMapInstance && container && !container.classList.contains('hidden')) {
+        updateModalMapMarker(lat, lng);
+        modalMapInstance.panTo([lat, lng]);
+      }
+    }
+
+    function toggleModalMapPicker() {
+      const container = document.getElementById('modal-map-picker-container');
+      if (container.classList.contains('hidden')) {
+        container.classList.remove('hidden');
+        initModalPickerMap();
+      } else {
+        container.classList.add('hidden');
+      }
+    }
+
+    function initModalPickerMap() {
+      const lat = parseFloat(document.getElementById('point-form-lat').value) || mockLatitude;
+      const lng = parseFloat(document.getElementById('point-form-lng').value) || mockLongitude;
+
+      if (!modalMapInstance) {
+        modalMapInstance = L.map('modal-picker-map').setView([lat, lng], 17);
+        L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+          attribution: '&copy; Google Maps'
+        }).addTo(modalMapInstance);
+
+        // Add map click listener
+        modalMapInstance.on('click', function(e) {
+          const clickedLat = e.latlng.lat;
+          const clickedLng = e.latlng.lng;
+          
+          document.getElementById('point-form-lat').value = clickedLat.toFixed(6);
+          document.getElementById('point-form-lng').value = clickedLng.toFixed(6);
+          
+          updateModalMapMarker(clickedLat, clickedLng);
+        });
+      } else {
+        modalMapInstance.setView([lat, lng], 17);
+      }
+
+      setTimeout(() => {
+        modalMapInstance.invalidateSize();
+        updateModalMapMarker(lat, lng);
+      }, 150);
+    }
+
+    function updateModalMapMarker(lat, lng) {
+      if (modalMapMarker) {
+        modalMapInstance.removeLayer(modalMapMarker);
+      }
+      modalMapMarker = L.marker([lat, lng]).addTo(modalMapInstance)
+        .bindPopup("พิกัดจุดปฏิบัติหน้าที่")
+        .openPopup();
+    }
+
+    async function searchLocationOnMap() {
+      const query = document.getElementById('modal-map-search-input').value.trim();
+      const resultsDiv = document.getElementById('modal-map-search-results');
+      if (!query) {
+        resultsDiv.classList.add('hidden');
+        return;
+      }
+      
+      resultsDiv.innerHTML = '<p class="p-2 text-slate-400 text-center">กำลังค้นหา...</p>';
+      resultsDiv.classList.remove('hidden');
+
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`, {
+          headers: { 'User-Agent': 'AzizstanSchoolDutyApp/1.0' }
+        });
+        const data = await res.json();
+        
+        if (data.length === 0) {
+          resultsDiv.innerHTML = '<p class="p-2 text-slate-450 text-center">ไม่พบสถานที่ดังกล่าว</p>';
+          return;
+        }
+
+        resultsDiv.innerHTML = data.map((item, idx) => `
+          <button type="button" onclick="selectSearchResult(${item.lat}, ${item.lon}, '${item.display_name.replace(/'/g, "\\'")}')" class="w-full text-left p-2 hover:bg-slate-50 transition block truncate font-semibold text-slate-700 border-b">
+            📌 ${item.display_name}
+          </button>
+        `).join('');
+      } catch (err) {
+        console.error("Nominatim search error:", err);
+        resultsDiv.innerHTML = '<p class="p-2 text-red-500 text-center">ค้นหาล้มเหลว กรุณาลองใหม่</p>';
+      }
+    }
+
+    function selectSearchResult(lat, lon, displayName) {
+      document.getElementById('point-form-lat').value = lat.toFixed(6);
+      document.getElementById('point-form-lng').value = lon.toFixed(6);
+      
+      if (modalMapInstance) {
+        modalMapInstance.setView([lat, lon], 17);
+        updateModalMapMarker(lat, lon);
+      }
+      
+      document.getElementById('modal-map-search-input').value = displayName;
+      document.getElementById('modal-map-search-results').classList.add('hidden');
+      updateGmapsModalLink();
+    }
+
+    function updateDynamicTitles() {
+      const settings = db.getSettings();
+      const loginSubtitle = document.getElementById('login-subtitle');
+      if (loginSubtitle) {
+        loginSubtitle.textContent = `เวรวัน${settings.dutyDay || 'อังคาร'} ${settings.dutyGroup || 'ครูชาย'} ${settings.schoolName || 'โรงเรียนมูลนิธิอาซิซสถาน'}`;
+      }
+      
+      const sidebarSubtitle = document.getElementById('sidebar-subtitle');
+      if (sidebarSubtitle) {
+        sidebarSubtitle.textContent = `เวรวัน${settings.dutyDay || 'อังคาร'} (${settings.dutyGroup || 'ครูชาย'})`;
+      }
+      const sidebarSchool = document.getElementById('sidebar-school');
+      if (sidebarSchool) {
+        sidebarSchool.textContent = settings.schoolName || 'ร.ร.มูลนิธิอาซิซสถาน';
+      }
+      
+      const mobileSidebarSubtitle = document.getElementById('mobile-sidebar-subtitle');
+      if (mobileSidebarSubtitle) {
+        mobileSidebarSubtitle.textContent = `เวรวัน${settings.dutyDay || 'อังคาร'} (${settings.dutyGroup || 'ครูชาย'})`;
+      }
+
+      const mobileHeaderSchool = document.getElementById('mobile-header-school');
+      if (mobileHeaderSchool) {
+        mobileHeaderSchool.textContent = settings.schoolName || 'ร.ร.มูลนิธิอาซิซสถาน';
+      }
+    }
+
+    function focusPickerMapOnCurrentLocation() {
+      if (modalMapInstance) {
+        modalMapInstance.setView([mockLatitude, mockLongitude], 18);
+        document.getElementById('point-form-lat').value = mockLatitude.toFixed(6);
+        document.getElementById('point-form-lng').value = mockLongitude.toFixed(6);
+        updateModalMapMarker(mockLatitude, mockLongitude);
+      }
+    }
+
+    function closeDutyPointModal() {
+      document.getElementById('point-form-modal').classList.add('hidden');
+      const container = document.getElementById('modal-map-picker-container');
+      if (container) container.classList.add('hidden');
+      
+      const resultsDiv = document.getElementById('modal-map-search-results');
+      if (resultsDiv) resultsDiv.classList.add('hidden');
+      const searchInput = document.getElementById('modal-map-search-input');
+      if (searchInput) searchInput.value = '';
+    }
+
+    let settingsMapInstance = null;
+    let settingsMapMarker = null;
+
+    function toggleSettingsMapPicker() {
+      const container = document.getElementById('settings-map-picker-container');
+      if (container.classList.contains('hidden')) {
+        container.classList.remove('hidden');
+        container.classList.add('flex');
+        initSettingsPickerMap();
+      } else {
+        container.classList.add('hidden');
+        container.classList.remove('flex');
+      }
+    }
+
+    function initSettingsPickerMap() {
+      const lat = parseFloat(document.getElementById('sett-center-lat').value) || mockLatitude;
+      const lng = parseFloat(document.getElementById('sett-center-lng').value) || mockLongitude;
+
+      if (!settingsMapInstance) {
+        settingsMapInstance = L.map('settings-picker-map').setView([lat, lng], 17);
+        L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+          attribution: '&copy; Google Maps'
+        }).addTo(settingsMapInstance);
+
+        // Add map click listener
+        settingsMapInstance.on('click', function(e) {
+          const clickedLat = e.latlng.lat;
+          const clickedLng = e.latlng.lng;
+          
+          document.getElementById('sett-center-lat').value = clickedLat.toFixed(6);
+          document.getElementById('sett-center-lng').value = clickedLng.toFixed(6);
+          
+          updateSettingsMapMarker(clickedLat, clickedLng);
+        });
+      } else {
+        settingsMapInstance.setView([lat, lng], 17);
+      }
+
+      setTimeout(() => {
+        settingsMapInstance.invalidateSize();
+        updateSettingsMapMarker(lat, lng);
+      }, 150);
+    }
+
+    function updateSettingsMapMarker(lat, lng) {
+      if (settingsMapMarker) {
+        settingsMapInstance.removeLayer(settingsMapMarker);
+      }
+      settingsMapMarker = L.marker([lat, lng]).addTo(settingsMapInstance)
+        .bindPopup("พิกัดศูนย์กลางโรงเรียน")
+        .openPopup();
+    }
+
+    async function searchLocationOnSettingsMap() {
+      const query = document.getElementById('settings-map-search-input').value.trim();
+      const resultsDiv = document.getElementById('settings-map-search-results');
+      if (!query) {
+        resultsDiv.classList.add('hidden');
+        return;
+      }
+      
+      resultsDiv.innerHTML = '<p class="p-2 text-slate-450 text-center">กำลังค้นหา...</p>';
+      resultsDiv.classList.remove('hidden');
+
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`, {
+          headers: { 'User-Agent': 'AzizstanSchoolDutyApp/1.0' }
+        });
+        const data = await res.json();
+        
+        if (data.length === 0) {
+          resultsDiv.innerHTML = '<p class="p-2 text-slate-450 text-center">ไม่พบสถานที่ดังกล่าว</p>';
+          return;
+        }
+
+        resultsDiv.innerHTML = data.map((item, idx) => `
+          <button type="button" onclick="selectSettingsSearchResult(${item.lat}, ${item.lon}, '${item.display_name.replace(/'/g, "\\'")}')" class="w-full text-left p-2 hover:bg-slate-50 transition block truncate font-semibold text-slate-700 border-b">
+            📌 ${item.display_name}
+          </button>
+        `).join('');
+      } catch (err) {
+        console.error("Nominatim search error:", err);
+        resultsDiv.innerHTML = '<p class="p-2 text-red-500 text-center">ค้นหาล้มเหลว กรุณาลองใหม่</p>';
+      }
+    }
+
+    function selectSettingsSearchResult(lat, lon, displayName) {
+      document.getElementById('sett-center-lat').value = lat.toFixed(6);
+      document.getElementById('sett-center-lng').value = lon.toFixed(6);
+      
+      if (settingsMapInstance) {
+        settingsMapInstance.setView([lat, lon], 17);
+        updateSettingsMapMarker(lat, lon);
+      }
+      
+      const resultsDiv = document.getElementById('settings-map-search-results');
+      if (resultsDiv) resultsDiv.classList.add('hidden');
+      const searchInput = document.getElementById('settings-map-search-input');
+      if (searchInput) searchInput.value = '';
+      
+      showToast(`เลือกสถานที่: ${displayName}`, 'success');
+    }
+
+    function focusSettingsMapOnBrowserLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const browserLat = pos.coords.latitude;
+            const browserLng = pos.coords.longitude;
+            
+            document.getElementById('sett-center-lat').value = browserLat.toFixed(6);
+            document.getElementById('sett-center-lng').value = browserLng.toFixed(6);
+            
+            if (settingsMapInstance) {
+              settingsMapInstance.setView([browserLat, browserLng], 18);
+              updateSettingsMapMarker(browserLat, browserLng);
+            }
+            showToast("ดึงพิกัดปัจจุบันของคุณเรียบร้อยแล้ว", "success");
+          },
+          (err) => {
+            showToast("ไม่สามารถเข้าถึงพิกัดของคุณจากเบราว์เซอร์ได้", "error");
+          }
+        );
+      } else {
+        showToast("เบราว์เซอร์นี้ไม่สนับสนุนการค้นหาพิกัด", "error");
+      }
+    }
+
+    async function saveDutyPointData(e) {
+      e.preventDefault();
+      const idFlag = document.getElementById('point-form-id-flag').value;
+      const name = document.getElementById('point-form-name').value.trim();
+      const time = document.getElementById('point-form-time').value.trim();
+      const lat = parseFloat(document.getElementById('point-form-lat').value);
+      const lng = parseFloat(document.getElementById('point-form-lng').value);
+      const radius = parseInt(document.getElementById('point-form-radius').value);
+
+      const points = db.getDutyPoints();
+      let ptObj = null;
+
+      if (idFlag) {
+        const pIndex = points.findIndex(x => x.id === parseInt(idFlag));
+        if (pIndex !== -1) {
+          points[pIndex].name = name;
+          points[pIndex].time = time;
+          points[pIndex].lat = lat;
+          points[pIndex].lng = lng;
+          points[pIndex].radius = radius;
+          ptObj = points[pIndex];
+        }
+      } else {
+        const nextId = points.length > 0 ? Math.max(...points.map(p => p.id)) + 1 : 1;
+        ptObj = {
+          id: nextId,
+          name: name,
+          time: time,
+          lat: lat,
+          lng: lng,
+          radius: radius,
+          assignedTo: []
+        };
+        points.push(ptObj);
+      }
+
+      await saveDutyPointsDB(points);
+      closeDutyPointModal();
+      renderPage('duty-points');
+      showToast('บันทึกข้อมูลพิกัดจุดเวรสำเร็จแล้ว', 'success');
+    }
+
+    async function deleteDutyPoint(pointId) {
+      if (confirm('ยืนยันที่จะลบพิกัดจุดเวรนี้หรือไม่?')) {
+        let points = db.getDutyPoints();
+        points = points.filter(p => p.id !== pointId);
+        db.saveDutyPoints(points);
+
+        if (useSupabase) {
+          const { error } = await supabaseClient.from('duty_points').delete().eq('id', pointId);
+          if (error) console.error("Cloud delete point error:", error);
+        }
+
+        renderPage('duty-points');
+        showToast('ลบจุดเวรสำเร็จแล้ว', 'success');
+      }
+    }
+
+    function viewReportDetails(reportId) {
+      const rep = db.getReports().find(r => r.id === reportId);
+      if (!rep) return;
+      const pt = db.getDutyPoints().find(p => p.id === rep.pointId || p.id === rep.point_id);
+      const teacher = db.getTeachers().find(t => t.id === rep.teacherId || t.id === rep.teacher_id);
+      const content = document.getElementById('report-view-content');
+
+      let signatureMarkup = '';
+      const sigSrc = rep.signature || (teacher ? teacher.signature : null);
+      if (sigSrc) {
+        signatureMarkup = `<img src="${sigSrc}" class="max-h-16 mx-auto border rounded p-1 bg-white" alt="ลายเซ็น">`;
+      } else {
+        signatureMarkup = `<span class="text-red-500 italic">ไม่มีบันทึกลายเซ็น</span>`;
+      }
+
+      content.innerHTML = `
+        <div class="grid grid-cols-2 gap-4 border-b pb-3 text-slate-700">
+          <div>
+            <span class="block text-[10px] text-slate-400">จุดเวร</span>
+            <strong class="text-brand-900 text-sm">จุดที่ ${pt ? pt.id : ''}: ${pt ? pt.name : ''}</strong>
+          </div>
+          <div class="text-right">
+            <span class="block text-[10px] text-slate-400">สถานะรายงาน</span>
+            <span class="px-2 py-0.5 font-bold rounded-full text-[10px] ${rep.status === 'problem' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}">
+              ${rep.status === 'problem' ? 'พบปัญหา' : 'ปกติ'}
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mt-3">
+          <div>
+            <span class="text-slate-400 block">ผู้รายงาน:</span>
+            <span class="font-bold text-slate-800">${teacher ? teacher.name : ''}</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block">เวลารายงาน:</span>
+            <span class="font-bold text-slate-800">${rep.time} น. (${getTodayThaiFullDate(rep.date)})</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block">ระยะตรวจสอบ GPS:</span>
+            <span class="text-slate-850 font-bold">${rep.distance.toFixed(1)} เมตร</span>
+          </div>
+        </div>
+
+        <div class="space-y-1 mt-3">
+          <span class="text-slate-450 block">ผลการปฏิบัติงาน:</span>
+          <p class="bg-slate-50 border rounded-lg p-2.5 text-slate-800">${rep.result || '-'}</p>
+        </div>
+
+        ${rep.status === 'problem' ? `
+          <div class="grid grid-cols-2 gap-2 bg-red-50 border border-red-100 rounded-lg p-3 mt-3">
+            <div>
+              <span class="text-red-650 font-bold block">⚠️ ปัญหาที่พบ:</span>
+              <p class="text-red-900 mt-1">${rep.problem || '-'}</p>
+            </div>
+            <div>
+              <span class="text-brand-800 font-bold block">💡 แนวทางแก้ไข:</span>
+              <p class="text-brand-900 mt-1">${rep.solution || '-'}</p>
+            </div>
+          </div>
+        ` : ''}
+
+        ${rep.photo ? `
+          <div class="mt-3">
+            <span class="text-slate-400 block mb-1">รูปถ่ายยืนยัน:</span>
+            <div class="flex justify-center border bg-slate-50 rounded-lg overflow-hidden max-h-48">
+              <img src="${rep.photo}" class="object-contain max-h-48" alt="รูปถ่ายหลักฐาน">
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="border-t pt-3 flex flex-col items-center mt-3">
+          <span class="text-slate-400 block mb-2">ลงนามผู้ปฏิบัติหน้าที่:</span>
+          ${signatureMarkup}
+          <p class="text-[10px] text-slate-500 mt-1 font-semibold">(${teacher ? teacher.name : ''})</p>
+        </div>
+      `;
+      document.getElementById('report-view-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    // Modal close and simulated triggers
+    function closeReportDetails() {
+      document.getElementById('report-view-modal').classList.add('hidden');
+    }
+
+    function triggerSimulatedTeacherReport(pointId, teacherId) {
+      currentUser = db.getTeachers().find(t => t.id === teacherId);
+      navigateTo('my-duty');
+      openReportForm(parseInt(pointId));
+    }
+
+    function filterDashboardTable() {
+      const teachQ = document.getElementById('dash-filter-teacher').value.toLowerCase();
+      const pointQ = document.getElementById('dash-filter-point').value;
+      const statusQ = document.getElementById('dash-filter-status').value;
+
+      const rows = document.querySelectorAll('.dash-row');
+      rows.forEach(row => {
+        const tName = row.getAttribute('data-teacher-name').toLowerCase();
+        const pId = row.getAttribute('data-point-id');
+        const rStatus = row.getAttribute('data-status');
+
+        let show = true;
+        if (teachQ && !tName.includes(teachQ)) show = false;
+        if (pointQ !== 'all' && pId !== pointQ) show = false;
+        if (statusQ !== 'all' && rStatus !== statusQ) show = false;
+
+        row.classList.toggle('hidden', !show);
+      });
+    }
+  </script>
+</body>
+</html>
