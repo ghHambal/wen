@@ -3493,15 +3493,41 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
               </div>
             </div>
             <div class="flex items-center gap-2">
-              <select id="schedule-head-selector" onchange="onScheduleHeadChange(this.value)" class="border border-slate-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-bold bg-white text-xs min-w-[200px] shadow-sm">
-                <option value="">-- ยังไม่ได้กำหนด --</option>
-                ${teachers.filter(t => t.id !== 'admin' && t.id !== 'chief' && t.id !== 'director').map(t => {
-                  const scheduleGroupGender = settings.dutyGroup === 'ครูหญิง' ? 'หญิง' : 'ชาย';
-                  const dayVal = settings.headsOfDay?.[currentScheduleViewDay];
-                  const isHead = (typeof dayVal === 'string' && dayVal === t.id) || (dayVal && typeof dayVal === 'object' && dayVal[scheduleGroupGender] === t.id);
-                  return `<option value="${t.id}" ${isHead ? 'selected' : ''}>${t.name} (${t.id})</option>`;
-                }).join('')}
-              </select>
+              <div class="relative min-w-[220px]" id="schedule-head-dropdown-container">
+                <!-- Dropdown Trigger Button -->
+                <button type="button" onclick="toggleScheduleHeadDropdown(event)" class="w-full border border-slate-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-bold bg-white text-xs text-left flex justify-between items-center shadow-sm">
+                  <span id="schedule-head-selected-label">
+                    ${(() => {
+                      const scheduleGroupGender = settings.dutyGroup === 'ครูหญิง' ? 'หญิง' : 'ชาย';
+                      const dayVal = settings.headsOfDay?.[currentScheduleViewDay];
+                      let currentHeadId = "";
+                      if (typeof dayVal === 'string') {
+                        const t = teachers.find(x => x.id === dayVal);
+                        if (t) currentHeadId = dayVal;
+                      } else if (dayVal && typeof dayVal === 'object') {
+                        currentHeadId = dayVal[scheduleGroupGender] || "";
+                      }
+                      const activeHead = teachers.find(t => t.id === currentHeadId);
+                      return activeHead ? `${activeHead.name} (${activeHead.id})` : '-- ยังไม่ได้กำหนด --';
+                    })()}
+                  </span>
+                  <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+                </button>
+                
+                <!-- Dropdown Panel overlay -->
+                <div id="schedule-head-dropdown-panel" class="hidden absolute right-0 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg z-50 p-2 space-y-2">
+                  <!-- Search Input -->
+                  <div class="relative">
+                    <i data-lucide="search" class="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400"></i>
+                    <input type="text" id="schedule-head-search" placeholder="พิมพ์ชื่อ หรือรหัสเพื่อค้นหา..." class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded text-xs outline-none focus:ring-1 focus:ring-brand-500 font-semibold" oninput="filterScheduleHeadDropdownList()">
+                  </div>
+                  
+                  <!-- Items list -->
+                  <div id="schedule-head-options-list" class="max-h-48 overflow-y-auto divide-y divide-slate-100 text-xs">
+                    <!-- Rendered dynamically -->
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -3686,14 +3712,31 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
                     `}
                   </div>
 
-                  <div class="pt-3 border-t border-slate-100 space-y-1.5">
+                  <div class="pt-3 border-t border-slate-100 space-y-1.5 no-print">
                     <label class="block text-[10px] text-slate-500 font-bold">เลือกแต่งตั้งใหม่:</label>
-                    <select onchange="onAppointHeadChange('${day}', '${appointHeadsActiveTab}', this.value)" class="w-full border rounded-lg p-2 bg-white outline-none focus:ring-1 focus:ring-brand-500 text-xs font-semibold text-slate-700">
-                      <option value="">-- ล้างการแต่งตั้ง --</option>
-                      ${filteredTeachers.map(t => {
-                        return `<option value="${t.id}" ${t.id === currentHeadId ? 'selected' : ''}>${t.name} (${t.id})</option>`;
-                      }).join('')}
-                    </select>
+                    <div class="relative w-full" id="appoint-head-dropdown-container-${day}">
+                      <!-- Dropdown Trigger Button -->
+                      <button type="button" onclick="toggleAppointHeadDropdown('${day}', event)" class="w-full border border-slate-200 rounded-lg p-2 bg-white outline-none focus:ring-1 focus:ring-brand-500 text-xs font-semibold text-slate-700 text-left flex justify-between items-center shadow-sm">
+                        <span id="appoint-head-selected-label-${day}">
+                          ${headTeacher ? `${headTeacher.name} (${headTeacher.id})` : '-- ล้างการแต่งตั้ง --'}
+                        </span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+                      </button>
+                      
+                      <!-- Dropdown Panel overlay -->
+                      <div id="appoint-head-dropdown-panel-${day}" class="hidden absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 p-2 space-y-2">
+                        <!-- Search Input -->
+                        <div class="relative">
+                          <i data-lucide="search" class="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400"></i>
+                          <input type="text" id="appoint-head-search-${day}" placeholder="พิมพ์เพื่อค้นหา..." class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded text-xs outline-none focus:ring-1 focus:ring-brand-500 font-semibold" oninput="filterAppointHeadDropdownList('${day}')">
+                        </div>
+                        
+                        <!-- Items list -->
+                        <div id="appoint-head-options-list-${day}" class="max-h-48 overflow-y-auto divide-y divide-slate-100 text-xs">
+                          <!-- Rendered dynamically -->
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               `;
@@ -5382,6 +5425,14 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       setupThaiToEnglishKeyboardConverter();
 
       changeGPSSimulation();
+
+      // Close dropdowns if user clicks outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#schedule-head-dropdown-container') && 
+            !e.target.closest('[id^="appoint-head-dropdown-container-"]')) {
+          closeAllCustomDropdowns();
+        }
+      });
     });
 
     // Handle touch coordinate actions in Canvas signature drawing modal
@@ -5768,6 +5819,181 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         mc.innerHTML = renderScheduleView();
         lucide.createIcons();
       }
+    }
+
+    // Custom searchable dropdown for schedule head selection
+    function toggleScheduleHeadDropdown(event) {
+      if (event) event.stopPropagation();
+      const panel = document.getElementById('schedule-head-dropdown-panel');
+      if (panel) {
+        const isHidden = panel.classList.contains('hidden');
+        closeAllCustomDropdowns();
+        if (isHidden) {
+          panel.classList.remove('hidden');
+          const searchInput = document.getElementById('schedule-head-search');
+          if (searchInput) {
+            searchInput.value = '';
+            searchInput.focus();
+          }
+          renderScheduleHeadDropdownList();
+        }
+      }
+    }
+
+    function renderScheduleHeadDropdownList() {
+      const container = document.getElementById('schedule-head-options-list');
+      if (!container) return;
+
+      const teachers = db.getTeachers();
+      const settings = db.getSettings();
+      const query = (document.getElementById('schedule-head-search')?.value || "").toLowerCase().trim();
+
+      const scheduleGroupGender = settings.dutyGroup === 'ครูหญิง' ? 'หญิง' : 'ชาย';
+      const dayVal = settings.headsOfDay?.[currentScheduleViewDay];
+      let currentHeadId = "";
+      if (typeof dayVal === 'string') {
+        const t = teachers.find(x => x.id === dayVal);
+        if (t) {
+          currentHeadId = dayVal;
+        }
+      } else if (dayVal && typeof dayVal === 'object') {
+        currentHeadId = dayVal[scheduleGroupGender] || "";
+      }
+
+      const filtered = teachers.filter(t => t.id !== 'admin' && t.id !== 'chief' && t.id !== 'director').filter(t => {
+        return t.name.toLowerCase().includes(query) || t.id.toLowerCase().includes(query);
+      });
+
+      let html = '';
+      const isNoneSelected = !currentHeadId;
+      html += `
+        <div onclick="selectScheduleHeadInDropdown('', event)" class="p-2.5 hover:bg-slate-50 cursor-pointer transition flex justify-between items-center ${isNoneSelected ? 'bg-brand-50 border-l-2 border-brand-850 font-bold' : ''}">
+          <span class="text-slate-400 font-semibold">-- ล้างการกำหนด --</span>
+          ${isNoneSelected ? '<i data-lucide="check" class="w-3.5 h-3.5 text-brand-850"></i>' : ''}
+        </div>
+      `;
+
+      if (filtered.length === 0) {
+        html += `<p class="p-3 text-center text-slate-400 text-[10px]">ไม่พบรายชื่อ</p>`;
+      } else {
+        html += filtered.map(t => {
+          const isSelected = currentHeadId === t.id;
+          return `
+            <div onclick="selectScheduleHeadInDropdown('${t.id}', event)" class="p-2.5 hover:bg-slate-50 cursor-pointer transition flex justify-between items-center ${isSelected ? 'bg-brand-50 border-l-2 border-brand-850 font-bold' : ''}">
+              <span class="font-semibold text-slate-700">${t.name} (${t.id})</span>
+              ${isSelected ? '<i data-lucide="check" class="w-3.5 h-3.5 text-brand-850"></i>' : ''}
+            </div>
+          `;
+        }).join('');
+      }
+
+      container.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    function filterScheduleHeadDropdownList() {
+      renderScheduleHeadDropdownList();
+    }
+
+    function selectScheduleHeadInDropdown(teacherId, event) {
+      if (event) event.stopPropagation();
+      onScheduleHeadChange(teacherId);
+    }
+
+    // Custom searchable dropdown for appoint heads page cards
+    function toggleAppointHeadDropdown(day, event) {
+      if (event) event.stopPropagation();
+      const panel = document.getElementById(`appoint-head-dropdown-panel-${day}`);
+      if (panel) {
+        const isHidden = panel.classList.contains('hidden');
+        closeAllCustomDropdowns();
+        if (isHidden) {
+          panel.classList.remove('hidden');
+          const searchInput = document.getElementById(`appoint-head-search-${day}`);
+          if (searchInput) {
+            searchInput.value = '';
+            searchInput.focus();
+          }
+          renderAppointHeadDropdownList(day);
+        }
+      }
+    }
+
+    function renderAppointHeadDropdownList(day) {
+      const container = document.getElementById(`appoint-head-options-list-${day}`);
+      if (!container) return;
+
+      const teachers = db.getTeachers();
+      const settings = db.getSettings();
+      const query = (document.getElementById(`appoint-head-search-${day}`)?.value || "").toLowerCase().trim();
+
+      let currentHeadId = '';
+      const val = settings.headsOfDay?.[day];
+      if (typeof val === 'string') {
+        const t = teachers.find(x => x.id === val);
+        if (t && getTeacherGender(t) === appointHeadsActiveTab) {
+          currentHeadId = val;
+        }
+      } else if (val && typeof val === 'object') {
+        currentHeadId = val[appointHeadsActiveTab] || '';
+      }
+
+      const filtered = teachers.filter(t => {
+        if (t.id === 'admin' || t.id === 'chief' || t.id === 'director') return false;
+        return getTeacherGender(t) === appointHeadsActiveTab;
+      }).filter(t => {
+        return t.name.toLowerCase().includes(query) || t.id.toLowerCase().includes(query);
+      });
+
+      let html = '';
+      const isNoneSelected = !currentHeadId;
+      html += `
+        <div onclick="selectAppointHeadInDropdown('${day}', '', event)" class="p-2.5 hover:bg-slate-50 cursor-pointer transition flex justify-between items-center ${isNoneSelected ? 'bg-brand-50 border-l-2 border-brand-850 font-bold' : ''}">
+          <span class="text-slate-400 font-semibold">-- ล้างการแต่งตั้ง --</span>
+          ${isNoneSelected ? '<i data-lucide="check" class="w-3.5 h-3.5 text-brand-850"></i>' : ''}
+        </div>
+      `;
+
+      if (filtered.length === 0) {
+        html += `<p class="p-3 text-center text-slate-400 text-[10px]">ไม่พบรายชื่อ</p>`;
+      } else {
+        html += filtered.map(t => {
+          const isSelected = currentHeadId === t.id;
+          return `
+            <div onclick="selectAppointHeadInDropdown('${day}', '${t.id}', event)" class="p-2.5 hover:bg-slate-50 cursor-pointer transition flex justify-between items-center ${isSelected ? 'bg-brand-50 border-l-2 border-brand-850 font-bold' : ''}">
+              <span class="font-semibold text-slate-700">${t.name} (${t.id})</span>
+              ${isSelected ? '<i data-lucide="check" class="w-3.5 h-3.5 text-brand-850"></i>' : ''}
+            </div>
+          `;
+        }).join('');
+      }
+
+      container.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    function filterAppointHeadDropdownList(day) {
+      renderAppointHeadDropdownList(day);
+    }
+
+    function selectAppointHeadInDropdown(day, teacherId, event) {
+      if (event) event.stopPropagation();
+      onAppointHeadChange(day, appointHeadsActiveTab, teacherId);
+    }
+
+    function closeAllCustomDropdowns() {
+      const schedPanel = document.getElementById('schedule-head-dropdown-panel');
+      if (schedPanel) {
+        schedPanel.classList.add('hidden');
+      }
+
+      const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
+      days.forEach(day => {
+        const panel = document.getElementById(`appoint-head-dropdown-panel-${day}`);
+        if (panel) {
+          panel.classList.add('hidden');
+        }
+      });
     }
 
     async function onScheduleHeadChange(val) {
