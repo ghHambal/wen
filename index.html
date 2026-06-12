@@ -455,7 +455,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.8.0';
+    const APP_VERSION = '1.9.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -579,7 +579,7 @@
     let reportModalActivePointId = null;
     let uploadedReportPhotoBase64 = null;
     let currentMapInstance = null; // Leaflet map reference
-    let pointMarkerInstance = null;
+    let pointCardMaps = {}; // pointId -> Leaflet map instance (mini-map inline ในการ์ดจุดเวร)
     let modalMapInstance = null; // Map picker inside the point creation/edit modal
     let modalMapMarker = null;
     let modalMapMarker2 = null; // marker for บริเวณที่ 2 (lat2/lng2)
@@ -939,6 +939,7 @@
           mc.innerHTML = renderTeachersView();
           break;
         case 'duty-points':
+          pointCardMaps = {};
           mc.innerHTML = renderDutyPointsView();
           initDutyPointsMap();
           break;
@@ -2261,7 +2262,7 @@
             <!-- Duty Points Grid -->
             <div class="xl:col-span-1 space-y-3 max-h-[60vh] overflow-y-auto pr-2">
               ${points.map(p => `
-                <div class="bg-white border rounded-xl p-4 shadow-sm hover:border-brand-500 transition cursor-pointer" onclick="focusOnPointInMap(${p.lat}, ${p.lng}, ${p.radius}, '${p.name}')">
+                <div class="bg-white border rounded-xl p-4 shadow-sm hover:border-brand-500 transition">
                   <div class="flex justify-between items-start">
                     <div>
                       <h4 class="font-bold text-slate-800 text-xs">จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name}</h4>
@@ -2290,6 +2291,14 @@
                     </p>
                     ` : ''}
                     <p class="flex items-center gap-1"><i data-lucide="users" class="w-3.5 h-3.5 text-slate-400"></i> ผู้ดูแล: ${(p.assignedTo || p.assigned_to || []).map(id => getTeacherName(id)).join(', ') || '<span class="text-red-500">ยังไม่มีผู้รับผิดชอบ</span>'}</p>
+                  </div>
+
+                  <button type="button" onclick="togglePointCardMap(${p.id})" class="w-full flex items-center justify-center gap-1 text-[10px] font-bold text-brand-700 hover:text-brand-900 hover:bg-brand-50 py-1.5 mt-2 rounded-lg border border-brand-100 transition">
+                    <i data-lucide="map" class="w-3.5 h-3.5"></i>
+                    <span id="point-map-toggle-label-${p.id}">ดูแผนที่จุดนี้</span>
+                  </button>
+                  <div id="point-map-container-${p.id}" class="hidden mt-2">
+                    <div id="point-map-${p.id}" class="w-full h-48 rounded-lg border z-10"></div>
                   </div>
 
                   <div class="flex gap-2 pt-2 border-t mt-3 border-slate-100">
@@ -4286,22 +4295,71 @@
       setTimeout(() => currentMapInstance.invalidateSize(), 150);
     }
 
-    function focusOnPointInMap(lat, lng, radius, name) {
-      if (!currentMapInstance) return;
-      currentMapInstance.setView([lat, lng], 18);
-      
-      if (pointMarkerInstance) {
-        currentMapInstance.removeLayer(pointMarkerInstance);
+    // เปิด/ปิดแผนที่ขนาดเล็กภายในการ์ดของจุดเวร (lazy-init Leaflet map ต่อจุด)
+    function togglePointCardMap(pointId) {
+      const container = document.getElementById(`point-map-container-${pointId}`);
+      const label = document.getElementById(`point-map-toggle-label-${pointId}`);
+      if (!container) return;
+
+      const isHidden = container.classList.contains('hidden');
+      if (!isHidden) {
+        container.classList.add('hidden');
+        if (label) label.textContent = 'ดูแผนที่จุดนี้';
+        return;
       }
 
-      pointMarkerInstance = L.circle([lat, lng], {
-        color: '#dc2626',
-        fillColor: '#fee2e2',
-        fillOpacity: 0.2,
-        radius: radius
-      }).addTo(currentMapInstance);
+      container.classList.remove('hidden');
+      if (label) label.textContent = 'ซ่อนแผนที่';
 
-      L.popup().setLatLng([lat, lng]).setContent(`<strong>จุดเวร: ${name}</strong>`).openOn(currentMapInstance);
+      if (pointCardMaps[pointId]) {
+        setTimeout(() => pointCardMaps[pointId].invalidateSize(), 50);
+        return;
+      }
+
+      const points = db.getDutyPoints();
+      const p = points.find(pt => pt.id === pointId);
+      if (!p) return;
+
+      const map = L.map(`point-map-${pointId}`, { attributionControl: false }).setView([p.lat, p.lng], 17);
+      L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        attribution: '&copy; Google Maps'
+      }).addTo(map);
+
+      L.marker([p.lat, p.lng]).addTo(map)
+        .bindPopup(`<b>จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name}</b>`);
+
+      const circle1 = L.circle([p.lat, p.lng], {
+        color: '#15803d',
+        fillColor: '#86efac',
+        fillOpacity: 0.3,
+        radius: p.radius
+      }).addTo(map);
+
+      let bounds = circle1.getBounds();
+
+      if (p.lat2 != null && p.lng2 != null) {
+        L.marker([p.lat2, p.lng2], {
+          icon: L.divIcon({
+            html: '<div style="background:#2563eb;width:16px;height:16px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.5)"></div>',
+            className: '',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          })
+        }).addTo(map).bindPopup('บริเวณที่ 2');
+
+        const circle2 = L.circle([p.lat2, p.lng2], {
+          color: '#2563eb',
+          fillColor: '#93c5fd',
+          fillOpacity: 0.3,
+          radius: p.radius2 || p.radius
+        }).addTo(map);
+
+        bounds = bounds.extend(circle2.getBounds());
+      }
+
+      map.fitBounds(bounds, { padding: [20, 20] });
+      pointCardMaps[pointId] = map;
+      setTimeout(() => map.invalidateSize(), 50);
     }
 
     // --- MISSING JS FUNCTIONS FOR ADMIN MODALS & UTILITIES ---
