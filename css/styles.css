@@ -52,7 +52,8 @@
       .print-container { padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
       .doc-page { page-break-after: always; }
       .doc-page:last-of-type { page-break-after: auto; }
-      .doc-table th, .doc-table td { padding: 2px 4px !important; }
+      .doc-table thead { display: table-header-group; }
+      .doc-table tr { page-break-inside: avoid; }
       .doc-signatures { margin-top: 16px !important; }
     }
     @page {

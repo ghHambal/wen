@@ -434,6 +434,7 @@
         centerLat: dbSett.center_lat !== undefined && dbSett.center_lat !== null ? dbSett.center_lat : (dbSett.centerLat !== undefined && dbSett.centerLat !== null ? dbSett.centerLat : (local.centerLat || 6.787680)),
         centerLng: dbSett.center_lng !== undefined && dbSett.center_lng !== null ? dbSett.center_lng : (dbSett.centerLng !== undefined && dbSett.centerLng !== null ? dbSett.centerLng : (local.centerLng || 101.408120)),
         systemLogo: dbSett.system_logo || dbSett.systemLogo || local.systemLogo || '',
+        schoolLogo: dbSett.school_logo || dbSett.schoolLogo || local.schoolLogo || '',
         systemTitle: dbSett.system_title || dbSett.systemTitle || local.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร',
         systemColor: dbSett.system_color || dbSett.systemColor || local.systemColor || '#14532d',
         weekStartDate: dbSett.week_start_date || dbSett.weekStartDate || local.weekStartDate || '',
@@ -457,6 +458,7 @@
         center_lat: jsSett.centerLat !== undefined ? jsSett.centerLat : 6.787680,
         center_lng: jsSett.centerLng !== undefined ? jsSett.centerLng : 101.408120,
         system_logo: jsSett.systemLogo || '',
+        school_logo: jsSett.schoolLogo || '',
         system_title: jsSett.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร',
         system_color: jsSett.systemColor || '#14532d',
         week_start_date: jsSett.weekStartDate || null,
@@ -492,7 +494,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.12.0';
+    const APP_VERSION = '1.13.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -2692,22 +2694,19 @@
           let sigMarkup = '';
 
           if (rep) {
+            const sigSrc = rep.signature || (teacher ? teacher.signature : null);
+
             if (rep.status === 'reported') {
-              resultText = `✓ ${rep.result}`;
+              resultText = sigSrc ? '' : `✓ ${rep.result}`;
             } else if (rep.status === 'problem') {
               resultText = `⚠️ พบปัญหา: ${rep.problem} (แก้ไข: ${rep.solution})`;
             } else {
               resultText = 'รอยืนยัน';
             }
 
-            const sigSrc = rep.signature || (teacher ? teacher.signature : null);
             if (sigSrc) {
-              sigMarkup = `
-                <div class="mt-1 text-center">
-                  <img src="${sigSrc}" class="max-h-5 mx-auto border rounded bg-white p-0.5" alt="Signature">
-                  <span class="text-[8px] text-slate-400 block mt-0.5">ลงชื่อแล้วเวลา ${rep.time} น.</span>
-                </div>
-              `;
+              // แสดงแค่รูปลายเซ็นเต็มช่อง (ขยายเกินช่องได้) ให้ดูเหมือนเซ็นเอกสารจริง
+              sigMarkup = `<div class="flex justify-center -my-1.5"><img src="${sigSrc}" class="h-10 w-auto max-w-[85%] object-contain" alt="ลงชื่อ"></div>`;
             } else {
               sigMarkup = `<span class="text-green-700 font-bold block text-center mt-1">ยืนยันการรายงานแล้ว</span>`;
             }
@@ -2719,13 +2718,13 @@
           return `
             <tr>
               ${tIdx === 0 ? `
-                <td class="border border-slate-400 px-1.5 py-1 text-center font-bold" rowspan="${dayAssigned.length}">${getDutyPointDisplayNumber(p)}</td>
-                <td class="border border-slate-400 px-2 py-1 font-bold text-slate-800" rowspan="${dayAssigned.length}">${p.name}</td>
-                <td class="border border-slate-400 px-1.5 py-1 text-center text-slate-700" rowspan="${dayAssigned.length}">${p.time} น.</td>
+                <td class="border border-slate-400 px-1.5 py-1.5 text-center font-bold" rowspan="${dayAssigned.length}">${getDutyPointDisplayNumber(p)}</td>
+                <td class="border border-slate-400 px-2 py-1.5 font-bold text-slate-800" rowspan="${dayAssigned.length}">${p.name}</td>
+                <td class="border border-slate-400 px-1.5 py-1.5 text-center text-slate-700" rowspan="${dayAssigned.length}">${p.time} น.</td>
               ` : ''}
-              <td class="border border-slate-400 px-2 py-1">${getTeacherName(teacherId)}</td>
-              <td class="border border-slate-400 px-2 py-1">
-                <p class="text-slate-700 leading-relaxed">${resultText}</p>
+              <td class="border border-slate-400 px-2 py-1.5">${getTeacherName(teacherId)}</td>
+              <td class="border border-slate-400 px-2 py-1.5">
+                ${resultText ? `<p class="text-slate-700 leading-relaxed">${resultText}</p>` : ''}
                 ${sigMarkup}
               </td>
             </tr>
@@ -2745,22 +2744,25 @@
       return `
         <div class="bg-white border rounded-xl shadow-lg p-6 md:p-8 max-w-4xl mx-auto print-container doc-page text-black" style="font-family: 'Sarabun', sans-serif;">
 
-          <div class="text-center space-y-1 mb-4">
-            <div class="w-14 h-14 mx-auto rounded-full overflow-hidden flex items-center justify-center text-white font-bold text-sm border-2 border-brand-900 bg-brand-850">
-              ${settings.systemLogo ? `<img src="${settings.systemLogo}" class="w-full h-full object-cover">` : 'อซ'}
-            </div>
-            <h2 class="text-sm font-bold">${settings.schoolName}</h2>
-            <p class="text-[10px] font-bold text-slate-700">รายงานผลการปฏิบัติหน้าที่เวร${groupLabel} ประจำ${docDateThai}${weekText}</p>
-          </div>
-
-          <table class="w-full text-[9px] border-collapse border border-slate-400 doc-table">
+          <table class="w-full text-[11px] border-collapse border border-slate-400 doc-table">
             <thead>
+              <tr>
+                <th colspan="5" class="border border-slate-400 px-2 py-2 text-center font-normal bg-white">
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center text-white font-bold text-sm border-2 border-brand-900 bg-brand-850">
+                      ${settings.schoolLogo ? `<img src="${settings.schoolLogo}" class="w-full h-full object-cover">` : 'อซ'}
+                    </div>
+                    <h2 class="text-sm font-bold">${settings.schoolName}</h2>
+                    <p class="text-xs font-bold text-slate-700">รายงานผลการปฏิบัติหน้าที่เวร${groupLabel} ประจำ${docDateThai}${weekText}</p>
+                  </div>
+                </th>
+              </tr>
               <tr class="bg-slate-50">
-                <th class="border border-slate-400 px-1.5 py-1 text-center font-bold" style="width: 8%">จุดที่</th>
-                <th class="border border-slate-400 px-2 py-1 text-left font-bold" style="width: 25%">จุดปฏิบัติหน้าที่</th>
-                <th class="border border-slate-400 px-1.5 py-1 text-center font-bold" style="width: 14%">ช่วงเวลา</th>
-                <th class="border border-slate-400 px-2 py-1 text-left font-bold" style="width: 20%">ครูเวรผู้รับผิดชอบ</th>
-                <th class="border border-slate-400 px-2 py-1 text-left font-bold" style="width: 33%">ผลการปฏิบัติหน้าที่และหลักฐานลงชื่อ</th>
+                <th class="border border-slate-400 px-1.5 py-1.5 text-center font-bold" style="width: 8%">จุดที่</th>
+                <th class="border border-slate-400 px-2 py-1.5 text-left font-bold" style="width: 25%">จุดปฏิบัติหน้าที่</th>
+                <th class="border border-slate-400 px-1.5 py-1.5 text-center font-bold" style="width: 14%">ช่วงเวลา</th>
+                <th class="border border-slate-400 px-2 py-1.5 text-left font-bold" style="width: 20%">ครูเวรผู้รับผิดชอบ</th>
+                <th class="border border-slate-400 px-2 py-1.5 text-left font-bold" style="width: 33%">ผลการปฏิบัติหน้าที่และหลักฐานลงชื่อ</th>
               </tr>
             </thead>
             <tbody>
@@ -2769,7 +2771,7 @@
           </table>
 
           <!-- Foot signatures -->
-          <div class="mt-6 grid grid-cols-3 gap-6 text-center text-[9px] doc-signatures">
+          <div class="mt-6 grid grid-cols-3 gap-6 text-center text-xs doc-signatures">
             <div class="space-y-1">
               <p>ลงชื่อ.......................................................... หัวหน้าเวรประจำวัน</p>
               <p class="font-bold text-slate-800">${dailyHeadName ? `(${dailyHeadName})` : '(..........................................)'}</p>
@@ -2905,8 +2907,8 @@
                 <!-- Header Logo and Text -->
                 <div class="flex items-start">
                   <div class="w-24 flex-shrink-0">
-                    ${settings.systemLogo ? `
-                      <img src="${settings.systemLogo}" class="official-memo-logo-img" alt="ตราสัญลักษณ์โรงเรียน">
+                    ${settings.schoolLogo ? `
+                      <img src="${settings.schoolLogo}" class="official-memo-logo-img" alt="ตราสัญลักษณ์โรงเรียน">
                     ` : `
                       <div class="official-memo-logo-placeholder no-print">
                         <span class="font-bold text-[8px] text-slate-400">โลโก้โรงเรียน</span>
@@ -3504,14 +3506,30 @@
                     ${settings.systemLogo ? `<img src="${settings.systemLogo}" class="w-full h-full object-cover">` : `<span class="text-slate-400 font-bold text-[10px]">ไม่มีโลโก้</span>`}
                   </div>
                   <div class="space-y-1">
-                    <label class="block text-slate-650 font-bold">โลโก้ระบบ/โรงเรียน (School Logo):</label>
+                    <label class="block text-slate-650 font-bold">โลโก้ระบบ (System Logo):</label>
                     <div class="flex items-center gap-2">
                       <input type="file" id="sett-system-logo-file" accept="image/*" onchange="handleSystemLogoUpload(this)" class="hidden">
                       <input type="hidden" id="sett-system-logo-base64" value="${settings.systemLogo || ''}">
                       <button type="button" onclick="document.getElementById('sett-system-logo-file').click()" class="bg-white hover:bg-slate-50 text-slate-700 text-[10px] px-2.5 py-1.5 rounded border border-slate-250 font-bold shadow-sm transition">เลือกรูปภาพ</button>
                       <button type="button" onclick="document.getElementById('sett-system-logo-base64').value = ''; document.getElementById('settings-logo-preview').innerHTML = '<span class=\'text-slate-400 font-bold text-[10px]\'>ไม่มีโลโก้</span>'; showToast('ล้างรูปโลโก้ระบบชั่วคราวแล้ว (กดบันทึกเพื่อยืนยัน)', 'info')" class="text-red-650 hover:text-red-800 text-[10px] font-bold">ล้างรูปภาพ</button>
                     </div>
-                    <p class="text-[9px] text-slate-400">แนะนำรูปทรงจัตุรัส ระบบจะย่อขนาดเหลือ 120x120px อัตโนมัติ</p>
+                    <p class="text-[9px] text-slate-400">ใช้แสดงหน้า Login และแถบเมนูของระบบ — แนะนำรูปทรงจัตุรัส ระบบจะย่อขนาดเหลือ 120x120px อัตโนมัติ</p>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-4 border border-dashed rounded-lg p-3 bg-slate-50">
+                  <div id="settings-school-logo-preview" class="w-16 h-16 rounded-full border border-slate-200 overflow-hidden flex items-center justify-center bg-white shadow-inner flex-shrink-0">
+                    ${settings.schoolLogo ? `<img src="${settings.schoolLogo}" class="w-full h-full object-cover">` : `<span class="text-slate-400 font-bold text-[10px]">ไม่มีโลโก้</span>`}
+                  </div>
+                  <div class="space-y-1">
+                    <label class="block text-slate-650 font-bold">โลโก้โรงเรียน (สำหรับเอกสาร/บันทึกข้อความ):</label>
+                    <div class="flex items-center gap-2">
+                      <input type="file" id="sett-school-logo-file" accept="image/*" onchange="handleSchoolLogoUpload(this)" class="hidden">
+                      <input type="hidden" id="sett-school-logo-base64" value="${settings.schoolLogo || ''}">
+                      <button type="button" onclick="document.getElementById('sett-school-logo-file').click()" class="bg-white hover:bg-slate-50 text-slate-700 text-[10px] px-2.5 py-1.5 rounded border border-slate-250 font-bold shadow-sm transition">เลือกรูปภาพ</button>
+                      <button type="button" onclick="document.getElementById('sett-school-logo-base64').value = ''; document.getElementById('settings-school-logo-preview').innerHTML = '<span class=\'text-slate-400 font-bold text-[10px]\'>ไม่มีโลโก้</span>'; showToast('ล้างรูปโลโก้โรงเรียนชั่วคราวแล้ว (กดบันทึกเพื่อยืนยัน)', 'info')" class="text-red-650 hover:text-red-800 text-[10px] font-bold">ล้างรูปภาพ</button>
+                    </div>
+                    <p class="text-[9px] text-slate-400">ใช้ในหัวกระดาษเอกสารรายงานเวรและบันทึกข้อความ (ตราโรงเรียน) — แนะนำรูปทรงจัตุรัส ระบบจะย่อขนาดเหลือ 120x120px อัตโนมัติ</p>
                   </div>
                 </div>
               </div>
@@ -3583,6 +3601,7 @@
         
         // Custom branding variables
         systemLogo: document.getElementById('sett-system-logo-base64') ? document.getElementById('sett-system-logo-base64').value : (current.systemLogo || ''),
+        schoolLogo: document.getElementById('sett-school-logo-base64') ? document.getElementById('sett-school-logo-base64').value : (current.schoolLogo || ''),
         systemTitle: document.getElementById('sett-system-title') ? document.getElementById('sett-system-title').value.trim() : (current.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร'),
         systemColor: document.getElementById('sett-system-color') ? document.getElementById('sett-system-color').value : (current.systemColor || '#14532d'),
 
@@ -5541,6 +5560,20 @@
             previewDiv.innerHTML = `<img src="${compressedBase64}" class="w-full h-full object-cover">`;
           }
           showToast('ประมวลผลรูปโลโก้เรียบร้อยแล้ว', 'success');
+        });
+      }
+    }
+
+    function handleSchoolLogoUpload(input) {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        compressImageFile(file, 120, 120, 0.7, (compressedBase64) => {
+          document.getElementById('sett-school-logo-base64').value = compressedBase64;
+          const previewDiv = document.getElementById('settings-school-logo-preview');
+          if (previewDiv) {
+            previewDiv.innerHTML = `<img src="${compressedBase64}" class="w-full h-full object-cover">`;
+          }
+          showToast('ประมวลผลรูปโลโก้โรงเรียนเรียบร้อยแล้ว', 'success');
         });
       }
     }
