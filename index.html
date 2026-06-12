@@ -112,7 +112,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.5.2</p>
+          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.5.3</p>
         </div>
         
         <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
@@ -215,7 +215,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.2</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.3</div>
           </div>
         </aside>
 
@@ -312,7 +312,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.2</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.3</div>
         </div>
       </aside>
     </div>
@@ -637,7 +637,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.5.2';
+    const APP_VERSION = '1.5.3';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -2567,11 +2567,10 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     function uploadSignatureImage(e) {
       const file = e.target.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        saveSignatureToDatabase(evt.target.result);
-      };
-      reader.readAsDataURL(file);
+      
+      compressImageFile(file, 300, 130, 0.9, (compressedBase64) => {
+        saveSignatureToDatabase(compressedBase64);
+      });
     }
 
     async function saveSignatureToDatabase(base64Data) {
@@ -3390,6 +3389,45 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     // =========================================================================
     // GPS & REPORT MODAL HELPERS
     // =========================================================================
+    function compressImageFile(file, maxWidth, maxHeight, quality, callback) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Return compressed base64 JPEG
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          callback(compressedDataUrl);
+        };
+        img.onerror = function() {
+          callback(e.target.result);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
     function checkTeacherDistanceToPoint(lat1, lon1, lat2, lon2) {
       const R = 6371e3; // metres
       const φ1 = lat1 * Math.PI/180;
@@ -3529,16 +3567,17 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       
       document.getElementById('rep-photo-filename').textContent = file.name;
       
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        uploadedReportPhotoBase64 = evt.target.result;
+      // Compress report photo to max 800x800 with 70% quality (ideal for mobile uploads)
+      compressImageFile(file, 800, 800, 0.7, (compressedBase64) => {
+        uploadedReportPhotoBase64 = compressedBase64;
         const preview = document.getElementById('rep-photo-preview');
-        preview.src = evt.target.result;
+        if (preview) preview.src = compressedBase64;
         const previewBox = document.getElementById('rep-photo-preview-box');
-        previewBox.classList.remove('hidden');
-        previewBox.classList.add('flex');
-      };
-      reader.readAsDataURL(file);
+        if (previewBox) {
+          previewBox.classList.remove('hidden');
+          previewBox.classList.add('flex');
+        }
+      });
     }
 
     // =========================================================================
@@ -3736,11 +3775,10 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     function uploadProfileSignatureImage(e) {
       const file = e.target.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async function(evt) {
-        await updateProfileSignature(evt.target.result);
-      };
-      reader.readAsDataURL(file);
+      
+      compressImageFile(file, 300, 130, 0.9, (compressedBase64) => {
+        updateProfileSignature(compressedBase64);
+      });
     }
 
     async function updateProfileSignature(base64Data) {
