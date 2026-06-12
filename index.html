@@ -98,7 +98,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.7.1</p>
+          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.7.2</p>
         </div>
         
         <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
@@ -179,7 +179,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.7.1</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.7.2</div>
           </div>
         </aside>
 
@@ -276,7 +276,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.7.1</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.7.2</div>
         </div>
       </aside>
     </div>
@@ -451,7 +451,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.7.1';
+    const APP_VERSION = '1.7.2';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -2323,7 +2323,7 @@
                 </div>
                 <div class="flex items-end">
                   <button type="button" onclick="autoDetectCoordinates()" class="w-full bg-blue-50 text-blue-750 border border-blue-200 py-2.5 rounded-lg hover:bg-blue-100 transition font-bold flex items-center justify-center gap-1">
-                    <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ใช้พิกัดจำลอง
+                    <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ใช้พิกัดโรงเรียน
                   </button>
                 </div>
               </div>
@@ -4173,10 +4173,13 @@
     }
 
     function autoDetectCoordinates() {
-      document.getElementById('point-form-lat').value = mockLatitude.toFixed(6);
-      document.getElementById('point-form-lng').value = mockLongitude.toFixed(6);
+      const settings = db.getSettings();
+      const lat = Number(settings.centerLat) || mockLatitude;
+      const lng = Number(settings.centerLng) || mockLongitude;
+      document.getElementById('point-form-lat').value = lat.toFixed(6);
+      document.getElementById('point-form-lng').value = lng.toFixed(6);
       updateGmapsModalLink();
-      showToast('จำลองพิกัดสำเร็จ', 'info');
+      showToast('ตั้งพิกัดเริ่มต้น (โรงเรียน) สำเร็จ', 'info');
     }
 
     // Leaflet map setup for admin
