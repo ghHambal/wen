@@ -46,10 +46,18 @@
     .card-stat { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
     .card-stat:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
     .signature-pad { border: 2px dashed #cbd5e1; border-radius: 8px; cursor: crosshair; touch-action: none; }
-    @media print { 
+    @media print {
       .no-print { display: none !important; }
       body { background-color: white !important; color: black !important; }
       .print-container { padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
+      .doc-page { page-break-after: always; }
+      .doc-page:last-of-type { page-break-after: auto; }
+      .doc-table th, .doc-table td { padding: 2px 4px !important; }
+      .doc-signatures { margin-top: 16px !important; }
+    }
+    @page {
+      size: A4;
+      margin: 10mm;
     }
     .fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
     @keyframes fadeIn { 
@@ -315,4 +323,148 @@
       border-radius: 50%;
       margin-right: 4px;
       animation: miniPulse 1.8s infinite ease-in-out;
+    }
+
+    /* ===== OFFICIAL THAI MEMORANDUM STYLES ===== */
+    .official-memo-container {
+      background: #334155;
+      padding: 2.5rem 1.5rem;
+      border-radius: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: inset 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .official-memo-paper {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 2.5cm 2cm 2cm 2.5cm;
+      background: #ffffff;
+      color: #000000 !important;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      font-family: 'Sarabun', 'TH Sarabun PSK', sans-serif !important;
+      position: relative;
+      font-size: 15px;
+      line-height: 1.6;
+      box-sizing: border-box;
+    }
+    .official-memo-logo-placeholder {
+      width: 80px;
+      height: 80px;
+      border: 1.5px dashed #cbd5e1;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: #94a3b8;
+      background: #f8fafc;
+      text-align: center;
+      padding: 4px;
+      line-height: 1.2;
+    }
+    .official-memo-logo-img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+    }
+    .official-memo-title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: #000000;
+    }
+    .official-memo-meta-row {
+      display: flex;
+      border-bottom: 1px dotted #94a3b8;
+      padding-bottom: 2px;
+      margin-bottom: 8px;
+      align-items: flex-end;
+    }
+    .official-memo-meta-label {
+      font-weight: 700;
+      flex-shrink: 0;
+      width: 75px;
+      color: #000000;
+    }
+    .official-memo-meta-value {
+      flex: 1;
+      padding-left: 8px;
+      color: #000000;
+    }
+    .official-memo-divider {
+      border-top: 3.5px solid #000000;
+      margin-top: 14px;
+      margin-bottom: 18px;
+    }
+    .official-memo-body {
+      color: #000000 !important;
+      text-align: justify;
+    }
+    .official-memo-indent {
+      text-indent: 2.5cm;
+      margin-bottom: 12px;
+    }
+    .official-memo-list {
+      padding-left: 2.8cm;
+      margin-top: 8px;
+      margin-bottom: 12px;
+      list-style-type: none;
+    }
+    .official-memo-list li {
+      margin-bottom: 4px;
+      position: relative;
+    }
+    .official-memo-signatures {
+      margin-top: 2.5cm;
+      display: flex;
+      justify-content: flex-end;
+      text-align: center;
+    }
+    .official-memo-signatures-block {
+      width: 220px;
+      line-height: 1.5;
+    }
+    .official-memo-director-opinion {
+      margin-top: 1.5cm;
+      border-top: 1px dashed #cbd5e1;
+      padding-top: 16px;
+      width: 380px;
+      line-height: 1.5;
+    }
+
+    /* Print settings for premium printout */
+    @media print {
+      body {
+        background: white !important;
+        color: black !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        width: auto !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+      .official-memo-container {
+        background: transparent !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        display: block !important;
+      }
+      .official-memo-paper {
+        width: 100% !important;
+        min-height: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: white !important;
+      }
     }

@@ -2789,183 +2789,621 @@
     }
 
     // F. WARNING MEMO VIEW (Head of Duty View)
+    // Global memo states
+    let memoSelectedDate = getTodayISODate();
+    let memoSelectedTeachers = [];
+    let memoDocNo = '';
+    let memoSubject = 'ขอความร่วมมือชี้แจงเหตุผลไม่เข้ารายงานเวรดิจิทัล';
+    let memoTo = 'คุณครูผู้เกี่ยวข้องเวรประจำจุด';
+    let memoContent = '';
+    let memoSignName = '';
+    let memoSignTitle = '';
+    let memoSignDepartment = 'ฝ่ายปกครอง โรงเรียนมูลนิธิอาซิซสถาน';
+
+    function convertToArabicToThaiNumbers(str) {
+      if (str === null || str === undefined) return '';
+      const stringified = String(str);
+      const arabic = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+      const thai = ['๐', '๑', '๒', '๓', '๔', '๕', '๖', '๗', '๘', '๙'];
+      let result = '';
+      for (let i = 0; i < stringified.length; i++) {
+        const char = stringified[i];
+        const idx = arabic.indexOf(char);
+        if (idx !== -1) {
+          result += thai[idx];
+        } else {
+          result += char;
+        }
+      }
+      return result;
+    }
+
     function renderMemoView() {
       const settings = db.getSettings();
-      const points = db.getDutyPoints();
-      const reports = db.getReports().filter(r => r.date === getTodayISODate());
-
-      const unReports = [];
-      const todayDay = getTodayThaiDayName();
-
-      points.forEach(p => {
-        const assignedList = p.assignedTo || p.assigned_to || [];
-        const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
-
-        todayAssigned.forEach(item => {
-          const teacherId = item.includes(':') ? item.split(':')[1] : item;
-          const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
-          if (!rep) {
-            unReports.push({ point: p, teacherId: teacherId, teacherName: getTeacherName(teacherId) });
-          }
-        });
-      });
-
-      let selectOptions = unReports.map((un, idx) => `
-        <option value="${idx}">จุดเวรที่ ${un.point.id} - ${un.teacherName}</option>
-      `).join('');
-
+      
       return `
         <div class="fade-in space-y-6 text-xs">
           <div class="flex justify-between items-center border-b pb-4 no-print">
             <div>
               <h3 class="text-lg font-bold text-slate-900">การออกบันทึกข้อความติดตามเวร</h3>
-              <p class="text-xs text-slate-500 mt-1">ใช้เขียนบันทึกชี้แจงสำหรับจัดส่งย้อนหลังกรณีครูไม่ได้รายงานเวร</p>
+              <p class="text-xs text-slate-500 mt-1">ออกหนังสือบันทึกข้อความเตือนการละเว้นหน้าที่เวรอย่างเป็นทางการ และส่งแจ้งเตือนด่วนเข้ากลุ่ม</p>
             </div>
           </div>
 
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             <!-- Memo Editor Panel -->
-            <div class="lg:col-span-1 bg-white border rounded-xl p-4 shadow-sm space-y-4 no-print">
-              <h4 class="font-bold text-sm text-brand-950">ตัวกรองครูที่ไม่รายงานเวร</h4>
+            <div class="lg:col-span-1 bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4 no-print">
+              <h4 class="font-bold text-sm text-brand-950 border-b pb-2">แบบฟอร์มบันทึกข้อความ</h4>
               
-              ${unReports.length === 0 ? `
-                <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 text-center font-medium">
-                  คุณครูทุกคนรายงานเวรครบถ้วนสมบูรณ์แล้ววันนี้
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">วันที่ต้องการตรวจเวร:</label>
+                  <input type="date" id="memo-date-input" onchange="handleMemoDateChange(this.value)" class="w-full border rounded-lg p-2 text-slate-700 font-semibold focus:ring-1 focus:ring-brand-500 text-xs">
                 </div>
-              ` : `
-                <div class="space-y-4">
-                  <div>
-                    <label class="block text-slate-500 font-bold mb-1.5">เลือกคุณครูผู้ไม่รายงาน:</label>
-                    <select id="memo-teacher-selector" onchange="loadMemoWarningTemplate()" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
-                      ${selectOptions}
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-slate-500 font-bold mb-1.5">เรื่องบันทึกข้อความ:</label>
-                    <input type="text" id="memo-subject-input" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700" value="ขอความอนุเคราะห์ชี้แจงเหตุผลไม่เข้ารายงานเวรดิจิทัล">
-                  </div>
-                  <div>
-                    <label class="block text-slate-500 font-bold mb-1.5">ข้อความแจ้งชี้แจงเพิ่มเติม:</label>
-                    <textarea id="memo-content-textarea" rows="8" oninput="updateMemoPreview()" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 leading-relaxed"></textarea>
-                  </div>
-                  <div class="flex gap-2">
-                    <button onclick="window.print()" class="flex-1 bg-brand-850 hover:bg-brand-700 text-white font-semibold py-2 rounded-lg transition flex items-center justify-center gap-1 shadow">
-                      <i data-lucide="printer" class="w-3.5 h-3.5"></i> พิมพ์ข้อความ
-                    </button>
-                    <button onclick="simulateSendDirectWarning()" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg transition flex items-center justify-center gap-1 shadow">
-                      <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i> เตือนไลน์ด่วน
-                    </button>
+
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">เลขที่หนังสือ:</label>
+                  <input type="text" id="memo-ref-input" oninput="handleMemoFieldChange('refNo', this.value)" class="w-full border rounded-lg p-2 text-slate-700 focus:ring-1 focus:ring-brand-500 text-xs">
+                </div>
+
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">เรื่อง:</label>
+                  <input type="text" id="memo-subject-input" oninput="handleMemoFieldChange('subject', this.value)" class="w-full border rounded-lg p-2 text-slate-700 focus:ring-1 focus:ring-brand-500 text-xs">
+                </div>
+
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">เรียน:</label>
+                  <input type="text" id="memo-to-input" oninput="handleMemoFieldChange('to', this.value)" class="w-full border rounded-lg p-2 text-slate-700 focus:ring-1 focus:ring-brand-500 text-xs">
+                </div>
+
+                <!-- Checked teachers checklist -->
+                <div class="space-y-1.5">
+                  <label class="block text-slate-500 font-bold text-xs">ครูที่ไม่ได้ส่งรายงานเวร (ระบบคำนวณอัตโนมัติ):</label>
+                  <div id="memo-teachers-checklist" class="border rounded-lg p-2 bg-slate-50 max-h-48 overflow-y-auto space-y-1.5">
+                    <!-- Dynamic Checklist -->
                   </div>
                 </div>
-              `}
+
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">ข้อความย่อหน้าแรก:</label>
+                  <textarea id="memo-content-input" rows="4" oninput="handleMemoFieldChange('content', this.value)" class="w-full border rounded-lg p-2 text-slate-700 focus:ring-1 focus:ring-brand-500 text-xs leading-relaxed"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-slate-500 font-bold mb-1">ผู้ลงนาม:</label>
+                    <input type="text" id="memo-sign-name-input" oninput="handleMemoFieldChange('signName', this.value)" class="w-full border rounded-lg p-2 text-slate-700 focus:ring-1 focus:ring-brand-500 text-xs">
+                  </div>
+                  <div>
+                    <label class="block text-slate-500 font-bold mb-1">ตำแหน่ง:</label>
+                    <input type="text" id="memo-sign-title-input" oninput="handleMemoFieldChange('signTitle', this.value)" class="w-full border rounded-lg p-2 text-slate-700 focus:ring-1 focus:ring-brand-500 text-xs">
+                  </div>
+                </div>
+
+                <div class="pt-2 space-y-2">
+                  <div class="grid grid-cols-2 gap-2">
+                    <button onclick="saveCurrentMemo()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-3 rounded-lg transition flex items-center justify-center gap-1 shadow text-xs">
+                      <i data-lucide="save" class="w-3.5 h-3.5"></i> บันทึกประวัติ
+                    </button>
+                    <button onclick="sendGroupWarningAlert()" class="bg-brand-900 hover:bg-brand-950 text-white font-semibold py-2 px-3 rounded-lg transition flex items-center justify-center gap-1 shadow text-xs">
+                      <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i> เตือนกลุ่มเวร
+                    </button>
+                  </div>
+                  <button onclick="window.print()" class="w-full bg-slate-700 hover:bg-slate-800 text-white font-bold py-2.5 rounded-lg transition flex items-center justify-center gap-1.5 shadow text-xs">
+                    <i data-lucide="printer" class="w-4 h-4"></i> พิมพ์บันทึกข้อความ (A4)
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <!-- Memo Preview -->
-            <div class="lg:col-span-2 bg-white border rounded-xl shadow-lg p-6 md:p-12 print-container text-black" style="font-family: 'Sarabun', sans-serif;">
-              <div class="flex items-center gap-3 border-b-2 border-slate-900 pb-2 mb-6">
-                <div class="text-2xl font-black italic select-none">บันทึกข้อความ</div>
-              </div>
+            <!-- Official Document Preview -->
+            <div class="lg:col-span-2 flex justify-center print-container">
+              <div class="official-memo-paper shadow-lg rounded-md border border-slate-200">
+                <!-- Header Logo and Text -->
+                <div class="flex items-start">
+                  <div class="w-24 flex-shrink-0">
+                    ${settings.systemLogo ? `
+                      <img src="${settings.systemLogo}" class="official-memo-logo-img" alt="ตราสัญลักษณ์โรงเรียน">
+                    ` : `
+                      <div class="official-memo-logo-placeholder no-print">
+                        <span class="font-bold text-[8px] text-slate-400">โลโก้โรงเรียน</span>
+                        <span class="text-[7px] text-slate-300">(อัปโหลดในตั้งค่า)</span>
+                      </div>
+                    `}
+                  </div>
+                  <div class="flex-1 text-center pr-16 mt-2">
+                    <h2 class="official-memo-title">บันทึกข้อความ</h2>
+                  </div>
+                </div>
 
-              <!-- Meta Data -->
-              <div class="text-[10px] space-y-2 text-slate-800 mb-6">
-                <div class="flex"><span class="font-bold w-20">ส่วนราชการ</span><span class="flex-1 border-b border-dotted border-slate-400 pb-0.5" id="memo-school-field">${settings.schoolName}</span></div>
-                <div class="flex"><span class="font-bold w-20">ที่</span><span class="flex-1 border-b border-dotted border-slate-400 pb-0.5" id="memo-ref-field">ฝปก. ${new Date().getFullYear() + 543}/เวร-ชาย</span></div>
-                <div class="flex"><span class="font-bold w-20">วันที่</span><span class="flex-1 border-b border-dotted border-slate-400 pb-0.5" id="memo-date-field">${getTodayThaiFullDate()}</span></div>
-                <div class="flex"><span class="font-bold w-20">เรื่อง</span><span class="flex-1 border-b border-dotted border-slate-400 pb-0.5 font-bold text-slate-900" id="memo-subject-field">ขอส่งคำชี้แจงกรณีไม่รายงานการปฏิบัติหน้าที่เวรประจำวัน</span></div>
-                <div class="flex"><span class="font-bold w-20">เรียน</span><span class="flex-1 border-b border-dotted border-slate-400 pb-0.5" id="memo-to-field">คุณครูผู้เกี่ยวข้องเวรประจำจุด</span></div>
-              </div>
+                <!-- Meta Row Data -->
+                <div class="mt-6 space-y-1.5 text-sm">
+                  <div class="official-memo-meta-row">
+                    <span class="official-memo-meta-label">ส่วนราชการ</span>
+                    <span class="official-memo-meta-value font-bold" id="memo-preview-dept">${memoSignDepartment}</span>
+                  </div>
+                  <div class="flex gap-4">
+                    <div class="official-memo-meta-row flex-1">
+                      <span class="official-memo-meta-label">ที่</span>
+                      <span class="official-memo-meta-value" id="memo-preview-ref"></span>
+                    </div>
+                    <div class="official-memo-meta-row flex-1">
+                      <span class="official-memo-meta-label">วันที่</span>
+                      <span class="official-memo-meta-value" id="memo-preview-date"></span>
+                    </div>
+                  </div>
+                  <div class="official-memo-meta-row">
+                    <span class="official-memo-meta-label">เรื่อง</span>
+                    <span class="official-memo-meta-value font-bold" id="memo-preview-subject"></span>
+                  </div>
+                  <div class="official-memo-meta-row">
+                    <span class="official-memo-meta-label">เรียน</span>
+                    <span class="official-memo-meta-value" id="memo-preview-to"></span>
+                  </div>
+                </div>
 
-              <!-- Content Body -->
-              <div class="text-[10px] leading-relaxed text-slate-850 text-justify space-y-4 min-h-[200px]" id="memo-preview-content-box"></div>
+                <div class="official-memo-divider"></div>
 
-              <!-- Signatures -->
-              <div class="mt-12 flex justify-end text-[10px] text-center">
-                <div class="w-56 space-y-2">
-                  <p>ลงชื่อ............................................................</p>
-                  <p class="font-bold">(${settings.headName})</p>
-                  <p class="text-slate-500">หัวหน้าคณะเวรวันอังคาร</p>
+                <!-- Body Document -->
+                <div class="official-memo-body text-sm">
+                  <div class="official-memo-indent text-justify" id="memo-preview-para1"></div>
+                  
+                  <ul class="official-memo-list space-y-1.5" id="memo-preview-teachers-list"></ul>
+                  
+                  <div class="official-memo-indent mt-4 text-justify" id="memo-preview-para2">
+                    จึงเรียนมาเพื่อโปรดชี้แจงเหตุผลความจำเป็นในการไม่รายงานผลการปฏิบัติหน้าที่เวรประจำจุดให้ฝ่ายปกครองทราบด่วนที่สุด เพื่อจะได้ประมวลรายงานเสนอต่อผู้อำนวยการโรงเรียนต่อไป
+                  </div>
+                </div>
+
+                <!-- Head signature block -->
+                <div class="official-memo-signatures">
+                  <div class="official-memo-signatures-block">
+                    <p class="mb-4">ลงชื่อ............................................................</p>
+                    <p class="font-bold" id="memo-preview-sign-name"></p>
+                    <p class="text-xs text-slate-700" id="memo-preview-sign-title"></p>
+                  </div>
+                </div>
+
+                <!-- Director Opinion block -->
+                <div class="official-memo-director-opinion">
+                  <p class="font-bold text-[12px] text-black border-b border-dashed pb-1 mb-2">ความเห็นของผู้อำนวยการโรงเรียน</p>
+                  <p class="text-slate-400 text-xs">....................................................................................................................................</p>
+                  <p class="text-slate-400 text-xs mt-1">....................................................................................................................................</p>
+                  
+                  <div class="mt-6 text-center w-60 ml-auto leading-relaxed">
+                    <p class="mb-4">ลงชื่อ............................................................</p>
+                    <p class="font-bold text-sm">(นายกามัล อับดุลวาฮับ)</p>
+                    <p class="text-xs text-slate-700">ผู้อำนวยการโรงเรียนมูลนิธิอาซิซสถาน</p>
+                  </div>
                 </div>
               </div>
+            </div>
+          </div>
 
+          <!-- Memo History Section -->
+          <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4 no-print">
+            <div class="flex justify-between items-center border-b pb-2">
+              <h4 class="font-bold text-sm text-brand-950">ประวัติการออกหนังสือบันทึกข้อความ</h4>
+              <span class="text-[10px] text-slate-400 font-semibold">บันทึกข้อมูลแบบ Local Storage</span>
+            </div>
+            
+            <div id="memo-history-container">
+              <!-- Render history table -->
             </div>
           </div>
         </div>
       `;
     }
 
-    // Memo warnings loader
-    function loadMemoWarningTemplate() {
-      const idx = document.getElementById('memo-teacher-selector').value;
-      if (idx === "") return;
+    function initMemoState() {
+      const settings = db.getSettings();
+      memoSelectedDate = getTodayISODate();
+      
+      const thaiYear = new Date().getFullYear() + 543;
+      memoDocNo = `ฝปก. พิเศษ / ${convertToArabicToThaiNumbers(thaiYear)}`;
+      
+      memoSubject = 'ขอความร่วมมือชี้แจงเหตุผลไม่เข้ารายงานเวรดิจิทัล';
+      memoTo = 'คุณครูผู้เกี่ยวข้องเวรประจำจุด';
+      memoSignName = settings.headName || '';
+      memoSignTitle = `หัวหน้าคณะเวรประจำวัน${getThaiDayNameForDate(memoSelectedDate)}`;
+      
+      // Select unreported teachers automatically
+      updateUnreportedTeachersList();
+      
+      // Update form values
+      const dateEl = document.getElementById('memo-date-input');
+      if (dateEl) dateEl.value = memoSelectedDate;
 
+      const refEl = document.getElementById('memo-ref-input');
+      if (refEl) refEl.value = memoDocNo;
+
+      const subEl = document.getElementById('memo-subject-input');
+      if (subEl) subEl.value = memoSubject;
+
+      const toEl = document.getElementById('memo-to-input');
+      if (toEl) toEl.value = memoTo;
+
+      const signNameEl = document.getElementById('memo-sign-name-input');
+      if (signNameEl) signNameEl.value = memoSignName;
+
+      const signTitleEl = document.getElementById('memo-sign-title-input');
+      if (signTitleEl) signTitleEl.value = memoSignTitle;
+
+      renderMemoHistoryTable();
+      updateMemoPreview();
+    }
+
+    function getUnreportedTeachersForDate(dateStr) {
       const points = db.getDutyPoints();
-      const reports = db.getReports().filter(r => r.date === getTodayISODate());
-
+      const reports = db.getReports().filter(r => r.date === dateStr);
+      const dayName = getThaiDayNameForDate(dateStr);
       const unReports = [];
-      const todayDay = getTodayThaiDayName();
 
       points.forEach(p => {
         const assignedList = p.assignedTo || p.assigned_to || [];
-        const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
+        const dayAssigned = assignedList.filter(item => isAssignedOnDay(item, dayName));
 
-        todayAssigned.forEach(item => {
+        dayAssigned.forEach(item => {
           const teacherId = item.includes(':') ? item.split(':')[1] : item;
+          // Look for any report for this point and teacher on this date
           const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
           if (!rep) {
-            unReports.push({ point: p, teacherId: teacherId, teacherName: getTeacherName(teacherId) });
+            unReports.push({ 
+              point: p, 
+              teacherId: teacherId, 
+              teacherName: getTeacherName(teacherId) 
+            });
           }
         });
       });
+      return unReports;
+    }
 
-      const selected = unReports[idx];
-      if (!selected) return;
+    function updateUnreportedTeachersList() {
+      const unReports = getUnreportedTeachersForDate(memoSelectedDate);
+      
+      // Pre-select all teachers by default
+      memoSelectedTeachers = [...unReports];
+      
+      const checklistContainer = document.getElementById('memo-teachers-checklist');
+      if (!checklistContainer) return;
+      
+      if (unReports.length === 0) {
+        checklistContainer.innerHTML = `
+          <div class="text-center text-slate-400 py-4 font-bold text-xs">
+            🎉 ทุกคนรายงานเวรครบถ้วนสมบูรณ์แล้ววันนี้
+          </div>
+        `;
+        memoContent = `เนื่องด้วยฝ่ายปกครอง โรงเรียนมูลนิธิอาซิซสถาน ได้ตรวจวิเคราะห์รายงานพิกัดเวรประจำจุด จากระบบตรวจสอบเวรออนไลน์ ประจำวันที่ ${getTodayThaiFullDate(memoSelectedDate + 'T00:00:00')} พบว่า คณะกรรมการครูเวรประจำจุดทุกจุดได้เข้าปฏิบัติหน้าที่และดำเนินการลงทะเบียนรายงานเข้าระบบเวรเรียบร้อยเสร็จสิ้นแล้ว`;
+      } else {
+        checklistContainer.innerHTML = unReports.map((un, idx) => {
+          const ptNum = getDutyPointDisplayNumber(un.point);
+          return `
+            <label class="flex items-center gap-2 text-xs text-slate-700 bg-white p-2 rounded border border-slate-150 hover:bg-slate-100 transition cursor-pointer select-none">
+              <input type="checkbox" checked value="${idx}" onchange="toggleMemoTeacher(${idx}, this.checked)" class="rounded text-brand-600 focus:ring-brand-500 w-3.5 h-3.5">
+              <span>จุดเวรที่ ${convertToArabicToThaiNumbers(ptNum)}: ${un.teacherName} (${un.point.name})</span>
+            </label>
+          `;
+        }).join('');
+        
+        const thaiDate = getTodayThaiFullDate(memoSelectedDate + 'T00:00:00');
+        memoContent = `เนื่องด้วยฝ่ายปกครอง โรงเรียนมูลนิธิอาซิซสถาน ได้ตรวจวิเคราะห์รายงานพิกัดเวรประจำจุด จากระบบตรวจสอบเวรออนไลน์ ประจำวันที่ ${thaiDate} พบว่ามีครูเวรประจำจุดบางท่านยังไม่ได้ส่งข้อมูลรายงานตัวและลายมือชื่อเข้าระบบรายงานเวรดิจิทัล ฝ่ายปกครองจึงขอติดตามให้ชี้แจงและรายงานตัว ดังนี้:`;
+      }
+      
+      const contentInput = document.getElementById('memo-content-input');
+      if (contentInput) contentInput.value = memoContent;
+      
+      updateMemoPreview();
+    }
 
-      const sub = `ขอความร่วมมือชี้แจงเหตุผลไม่เข้ารายงานเวร จุดที่ ${getDutyPointDisplayNumber(selected.point)} (${selected.point.name})`;
-      document.getElementById('memo-subject-input').value = sub;
-      document.getElementById('memo-subject-field').textContent = sub;
-
-      const text = `เนื่องจากคณะกรรมการจัดเก็บข้อมูลเวรประจำวัน โรงเรียนมูลนิธิอาซิซสถาน ประจำวันที่ ${getTodayThaiFullDate()} ได้ตรวจวิเคราะห์รายงานพิกัดเวรประจำจุด ช่วงเวลา ${selected.point.time} น. ณ บริเวณ "${selected.point.name}"
-
-พบว่า คุณครู "${selected.teacherName}" ยังไม่ได้รายงานบันทึกรูปภาพและลายมือชื่อเข้าระบบ จึงเรียนมาเพื่อโปรดชี้แจงเหตุผลเพื่อฝ่ายปกครองจะได้จัดส่งรวบรวมรายงานต่อท่านผู้อำนวยการโรงเรียนต่อไป`;
-
-      document.getElementById('memo-content-textarea').value = text;
+    function toggleMemoTeacher(idx, checked) {
+      const unReports = getUnreportedTeachersForDate(memoSelectedDate);
+      const targetTeacher = unReports[idx];
+      if (!targetTeacher) return;
+      
+      if (checked) {
+        if (!memoSelectedTeachers.some(t => t.teacherId === targetTeacher.teacherId && t.point.id === targetTeacher.point.id)) {
+          memoSelectedTeachers.push(targetTeacher);
+        }
+      } else {
+        memoSelectedTeachers = memoSelectedTeachers.filter(t => !(t.teacherId === targetTeacher.teacherId && t.point.id === targetTeacher.point.id));
+      }
+      
       updateMemoPreview();
     }
 
     function updateMemoPreview() {
-      const text = document.getElementById('memo-content-textarea').value;
-      const html = text.split('\n').map(p => `<p class="indent-8">${p}</p>`).join('');
-      document.getElementById('memo-preview-content-box').innerHTML = html;
+      const refEl = document.getElementById('memo-preview-ref');
+      if (refEl) refEl.textContent = memoDocNo;
+
+      const dateEl = document.getElementById('memo-preview-date');
+      if (dateEl) dateEl.textContent = getTodayThaiFullDate(memoSelectedDate + 'T00:00:00');
+
+      const subjectEl = document.getElementById('memo-preview-subject');
+      if (subjectEl) subjectEl.textContent = memoSubject;
+
+      const toEl = document.getElementById('memo-preview-to');
+      if (toEl) toEl.textContent = memoTo;
+
+      const signNameEl = document.getElementById('memo-preview-sign-name');
+      if (signNameEl) signNameEl.textContent = `(${memoSignName})`;
+
+      const signTitleEl = document.getElementById('memo-preview-sign-title');
+      if (signTitleEl) signTitleEl.textContent = memoSignTitle;
+
+      const para1El = document.getElementById('memo-preview-para1');
+      if (para1El) para1El.textContent = memoContent;
+
+      const listEl = document.getElementById('memo-preview-teachers-list');
+      if (listEl) {
+        if (memoSelectedTeachers.length === 0) {
+          listEl.innerHTML = `<li class="text-slate-400 italic font-bold">ไม่มีรายชื่อคุณครูที่ติดตามการส่งรายงานในเอกสารฉบับนี้</li>`;
+        } else {
+          listEl.innerHTML = memoSelectedTeachers.map((t, idx) => {
+            const thaiNum = convertToArabicToThaiNumbers(idx + 1);
+            const ptNum = convertToArabicToThaiNumbers(getDutyPointDisplayNumber(t.point));
+            return `
+              <li class="relative pl-6 mb-1 text-black">
+                <span class="absolute left-0 top-0 font-bold">${thaiNum}.</span>
+                <span>คุณครู${t.teacherName} ปฏิบัติหน้าที่จุดเวรที่ ${ptNum} (${t.point.name}) ช่วงเวลา ${convertToArabicToThaiNumbers(t.point.time)} น.</span>
+              </li>
+            `;
+          }).join('');
+        }
+      }
     }
 
-    function simulateSendDirectWarning() {
-      const idx = document.getElementById('memo-teacher-selector').value;
-      const points = db.getDutyPoints();
-      const reports = db.getReports().filter(r => r.date === getTodayISODate());
-
-      const unReports = [];
-      const todayDay = getTodayThaiDayName();
-
-      points.forEach(p => {
-        const assignedList = p.assignedTo || p.assigned_to || [];
-        const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
-
-        todayAssigned.forEach(item => {
-          const teacherId = item.includes(':') ? item.split(':')[1] : item;
-          const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
-          if (!rep) {
-            unReports.push({ point: p, teacherId: teacherId, teacherName: getTeacherName(teacherId) });
-          }
-        });
-      });
-
-      const selected = unReports[idx];
-      if (!selected) return;
-
-      const warningText = `⚠️ แจ้งเตือน: คุณครู ${selected.teacherName} ยังไม่ส่งรายงานเวร จุดเวรที่ ${selected.point.id} (${selected.point.name}) เวลา ${selected.point.time} น. กรุณาเข้าระบบเพื่อเซ็นชื่อด่วน!`;
+    function handleMemoFieldChange(field, val) {
+      if (field === 'refNo') memoDocNo = val;
+      if (field === 'subject') memoSubject = val;
+      if (field === 'to') memoTo = val;
+      if (field === 'content') memoContent = val;
+      if (field === 'signName') memoSignName = val;
+      if (field === 'signTitle') memoSignTitle = val;
       
-      triggerTelegramNotification(warningText);
-      showToast(`ส่งพุชแจ้งเตือนจำลองหาคุณครู ${selected.teacherName} แล้ว`, 'success');
+      updateMemoPreview();
+    }
+
+    function handleMemoDateChange(val) {
+      memoSelectedDate = val;
+      memoSignTitle = `หัวหน้าคณะเวรประจำวัน${getThaiDayNameForDate(memoSelectedDate)}`;
+      
+      const signTitleEl = document.getElementById('memo-sign-title-input');
+      if (signTitleEl) signTitleEl.value = memoSignTitle;
+      
+      updateUnreportedTeachersList();
+    }
+
+    function saveCurrentMemo() {
+      if (memoSelectedTeachers.length === 0) {
+        showToast('กรุณาเลือกคุณครูผู้ไม่รายงานอย่างน้อย 1 คนก่อนบันทึกประวัติ', 'warning');
+        return;
+      }
+      
+      const newMemo = {
+        id: 'memo-' + Date.now(),
+        date: memoSelectedDate,
+        refNo: memoDocNo,
+        subject: memoSubject,
+        to: memoTo,
+        content: memoContent,
+        teachers: memoSelectedTeachers.map(t => ({
+          teacherId: t.teacherId,
+          name: t.teacherName,
+          pointName: t.point.name,
+          pointTime: t.point.time
+        })),
+        signName: memoSignName,
+        signTitle: memoSignTitle,
+        created_at: new Date().toLocaleString('th-TH')
+      };
+      
+      const memos = db.getMemos();
+      memos.push(newMemo);
+      db.saveMemos(memos);
+      
+      showToast('บันทึกเอกสารเตือนเวรเข้าสู่ประวัติระบบเรียบร้อย!', 'success');
+      renderMemoHistoryTable();
+    }
+
+    function deleteMemoFromHistory(memoId) {
+      if (!confirm('คุณแน่ใจว่าต้องการลบบันทึกข้อความฉบับนี้ออกจากประวัติใช่หรือไม่?')) return;
+      
+      let memos = db.getMemos();
+      memos = memos.filter(m => m.id !== memoId);
+      db.saveMemos(memos);
+      
+      showToast('ลบประวัติบันทึกข้อความเรียบร้อย', 'success');
+      renderMemoHistoryTable();
+    }
+
+    function loadMemoFromHistory(memoId) {
+      const memos = db.getMemos();
+      const found = memos.find(m => m.id === memoId);
+      if (!found) {
+        showToast('ไม่พบข้อมูลบันทึกข้อความดังกล่าว', 'error');
+        return;
+      }
+      
+      memoSelectedDate = found.date;
+      memoDocNo = found.refNo;
+      memoSubject = found.subject;
+      memoTo = found.to || 'คุณครูผู้เกี่ยวข้องเวรประจำจุด';
+      memoContent = found.content;
+      memoSignName = found.signName;
+      memoSignTitle = found.signTitle;
+      
+      const allTeachersForDay = getUnreportedTeachersForDate(found.date);
+      const checklistContainer = document.getElementById('memo-teachers-checklist');
+      
+      if (checklistContainer) {
+        if (allTeachersForDay.length === 0) {
+          checklistContainer.innerHTML = found.teachers.map((t, idx) => {
+            return `
+              <label class="flex items-center gap-2 text-xs text-slate-700 bg-white p-2 rounded border border-slate-100 cursor-not-allowed select-none">
+                <input type="checkbox" checked disabled class="rounded text-brand-600 w-3.5 h-3.5">
+                <span>จุดเวรที่ ${convertToArabicToThaiNumbers(idx+1)}: ${t.name} (${t.pointName}) [ประวัติ]</span>
+              </label>
+            `;
+          }).join('');
+        } else {
+          checklistContainer.innerHTML = allTeachersForDay.map((un, idx) => {
+            const ptNum = getDutyPointDisplayNumber(un.point);
+            const isChecked = found.teachers.some(t => t.teacherId === un.teacherId && t.pointName === un.point.name);
+            return `
+              <label class="flex items-center gap-2 text-xs text-slate-700 bg-white p-2 rounded border border-slate-150 hover:bg-slate-100 transition cursor-pointer select-none">
+                <input type="checkbox" ${isChecked ? 'checked' : ''} value="${idx}" onchange="toggleMemoTeacher(${idx}, this.checked)" class="rounded text-brand-600 focus:ring-brand-500 w-3.5 h-3.5">
+                <span>จุดเวรที่ ${convertToArabicToThaiNumbers(ptNum)}: ${un.teacherName} (${un.point.name})</span>
+              </label>
+            `;
+          }).join('');
+        }
+      }
+      
+      memoSelectedTeachers = found.teachers.map(t => ({
+        teacherId: t.teacherId,
+        teacherName: t.name,
+        point: {
+          name: t.pointName,
+          time: t.pointTime,
+          id: 0
+        }
+      }));
+      
+      // Sync form fields
+      const dateEl = document.getElementById('memo-date-input');
+      if (dateEl) dateEl.value = memoSelectedDate;
+
+      const refEl = document.getElementById('memo-ref-input');
+      if (refEl) refEl.value = memoDocNo;
+
+      const subEl = document.getElementById('memo-subject-input');
+      if (subEl) subEl.value = memoSubject;
+
+      const toEl = document.getElementById('memo-to-input');
+      if (toEl) toEl.value = memoTo;
+
+      const contentInput = document.getElementById('memo-content-input');
+      if (contentInput) contentInput.value = memoContent;
+
+      const signNameEl = document.getElementById('memo-sign-name-input');
+      if (signNameEl) signNameEl.value = memoSignName;
+
+      const signTitleEl = document.getElementById('memo-sign-title-input');
+      if (signTitleEl) signTitleEl.value = memoSignTitle;
+      
+      showToast('เรียกพรีวิวหนังสือประวัติแล้ว', 'success');
+      updateMemoPreview();
+    }
+
+    function renderMemoHistoryTable() {
+      const memos = db.getMemos();
+      const container = document.getElementById('memo-history-container');
+      if (!container) return;
+
+      if (memos.length === 0) {
+        container.innerHTML = `
+          <div class="text-center text-slate-400 py-6 font-medium text-xs">
+            ยังไม่มีประวัติการออกหนังสือบันทึกข้อความใดๆ ในระบบ
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left border-collapse border border-slate-100">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                <th class="p-2.5 border border-slate-100">วันที่ตรวจเวร</th>
+                <th class="p-2.5 border border-slate-100">เลขที่หนังสือ</th>
+                <th class="p-2.5 border border-slate-100">เรื่อง</th>
+                <th class="p-2.5 border border-slate-100">คณะครูเวรที่ถูกติดตาม</th>
+                <th class="p-2.5 border border-slate-100 text-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              ${memos.map(m => {
+                const names = m.teachers.map(t => t.name).join(', ');
+                const dateThai = getTodayThaiFullDate(m.date + 'T00:00:00');
+                return `
+                  <tr class="hover:bg-slate-50 text-slate-700 transition">
+                    <td class="p-2.5 border border-slate-100 font-semibold whitespace-nowrap">${dateThai}</td>
+                    <td class="p-2.5 border border-slate-100 font-mono text-slate-500">${m.refNo}</td>
+                    <td class="p-2.5 border border-slate-100 font-semibold text-slate-800 max-w-xs truncate">${m.subject}</td>
+                    <td class="p-2.5 border border-slate-100 text-slate-500 max-w-xs truncate">${names || 'ไม่มี'}</td>
+                    <td class="p-2.5 border border-slate-100 text-center space-x-1 whitespace-nowrap">
+                      <button onclick="loadMemoFromHistory('${m.id}')" class="bg-brand-50 hover:bg-brand-100 text-brand-900 px-2 py-1 rounded font-bold transition text-[10px]">เรียกดู/พรีวิว</button>
+                      <button onclick="deleteMemoFromHistory('${m.id}')" class="bg-red-50 hover:bg-red-100 text-red-700 px-2 py-1 rounded font-bold transition text-[10px]">ลบ</button>
+                    </td>
+                  </tr>
+                `;
+              }).reverse().join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function sendGroupWarningAlert() {
+      if (memoSelectedTeachers.length === 0) {
+        showToast('ไม่มีรายชื่อคุณครูที่เลือกเพื่อส่งคำเตือนกลุ่ม', 'warning');
+        return;
+      }
+      
+      const thaiDate = getTodayThaiFullDate(memoSelectedDate + 'T00:00:00');
+      const settings = db.getSettings();
+      
+      let alertText = `⚠️ *แจ้งเตือนการปฏิบัติหน้าที่เวรประจำจุด*\n`;
+      alertText += `เรียน คณะครูเวรประจำวันโรงเรียนมูลนิธิอาซิซสถาน\n`;
+      alertText += `ประจำวัน: *${thaiDate}*\n\n`;
+      alertText += `ฝ่ายปกครองได้ตรวจสอบการส่งรายงานในระบบ และขอแจ้งติดตามคุณครูที่ยังไม่ได้ส่งรูปภาพหรือเซ็นชื่อลงทะเบียนในจุดปฏิบัติหน้าที่ ดังต่อไปนี้:\n\n`;
+      
+      memoSelectedTeachers.forEach((t, idx) => {
+        const thaiNum = convertToArabicToThaiNumbers(idx + 1);
+        const ptThai = convertToArabicToThaiNumbers(getDutyPointDisplayNumber(t.point));
+        alertText += `${thaiNum}. คุณครู *${t.teacherName}* - จุดที่ ${ptThai} (${t.point.name}) [เวลา ${convertToArabicToThaiNumbers(t.point.time)} น.]\n`;
+      });
+      
+      alertText += `\nกรุณาเข้าระบบเพื่อบันทึกรูปถ่ายและเซ็นลายมือชื่อรายงานตัวให้เสร็จเรียบร้อยด่วนที่สุดครับ\n\n📌 ลิงก์เข้าระบบ: ${window.location.origin}`;
+      
+      // Save notification log
+      const logs = db.getNotificationLogs();
+      logs.push({
+        id: 'warn-' + Date.now(),
+        message: alertText,
+        time: new Date().toLocaleTimeString('th-TH'),
+        date: getTodayISODate()
+      });
+      db.saveNotificationLogs(logs);
+      
+      // Trigger Telegram or Line OA Simulation
+      if (settings.telegramToken && settings.telegramChatId) {
+        const url = `https://api.telegram.org/bot${settings.telegramToken}/sendMessage`;
+        const payload = {
+          chat_id: settings.telegramChatId,
+          text: alertText,
+          parse_mode: 'Markdown'
+        };
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        .then(res => {
+          if (res.ok) {
+            showToast('ส่งข้อความแจ้งเตือนเข้ากลุ่ม Telegram เรียบร้อยแล้ว!', 'success');
+          } else {
+            showToast('ไม่สามารถส่งข้อความแจ้งเตือนได้ โปรดตรวจสอบความถูกต้องของ API Token/Chat ID', 'error');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          showToast('การส่งข้อมูลแจ้งเตือนขัดข้อง ไม่สามารถเชื่อมต่อกับ Telegram API ได้', 'error');
+        });
+      } else {
+        showToast('จำลองส่งข้อความแจ้งเตือนเข้ากลุ่ม LINE OA เรียบร้อยแล้ว!', 'success');
+      }
     }
 
     // G. SYSTEM SETTINGS VIEW
