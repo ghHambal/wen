@@ -3581,9 +3581,16 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
             </div>
             <div class="p-5 space-y-4 text-xs">
               <input type="hidden" id="add-teacher-point-id">
-              <div>
-                <label class="block text-slate-500 mb-1.5 font-bold">รายชื่อคุณครูในระบบ:</label>
-                <select id="select-new-teacher-opt" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500"></select>
+              <div class="space-y-2">
+                <label class="block text-slate-500 font-bold">ค้นหาและแต่งตั้งรายชื่อคุณครู:</label>
+                <div class="relative">
+                  <i data-lucide="search" class="absolute left-3 top-3 w-4 h-4 text-slate-400"></i>
+                  <input type="text" id="teacher-modal-search" placeholder="พิมพ์ชื่อ หรือรหัสครูเพื่อค้นหา..." class="w-full pl-9 pr-4 py-2.5 border rounded-lg outline-none focus:ring-1 focus:ring-brand-500 text-xs font-semibold" oninput="filterTeacherModalList()">
+                </div>
+                <div id="teacher-modal-results-list" class="border rounded-lg max-h-48 overflow-y-auto bg-white divide-y divide-slate-100">
+                  <!-- Rendered dynamically -->
+                </div>
+                <input type="hidden" id="select-new-teacher-opt">
               </div>
               <div class="flex gap-2 pt-2">
                 <button onclick="closeAddTeacherModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ยกเลิก</button>
@@ -5630,6 +5637,9 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       }
     }
 
+    let modalNonAssignedTeachers = [];
+    let modalSelectedTeacherId = "";
+
     function openAddTeacherToPointModal(pointId) {
       const points = db.getDutyPoints();
       const pt = points.find(p => p.id === pointId);
@@ -5653,19 +5663,71 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         }
       });
 
-      const nonAssigned = teachers.filter(t => !assignedOnThisDay.includes(t.id));
-      const select = document.getElementById('select-new-teacher-opt');
-      
-      document.getElementById('add-teacher-point-id').value = pointId;
+      modalNonAssignedTeachers = teachers.filter(t => !assignedOnThisDay.includes(t.id));
+      modalSelectedTeacherId = "";
 
-      if (nonAssigned.length === 0) {
-        select.innerHTML = '<option value="">-- คุณครูทุกคนได้รับการแต่งตั้งแล้ว --</option>';
-      } else {
-        select.innerHTML = nonAssigned.map(t => `<option value="${t.id}">${t.name} (${t.id})</option>`).join('');
+      document.getElementById('add-teacher-point-id').value = pointId;
+      document.getElementById('select-new-teacher-opt').value = ""; // Hidden input
+
+      const searchInput = document.getElementById('teacher-modal-search');
+      if (searchInput) {
+        searchInput.value = "";
       }
+
+      renderTeacherModalList();
 
       document.getElementById('add-teacher-modal').classList.remove('hidden');
       lucide.createIcons();
+    }
+
+    function renderTeacherModalList() {
+      const listContainer = document.getElementById('teacher-modal-results-list');
+      if (!listContainer) return;
+
+      const query = (document.getElementById('teacher-modal-search')?.value || "").toLowerCase().trim();
+
+      const filtered = modalNonAssignedTeachers.filter(t => {
+        if (t.id === 'admin' || t.id === 'chief' || t.id === 'director') return false;
+        return t.name.toLowerCase().includes(query) || t.id.toLowerCase().includes(query);
+      });
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = `<p class="p-4 text-center text-slate-400 font-medium text-[11px]">ไม่พบรายชื่อคุณครูที่ค้นหา</p>`;
+        return;
+      }
+
+      listContainer.innerHTML = filtered.map(t => {
+        const isSelected = modalSelectedTeacherId === t.id;
+        const gender = getTeacherGender(t);
+        const genderText = gender === 'ชาย' ? 'ชาย (M)' : 'หญิง (F)';
+        const genderColor = gender === 'ชาย' ? 'text-emerald-600 bg-emerald-50 border border-emerald-150' : 'text-pink-850 bg-pink-50 border border-pink-150';
+
+        return `
+          <div onclick="selectTeacherInModal('${t.id}')" class="p-2.5 flex justify-between items-center hover:bg-slate-50 cursor-pointer transition ${
+            isSelected ? 'bg-brand-50 border-l-4 border-brand-850 font-bold' : ''
+          }">
+            <div class="space-y-0.5">
+              <p class="text-slate-800 text-xs font-semibold">${t.name}</p>
+              <p class="text-[9px] text-slate-400">รหัสครู: ${t.id} | โทร: ${t.phone || '-'}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[9px] px-1.5 py-0.5 rounded font-bold ${genderColor}">${genderText}</span>
+              ${isSelected ? `<i data-lucide="check" class="w-4 h-4 text-brand-850"></i>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function filterTeacherModalList() {
+      renderTeacherModalList();
+    }
+
+    function selectTeacherInModal(teacherId) {
+      modalSelectedTeacherId = teacherId;
+      document.getElementById('select-new-teacher-opt').value = teacherId;
+      renderTeacherModalList();
     }
 
     function closeAddTeacherModal() {
