@@ -1,0 +1,58 @@
+    :root {
+      --brand-color: #14532d;
+    }
+
+    /* Dynamically override Tailwind classes that use brand-color */
+    .bg-brand-950 { background-color: color-mix(in srgb, var(--brand-color) 70%, black) !important; }
+    .bg-brand-900 { background-color: var(--brand-color) !important; }
+    .bg-brand-850 { background-color: color-mix(in srgb, var(--brand-color) 90%, white) !important; }
+    .bg-brand-800 { background-color: color-mix(in srgb, var(--brand-color) 80%, white) !important; }
+    .bg-brand-700 { background-color: color-mix(in srgb, var(--brand-color) 75%, white) !important; }
+    .bg-brand-50  { background-color: color-mix(in srgb, var(--brand-color) 10%, white) !important; }
+    .bg-brand-100 { background-color: color-mix(in srgb, var(--brand-color) 20%, white) !important; }
+    
+    .hover\:bg-brand-700:hover { background-color: color-mix(in srgb, var(--brand-color) 75%, white) !important; }
+    .hover\:bg-brand-800:hover { background-color: color-mix(in srgb, var(--brand-color) 80%, white) !important; }
+    
+    .text-brand-950 { color: color-mix(in srgb, var(--brand-color) 70%, black) !important; }
+    .text-brand-900 { color: var(--brand-color) !important; }
+    .text-brand-850 { color: color-mix(in srgb, var(--brand-color) 90%, white) !important; }
+    .text-brand-800 { color: color-mix(in srgb, var(--brand-color) 80%, white) !important; }
+    .text-brand-700 { color: color-mix(in srgb, var(--brand-color) 75%, white) !important; }
+    .text-brand-200 { color: color-mix(in srgb, var(--brand-color) 40%, white) !important; }
+    .text-brand-300 { color: color-mix(in srgb, var(--brand-color) 50%, white) !important; }
+    
+    .border-brand-950 { border-color: color-mix(in srgb, var(--brand-color) 70%, black) !important; }
+    .border-brand-900 { border-color: var(--brand-color) !important; }
+    .border-brand-850 { border-color: color-mix(in srgb, var(--brand-color) 90%, white) !important; }
+    .border-brand-800 { border-color: color-mix(in srgb, var(--brand-color) 80%, white) !important; }
+    .border-brand-350, .border-brand-300 { border-color: color-mix(in srgb, var(--brand-color) 45%, white) !important; }
+
+    .focus\:ring-brand-500:focus { --tw-ring-color: var(--brand-color) !important; border-color: var(--brand-color) !important; }
+    .focus\:border-brand-500:focus { border-color: var(--brand-color) !important; }
+
+    /* Gradient overrides */
+    .from-brand-900 {
+      --tw-gradient-from: var(--brand-color) !important;
+      --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(20, 83, 45, 0)) !important;
+    }
+    .to-brand-800 {
+      --tw-gradient-to: color-mix(in srgb, var(--brand-color) 80%, white) !important;
+    }
+
+    * { font-family: 'Sarabun', sans-serif; }
+    .sidebar-item { transition: all 0.2s; }
+    .sidebar-item:hover, .sidebar-item.active { background: rgba(255, 255, 255, 0.12); }
+    .card-stat { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .card-stat:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    .signature-pad { border: 2px dashed #cbd5e1; border-radius: 8px; cursor: crosshair; touch-action: none; }
+    @media print { 
+      .no-print { display: none !important; }
+      body { background-color: white !important; color: black !important; }
+      .print-container { padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
+    }
+    .fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes fadeIn { 
+      from { opacity: 0; transform: translateY(8px); } 
+      to { opacity: 1; transform: translateY(0); } 
+    }
