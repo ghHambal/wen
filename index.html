@@ -162,14 +162,14 @@
             <label for="login-id" class="block text-sm font-medium text-slate-700 mb-1">รหัสครู / เบอร์โทรศัพท์</label>
             <div class="relative">
               <i data-lucide="user" class="absolute left-3 top-3 w-5 h-5 text-slate-400"></i>
-              <input id="login-id" type="text" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition" placeholder="กรอกรหัสครู (เช่น 1001 หรือ 2001) หรือเบอร์โทร">
+              <input id="login-id" type="text" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition" placeholder="กรอกรหัสครู (เช่น 1001 หรือ 2001) หรือเบอร์โทร" inputmode="latin">
             </div>
           </div>
           <div>
             <label for="login-pass" class="block text-sm font-medium text-slate-700 mb-1">รหัสผ่าน</label>
             <div class="relative">
               <i data-lucide="lock" class="absolute left-3 top-3 w-5 h-5 text-slate-400"></i>
-              <input id="login-pass" type="password" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition" placeholder="กรอกรหัสผ่านใดๆ">
+              <input id="login-pass" type="password" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition" placeholder="กรอกรหัสผ่านใดๆ" inputmode="latin">
             </div>
           </div>
           <div class="flex items-center justify-between text-xs">
@@ -2465,6 +2465,13 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     let currentScheduleViewDay = null;
     let activeRoleMode = 'teacher';
     let currentExecutiveGroupFilter = 'all'; // 'all', 'ชาย', 'หญิง'
+    
+    // Global states for teacher page filtering and view toggling
+    let currentTeachersViewType = 'grid'; // 'grid' or 'table'
+    let teachersSearchQuery = '';
+    let teachersFilterRole = 'all';
+    let teachersFilterGender = 'all';
+    let teachersFilterSignature = 'all';
 
     function isUserAdminOrHead() {
       if (!currentUser) return false;
@@ -3574,8 +3581,6 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
 
     // C. TEACHERS VIEW (Admin View)
     function renderTeachersView() {
-      const teachers = db.getTeachers();
-      
       return `
         <div class="fade-in space-y-6">
           <div class="flex justify-between items-center border-b pb-4">
@@ -3588,8 +3593,135 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
             </button>
           </div>
 
+          <!-- Search & Filter Controls -->
+          <div class="bg-white p-4 border rounded-xl shadow-sm space-y-3 md:space-y-0 md:flex md:items-center md:justify-between md:gap-4 no-print text-xs">
+            <div class="flex-1 relative">
+              <i data-lucide="search" class="absolute left-3 top-3.5 w-4 h-4 text-slate-400"></i>
+              <input type="text" id="teachers-search" value="${teachersSearchQuery}" oninput="handleTeachersSearch(this.value)" placeholder="ค้นหาชื่อ, รหัสครู, เบอร์โทร..." class="w-full pl-9 pr-4 py-2.5 border rounded-lg outline-none focus:ring-1 focus:ring-brand-500">
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2">
+              <!-- Role Filter -->
+              <select onchange="handleTeachersFilter('role', this.value)" class="border rounded-lg p-2.5 bg-white outline-none focus:ring-1 focus:ring-brand-500 text-xs font-semibold">
+                <option value="all" ${teachersFilterRole === 'all' ? 'selected' : ''}>ทุกบทบาท</option>
+                <option value="teacher" ${teachersFilterRole === 'teacher' ? 'selected' : ''}>ครูเวรทั่วไป</option>
+                <option value="head" ${teachersFilterRole === 'head' ? 'selected' : ''}>หัวหน้าเวร</option>
+                <option value="admin" ${teachersFilterRole === 'admin' ? 'selected' : ''}>ผู้ดูแลระบบ</option>
+              </select>
+
+              <!-- Gender Filter -->
+              <select onchange="handleTeachersFilter('gender', this.value)" class="border rounded-lg p-2.5 bg-white outline-none focus:ring-1 focus:ring-brand-500 text-xs font-semibold">
+                <option value="all" ${teachersFilterGender === 'all' ? 'selected' : ''}>ทุกกลุ่มเวร (ชาย/หญิง)</option>
+                <option value="ชาย" ${teachersFilterGender === 'ชาย' ? 'selected' : ''}>กลุ่มเวรครูชาย</option>
+                <option value="หญิง" ${teachersFilterGender === 'หญิง' ? 'selected' : ''}>กลุ่มเวรครูหญิง</option>
+              </select>
+
+              <!-- Signature Filter -->
+              <select onchange="handleTeachersFilter('signature', this.value)" class="border rounded-lg p-2.5 bg-white outline-none focus:ring-1 focus:ring-brand-500 text-xs font-semibold">
+                <option value="all" ${teachersFilterSignature === 'all' ? 'selected' : ''}>ลายเซ็น (ทั้งหมด)</option>
+                <option value="signed" ${teachersFilterSignature === 'signed' ? 'selected' : ''}>ลงชื่อแล้ว</option>
+                <option value="unsigned" ${teachersFilterSignature === 'unsigned' ? 'selected' : ''}>ไม่มีลายเซ็น</option>
+              </select>
+
+              <!-- View Switcher -->
+              <div class="flex items-center border rounded-lg p-0.5 bg-slate-100">
+                <button onclick="switchTeachersViewType('grid')" class="p-1.5 rounded transition ${currentTeachersViewType === 'grid' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-550 hover:text-slate-700'}" title="แสดงแบบกริด">
+                  <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                </button>
+                <button onclick="switchTeachersViewType('table')" class="p-1.5 rounded transition ${currentTeachersViewType === 'table' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-555 hover:text-slate-700'}" title="แสดงแบบตาราง">
+                  <i data-lucide="table" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Teachers List/Table Wrapper -->
+          <div id="teachers-list-container">
+            ${renderTeachersListContainer()}
+          </div>
+        </div>
+
+        <!-- Add/Edit Teacher Modal -->
+        <div id="teacher-form-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden border">
+            <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
+              <h3 class="font-bold text-xs" id="teacher-modal-title">ข้อมูลครูผู้ปฏิบัติหน้าที่</h3>
+              <button onclick="closeTeacherFormModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form onsubmit="saveTeacherData(event)" class="p-5 space-y-4 text-xs">
+              <input type="hidden" id="teacher-form-id-flag">
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">รหัสประจำตัวครู (ห้ามซ้ำ):</label>
+                <input type="text" id="teacher-form-id" required placeholder="เช่น 1001" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500" inputmode="latin">
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">ชื่อ-นามสกุลจริง:</label>
+                <input type="text" id="teacher-form-name" required placeholder="เช่น นายมูฮัมหมัด ดอเลาะ" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">เบอร์โทรศัพท์ติดต่อ:</label>
+                <input type="text" id="teacher-form-phone" required placeholder="เช่น 089xxxxxxx" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500" inputmode="tel">
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">บทบาทหน้าที่:</label>
+                <select id="teacher-form-role" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+                  <option value="teacher">ครูเวรทั่วไป</option>
+                  <option value="head">หัวหน้าเวร</option>
+                  <option value="admin">ผู้ดูแลระบบ</option>
+                </select>
+              </div>
+              <div id="teacher-reset-password-container" class="hidden">
+                <button type="button" onclick="resetTeacherPassword()" class="w-full bg-amber-50 hover:bg-amber-150 text-amber-900 border border-amber-200 py-2 rounded-lg font-bold transition flex items-center justify-center gap-1">
+                  <i data-lucide="key-round" class="w-3.5 h-3.5"></i> รีเซ็ตรหัสผ่านเป็น 1234
+                </button>
+              </div>
+              <div class="flex gap-2 pt-2">
+                <button type="button" onclick="closeTeacherFormModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ยกเลิก</button>
+                <button type="submit" class="flex-1 bg-brand-850 hover:bg-brand-700 py-2.5 rounded-lg text-white font-semibold shadow transition">บันทึกข้อมูล</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTeachersListContainer() {
+      let filtered = db.getTeachers();
+
+      // Search Query
+      if (teachersSearchQuery.trim() !== '') {
+        const query = teachersSearchQuery.toLowerCase().trim();
+        filtered = filtered.filter(t => 
+          t.name.toLowerCase().includes(query) || 
+          t.id.toLowerCase().includes(query) || 
+          (t.phone && t.phone.includes(query))
+        );
+      }
+
+      // Role Filter
+      if (teachersFilterRole !== 'all') {
+        filtered = filtered.filter(t => t.role === teachersFilterRole);
+      }
+
+      // Gender Filter
+      if (teachersFilterGender !== 'all') {
+        filtered = filtered.filter(t => getTeacherGender(t) === teachersFilterGender);
+      }
+
+      // Signature Filter
+      if (teachersFilterSignature !== 'all') {
+        filtered = filtered.filter(t => {
+          const hasSig = !!t.signature;
+          return teachersFilterSignature === 'signed' ? hasSig : !hasSig;
+        });
+      }
+
+      if (currentTeachersViewType === 'grid') {
+        return `
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            ${teachers.map(t => {
+            ${filtered.length === 0 ? `
+              <div class="col-span-full bg-white border rounded-xl p-8 text-center text-slate-400 font-medium">ไม่พบข้อมูลตามเงื่อนไขที่ค้นหา</div>
+            ` : filtered.map(t => {
               const roleBadge = t.role === 'head' 
                 ? '<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">หัวหน้าเวร</span>'
                 : t.role === 'admin'
@@ -3606,7 +3738,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
                     </div>
                     <div>
                       <h4 class="font-bold text-slate-800 text-xs">${t.name}</h4>
-                      <p class="text-[10px] text-slate-400 mt-0.5">ID: ${t.id} | โทร: ${t.phone}</p>
+                      <p class="text-[10px] text-slate-400 mt-0.5">ID: ${t.id} | โทร: ${t.phone || '-'}</p>
                     </div>
                   </div>
                   
@@ -3628,7 +3760,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
                     </div>
                   `}
 
-                  <div class="flex gap-2 pt-1 border-t border-slate-150">
+                  <div class="flex gap-2 pt-1 border-t border-slate-150 no-print">
                     <button onclick="openTeacherFormModal('${t.id}')" class="flex-1 border border-slate-200 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50 font-semibold rounded-lg transition flex items-center justify-center gap-1">
                       <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> แก้ไข
                     </button>
@@ -3640,50 +3772,108 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
               `;
             }).join('')}
           </div>
-        </div>
+        `;
+      } else {
+        return `
+          <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-50 border-b border-slate-200 text-slate-550 font-bold uppercase">
+                    <th class="p-3 text-center w-16">รหัสครู</th>
+                    <th class="p-3">ชื่อ-นามสกุล</th>
+                    <th class="p-3 w-24">กลุ่มเวร</th>
+                    <th class="p-3 w-32">เบอร์โทรศัพท์</th>
+                    <th class="p-3 w-32">บทบาท</th>
+                    <th class="p-3 w-28 text-center">ลายเซ็น</th>
+                    <th class="p-3 w-40 text-center no-print">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-700">
+                  ${filtered.length === 0 ? `
+                    <tr>
+                      <td colspan="7" class="p-8 text-center text-slate-400 font-medium">ไม่พบข้อมูลตามเงื่อนไขที่ค้นหา</td>
+                    </tr>
+                  ` : filtered.map(t => {
+                    const roleBadge = t.role === 'head' 
+                      ? '<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">หัวหน้าเวร</span>'
+                      : t.role === 'admin'
+                        ? '<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">ผู้ดูแลระบบ</span>'
+                        : '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">ครูเวรทั่วไป</span>';
 
-        <!-- Add/Edit Teacher Modal -->
-        <div id="teacher-form-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
-          <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden border">
-            <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
-              <h3 class="font-bold text-xs" id="teacher-modal-title">ข้อมูลครูผู้ปฏิบัติหน้าที่</h3>
-              <button onclick="closeTeacherFormModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    const hasSig = t.signature ? true : false;
+                    const gender = getTeacherGender(t);
+                    const genderBadge = gender === 'ชาย'
+                      ? '<span class="bg-emerald-50 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded font-bold border border-emerald-150">ชาย (M)</span>'
+                      : '<span class="bg-pink-50 text-pink-850 text-[10px] px-1.5 py-0.5 rounded font-bold border border-pink-150">หญิง (F)</span>';
+
+                    return `
+                      <tr class="hover:bg-slate-50 transition">
+                        <td class="p-3 text-center font-semibold text-slate-800">${t.id}</td>
+                        <td class="p-3">
+                          <div class="font-bold text-slate-800">${t.name}</div>
+                        </td>
+                        <td class="p-3">${genderBadge}</td>
+                        <td class="p-3 font-medium text-slate-650">${t.phone || '-'}</td>
+                        <td class="p-3">${roleBadge}</td>
+                        <td class="p-3 text-center">
+                          ${hasSig ? `
+                            <div class="flex flex-col items-center gap-1">
+                              <span class="text-green-700 bg-green-50 px-1.5 py-0.5 text-[9px] border border-green-200 rounded font-bold">✓ ลงชื่อแล้ว</span>
+                              <img src="${t.signature}" class="max-h-5 object-contain max-w-[80px]" alt="Signature">
+                            </div>
+                          ` : `
+                            <span class="text-red-500 bg-red-50 px-1.5 py-0.5 text-[9px] border border-red-200 rounded font-bold">× ไม่มีลายเซ็น</span>
+                          `}
+                        </td>
+                        <td class="p-3 text-center no-print">
+                          <div class="flex gap-1.5 justify-center">
+                            <button onclick="openTeacherFormModal('${t.id}')" class="border border-slate-200 hover:bg-slate-100 text-slate-700 px-2 py-1 rounded font-bold transition flex items-center gap-0.5">
+                              <i data-lucide="edit-3" class="w-3 h-3"></i> แก้ไข
+                            </button>
+                            <button onclick="deleteTeacher('${t.id}')" class="border border-red-150 hover:bg-red-50 text-red-650 px-2 py-1 rounded font-bold transition flex items-center gap-0.5">
+                              <i data-lucide="trash-2" class="w-3 h-3"></i> ลบ
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
             </div>
-            <form onsubmit="saveTeacherData(event)" class="p-5 space-y-4 text-xs">
-              <input type="hidden" id="teacher-form-id-flag">
-              <div>
-                <label class="block text-slate-500 mb-1 font-bold">รหัสประจำตัวครู (ห้ามซ้ำ):</label>
-                <input type="text" id="teacher-form-id" required placeholder="เช่น 1001" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
-              </div>
-              <div>
-                <label class="block text-slate-500 mb-1 font-bold">ชื่อ-นามสกุลจริง:</label>
-                <input type="text" id="teacher-form-name" required placeholder="เช่น นายมูฮัมหมัด ดอเลาะ" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
-              </div>
-              <div>
-                <label class="block text-slate-500 mb-1 font-bold">เบอร์โทรศัพท์ติดต่อ:</label>
-                <input type="text" id="teacher-form-phone" required placeholder="เช่น 089xxxxxxx" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
-              </div>
-              <div>
-                <label class="block text-slate-500 mb-1 font-bold">บทบาทหน้าที่:</label>
-                <select id="teacher-form-role" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
-                  <option value="teacher">ครูเวรทั่วไป</option>
-                  <option value="head">หัวหน้าเวร</option>
-                  <option value="admin">ผู้ดูแลระบบ</option>
-                </select>
-              </div>
-              <div id="teacher-reset-password-container" class="hidden">
-                <button type="button" onclick="resetTeacherPassword()" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 py-2 rounded-lg font-bold transition flex items-center justify-center gap-1">
-                  <i data-lucide="key-round" class="w-3.5 h-3.5"></i> รีเซ็ตรหัสผ่านเป็น 1234
-                </button>
-              </div>
-              <div class="flex gap-2 pt-2">
-                <button type="button" onclick="closeTeacherFormModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ยกเลิก</button>
-                <button type="submit" class="flex-1 bg-brand-850 hover:bg-brand-700 py-2.5 rounded-lg text-white font-semibold shadow transition">บันทึกข้อมูล</button>
-              </div>
-            </form>
           </div>
-        </div>
-      `;
+        `;
+      }
+    }
+
+    function renderTeachersListOnly() {
+      const container = document.getElementById('teachers-list-container');
+      if (container) {
+        container.innerHTML = renderTeachersListContainer();
+        lucide.createIcons();
+      }
+    }
+
+    function handleTeachersSearch(val) {
+      teachersSearchQuery = val;
+      renderTeachersListOnly();
+    }
+
+    function handleTeachersFilter(type, val) {
+      if (type === 'role') teachersFilterRole = val;
+      if (type === 'gender') teachersFilterGender = val;
+      if (type === 'signature') teachersFilterSignature = val;
+      renderTeachersListOnly();
+    }
+
+    function switchTeachersViewType(type) {
+      currentTeachersViewType = type;
+      const mc = document.getElementById('main-content');
+      if (mc) {
+        mc.innerHTML = renderTeachersView();
+        lucide.createIcons();
+      }
     }
 
     // D. DUTY POINTS VIEW (Admin View)
@@ -4954,6 +5144,61 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       return 'หญิง';
     }
 
+    function setupThaiToEnglishKeyboardConverter() {
+      const THAI_ENG_MAP = {
+        'ๅ':'1', 'ภ':'2', 'ถ':'3', 'ุ':'4', 'ึ':'5', 'ค':'6', 'ต':'7', 'จ':'8', 'ข':'9', 'ช':'0', 'ๆ':'q', 'ไ':'w', 'ำ':'e', 'พ':'r', 'ะ':'t', 'ั':'y', 'ี':'u', 'ร':'i', 'น':'o', 'ย':'p', 'บ':'[', 'ล':']', 'ฃ':'\\', 'ฟ':'a', 'ห':'s', 'ก':'d', 'ด':'f', 'เ':'g', '้':'h', '่':'j', 'า':'k', 'ส':'l', 'ว':';', 'ง':'\'', 'ผ':'z', 'ป':'x', 'แ':'c', 'อ':'v', 'ิ':'b', 'ื':'n', 'ท':'m', 'ม':',', 'ใ':'.', 'ฝ':'/',
+        '๑':'@', '๒':'#', '๓':'$', '๔':'%', 'ู':'^', '฿':'&', '๕':'*', '๖':'(', '๗':')', '๘':'_', '๙':'+',
+        '๊':'Q', 'ิ':'W', '์':'E', 'ื':'R', '่':'T', '๋':'Y', '้':'U', '็':'I', '็':'O', 'ิ':'P', 'ญ':'{', 'ษ':'}', 'ฅ':'|',
+        'ฤ':'A', 'ฆ':'S', 'ฏ':'D', 'โ':'F', 'ฌ':'G', '็':'H', '๋':'J', 'ษ':'K', 'ศ':'L', 'ซ':':', 'ศ':'"',
+        'ฉ':'C', 'ฮ':'V', 'ธ':'B', 'ณ':'N', 'ร':'M', 'ฒ':'<', 'ฬ':'>', 'ฦ':'?'
+      };
+
+      const convertValue = (val) => {
+        let newVal = '';
+        for (let i = 0; i < val.length; i++) {
+          const char = val[i];
+          if (THAI_ENG_MAP[char] !== undefined) {
+            newVal += THAI_ENG_MAP[char];
+          } else {
+            newVal += char;
+          }
+        }
+        return newVal;
+      };
+
+      // Add dynamic translation listeners for English-only inputs
+      const selectors = [
+        '#login-id', 
+        '#login-pass', 
+        '#teacher-form-id', 
+        '#teacher-form-phone',
+        '#sett-line', 
+        '#sett-telegram', 
+        '#sett-telegram-chat',
+        '#sett-radius',
+        '#sett-lat',
+        '#sett-lng'
+      ];
+
+      document.addEventListener('input', (e) => {
+        const target = e.target;
+        if (!target) return;
+        
+        const isMatched = selectors.some(sel => target.matches(sel));
+        if (isMatched) {
+          const start = target.selectionStart;
+          const end = target.selectionEnd;
+          const original = target.value;
+          const converted = convertValue(original);
+          
+          if (original !== converted) {
+            target.value = converted;
+            target.setSelectionRange(start, end);
+          }
+        }
+      });
+    }
+
     // =========================================================================
     // 8. ON STARTUP & INITIAL EVENTS LOADING
     // =========================================================================
@@ -4967,6 +5212,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       renderQuickLogin();
       lucide.createIcons();
       updateNotificationLogsUI();
+      setupThaiToEnglishKeyboardConverter();
 
       changeGPSSimulation();
     });
