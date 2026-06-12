@@ -397,8 +397,6 @@
         telegramToken: dbSett.telegram_token || dbSett.telegramToken || local.telegramToken || '',
         telegramChatId: dbSett.telegram_chat_id || dbSett.telegramChatId || local.telegramChatId || '',
         autoNotifyMinutes: dbSett.auto_notify_minutes !== undefined && dbSett.auto_notify_minutes !== null ? dbSett.auto_notify_minutes : (dbSett.autoNotifyMinutes !== undefined && dbSett.autoNotifyMinutes !== null ? dbSett.autoNotifyMinutes : (local.autoNotifyMinutes || 15)),
-        dutyDay: dbSett.duty_day || dbSett.dutyDay || local.dutyDay || 'อังคาร',
-        dutyGroup: dbSett.duty_group || dbSett.dutyGroup || local.dutyGroup || 'ครูชาย',
         defaultRadius: dbSett.default_radius !== undefined && dbSett.default_radius !== null ? dbSett.default_radius : (dbSett.defaultRadius !== undefined && dbSett.defaultRadius !== null ? dbSett.defaultRadius : (local.defaultRadius || 50)),
         centerLat: dbSett.center_lat !== undefined && dbSett.center_lat !== null ? dbSett.center_lat : (dbSett.centerLat !== undefined && dbSett.centerLat !== null ? dbSett.centerLat : (local.centerLat || 6.787680)),
         centerLng: dbSett.center_lng !== undefined && dbSett.center_lng !== null ? dbSett.center_lng : (dbSett.centerLng !== undefined && dbSett.centerLng !== null ? dbSett.centerLng : (local.centerLng || 101.408120)),
@@ -420,8 +418,6 @@
         telegram_token: jsSett.telegramToken,
         telegram_chat_id: jsSett.telegramChatId,
         auto_notify_minutes: jsSett.autoNotifyMinutes,
-        duty_day: jsSett.dutyDay || 'อังคาร',
-        duty_group: jsSett.dutyGroup || 'ครูชาย',
         default_radius: jsSett.defaultRadius !== undefined ? jsSett.defaultRadius : 50,
         center_lat: jsSett.centerLat !== undefined ? jsSett.centerLat : 6.787680,
         center_lng: jsSett.centerLng !== undefined ? jsSett.centerLng : 101.408120,
@@ -459,7 +455,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.7.7';
+    const APP_VERSION = '1.8.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -618,6 +614,7 @@
     let activeRoleMode = 'teacher';
     let currentExecutiveGroupFilter = 'all'; // 'all', 'ชาย', 'หญิง'
     let currentDutyPointsGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าตั้งค่าพิกัด
+    let currentScheduleGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าจัดการตารางเวร
     
     // Global states for teacher page filtering and view toggling
     let currentTeachersViewType = 'grid'; // 'grid' or 'table'
@@ -977,7 +974,6 @@
 
     // A. DASHBOARD VIEW (Admin / Head of Duty)
     function renderDashboardView() {
-      const settings = db.getSettings();
       const points = db.getDutyPoints();
       const reports = db.getReports().filter(r => r.date === getTodayISODate());
       
@@ -1052,7 +1048,7 @@
           <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
               <h4 class="font-bold text-xs text-brand-950">สถานะความคืบหน้ารายบุคคล</h4>
-              <span class="text-[10px] text-slate-400">เวรตรวจวัน${settings.dutyDay || 'อังคาร'} (${settings.dutyGroup || 'ครูชาย'})</span>
+              <span class="text-[10px] text-slate-400">ทุกจุดเวรวันนี้ (ครูชาย + ครูหญิง)</span>
             </div>
             
             <!-- Wide screen Table (hidden on mobile) -->
@@ -1246,8 +1242,6 @@
 
     function getWeeklyDutiesCount(teacherId) {
       const points = db.getDutyPoints();
-      const settings = db.getSettings();
-      const defaultDay = settings.dutyDay || 'อังคาร';
       let count = 0;
       points.forEach(p => {
         const assigned = p.assignedTo || p.assigned_to || [];
@@ -1576,11 +1570,11 @@
     // B. SCHEDULE VIEW (Admin View)
     function renderScheduleView() {
       const settings = db.getSettings();
-      const points = db.getDutyPoints().filter(p => (p.dutyGroup || 'ครูชาย') === (settings.dutyGroup || 'ครูชาย'));
+      const points = db.getDutyPoints().filter(p => (p.dutyGroup || 'ครูชาย') === currentScheduleGroupTab);
       const teachers = db.getTeachers();
-      
+
       if (!currentScheduleViewDay) {
-        currentScheduleViewDay = settings.dutyDay || 'อังคาร';
+        currentScheduleViewDay = getTodayThaiDayName();
       }
 
       return `
@@ -1595,6 +1589,22 @@
                 <i data-lucide="save" class="w-4 h-4"></i> บันทึกตารางเวรหลัก
               </button>
             </div>
+          </div>
+
+          <!-- Duty Group Tab Switcher -->
+          <div class="flex border-b border-slate-200 gap-1">
+            ${['ครูชาย', 'ครูหญิง'].map(group => {
+              const isActive = currentScheduleGroupTab === group;
+              return `
+                <button onclick="onScheduleGroupTabChange('${group}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
+                  isActive
+                    ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
+                    : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
+                }">
+                  เวร${group}
+                </button>
+              `;
+            }).join('')}
           </div>
 
           <!-- Horizontal Day Tab Switcher -->
@@ -1630,7 +1640,7 @@
                 <button type="button" onclick="toggleScheduleHeadDropdown(event)" class="w-full border border-slate-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-bold bg-white text-xs text-left flex justify-between items-center shadow-sm">
                   <span id="schedule-head-selected-label">
                     ${(() => {
-                      const scheduleGroupGender = settings.dutyGroup === 'ครูหญิง' ? 'หญิง' : 'ชาย';
+                      const scheduleGroupGender = currentScheduleGroupTab === 'ครูหญิง' ? 'หญิง' : 'ชาย';
                       const dayVal = settings.headsOfDay?.[currentScheduleViewDay];
                       let currentHeadId = "";
                       if (typeof dayVal === 'string') {
@@ -1664,9 +1674,12 @@
           </div>
 
           <div class="bg-white border rounded-xl shadow-sm overflow-hidden text-xs">
-            <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-              <span class="font-bold text-slate-950">จุดเวรวัน${currentScheduleViewDay}ของคณะ${settings.dutyGroup || 'ครูชาย'}</span>
-              <span class="bg-green-100 text-green-800 text-[10px] px-2 py-0.5 rounded-full font-bold">ตารางปัจจุบัน</span>
+            <div class="p-4 bg-slate-50 border-b border-slate-200">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-slate-950">จุดเวรของคณะ${currentScheduleGroupTab}</span>
+                <span class="bg-green-100 text-green-800 text-[10px] px-2 py-0.5 rounded-full font-bold">ใช้ทุกวัน</span>
+              </div>
+              <p class="text-[10px] text-slate-400 mt-1">รายชื่อครูเวรด้านล่างปฏิบัติหน้าที่ทุกวัน ส่วนแท็บ "วัน${currentScheduleViewDay}" ด้านบนใช้สำหรับกำหนดหัวหน้าเวรประจำวัน หรือมอบหมายครูเพิ่มเติมเฉพาะวันนั้น</p>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left min-w-[600px]">
@@ -1686,8 +1699,9 @@
                     const dayTeachers = [];
                     assignedList.forEach(item => {
                       if (isAssignedOnDay(item, currentScheduleViewDay)) {
-                        const itemTeacherId = item.includes(':') ? item.split(':')[1] : item;
-                        dayTeachers.push(itemTeacherId);
+                        const isDaySpecific = item.includes(':');
+                        const itemTeacherId = isDaySpecific ? item.split(':')[1] : item;
+                        dayTeachers.push({ id: itemTeacherId, isDaySpecific });
                       }
                     });
 
@@ -1698,9 +1712,9 @@
                         <td class="px-4 py-3 text-slate-500">${p.time} น.</td>
                         <td class="px-4 py-3 font-bold text-brand-950">
                           <div class="flex flex-wrap gap-1.5">
-                            ${dayTeachers.map(teacherId => `
+                            ${dayTeachers.map(({ id: teacherId, isDaySpecific }) => `
                               <span class="bg-brand-50 text-brand-900 border border-brand-200 px-2 py-1 rounded flex items-center gap-1">
-                                <span>${getTeacherName(teacherId)}</span>
+                                <span>${getTeacherName(teacherId)}${isDaySpecific ? ` <span class="text-amber-600 font-normal">(เฉพาะวัน${currentScheduleViewDay})</span>` : ''}</span>
                                 <button onclick="removeTeacherFromPoint(${p.id}, '${teacherId}')" class="text-red-500 hover:text-red-700 hover:bg-slate-100 rounded-full w-4 h-4 flex items-center justify-center font-bold">×</button>
                               </span>
                             `).join('')}
@@ -2749,27 +2763,7 @@
                 </div>
               </div>
 
-              <!-- Custom School Coordinates and Defaults -->
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-4">
-                <div>
-                  <label class="block text-slate-500 font-bold mb-1">วันปฏิบัติหน้าที่เวรประจำสัปดาห์:</label>
-                  <select id="sett-duty-day" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-semibold">
-                    <option value="จันทร์" ${settings.dutyDay === 'จันทร์' ? 'selected' : ''}>วันจันทร์</option>
-                    <option value="อังคาร" ${settings.dutyDay === 'อังคาร' ? 'selected' : ''}>วันอังคาร</option>
-                    <option value="พุธ" ${settings.dutyDay === 'พุธ' ? 'selected' : ''}>วันพุธ</option>
-                    <option value="พฤหัสบดี" ${settings.dutyDay === 'พฤหัสบดี' ? 'selected' : ''}>วันพฤหัสบดี</option>
-                    <option value="ศุกร์" ${settings.dutyDay === 'ศุกร์' ? 'selected' : ''}>วันศุกร์</option>
-                    <option value="เสาร์" ${settings.dutyDay === 'เสาร์' ? 'selected' : ''}>วันเสาร์</option>
-                    <option value="อาทิตย์" ${settings.dutyDay === 'อาทิตย์' ? 'selected' : ''}>วันอาทิตย์</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-slate-500 font-bold mb-1">กลุ่มผู้ปฏิบัติหน้าที่เวร (เช่น ครูชาย, ครูหญิง):</label>
-                  <input type="text" id="sett-duty-group" value="${settings.dutyGroup || 'ครูชาย'}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b pb-4">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t pt-4 border-b pb-4">
                 <div>
                   <label class="block text-slate-500 font-bold mb-1">รัศมีเวรเริ่มต้น (เมตร):</label>
                   <input type="number" id="sett-radius" value="${settings.defaultRadius || 50}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
@@ -2887,9 +2881,7 @@
         telegramChatId: document.getElementById('sett-tele-chat').value.trim(),
         lineToken: document.getElementById('sett-line-token').value.trim(),
         autoNotifyMinutes: parseInt(document.getElementById('sett-minutes').value),
-        
-        dutyDay: document.getElementById('sett-duty-day').value,
-        dutyGroup: document.getElementById('sett-duty-group').value.trim(),
+
         defaultRadius: parseInt(document.getElementById('sett-radius').value),
         centerLat: parseFloat(document.getElementById('sett-center-lat').value),
         centerLng: parseFloat(document.getElementById('sett-center-lng').value),
@@ -2924,8 +2916,6 @@
             telegram_token: settings.telegramToken,
             telegram_chat_id: settings.telegramChatId,
             auto_notify_minutes: settings.autoNotifyMinutes,
-            duty_day: settings.dutyDay,
-            duty_group: settings.dutyGroup,
             default_radius: settings.defaultRadius,
             center_lat: settings.centerLat,
             center_lng: settings.centerLng
@@ -3982,10 +3972,9 @@
       const pt = points.find(p => p.id === pointId);
       if (pt) {
         if (!pt.assignedTo) pt.assignedTo = pt.assigned_to || [];
-        
-        const settings = db.getSettings();
+
         if (!currentScheduleViewDay) {
-          currentScheduleViewDay = settings.dutyDay || 'อังคาร';
+          currentScheduleViewDay = getTodayThaiDayName();
         }
         pt.assignedTo.push(`${currentScheduleViewDay}:${teacherId}`);
         
@@ -3998,6 +3987,15 @@
 
     function onScheduleDayChange(val) {
       currentScheduleViewDay = val;
+      const mc = document.getElementById('main-content');
+      if (mc) {
+        mc.innerHTML = renderScheduleView();
+        lucide.createIcons();
+      }
+    }
+
+    function onScheduleGroupTabChange(group) {
+      currentScheduleGroupTab = group;
       const mc = document.getElementById('main-content');
       if (mc) {
         mc.innerHTML = renderScheduleView();
@@ -4032,7 +4030,7 @@
       const settings = db.getSettings();
       const query = (document.getElementById('schedule-head-search')?.value || "").toLowerCase().trim();
 
-      const scheduleGroupGender = settings.dutyGroup === 'ครูหญิง' ? 'หญิง' : 'ชาย';
+      const scheduleGroupGender = currentScheduleGroupTab === 'ครูหญิง' ? 'หญิง' : 'ชาย';
       const dayVal = settings.headsOfDay?.[currentScheduleViewDay];
       let currentHeadId = "";
       if (typeof dayVal === 'string') {
@@ -4184,7 +4182,7 @@
       const settings = db.getSettings();
       if (!settings.headsOfDay) settings.headsOfDay = {};
       
-      const scheduleGroupGender = settings.dutyGroup === 'ครูหญิง' ? 'หญิง' : 'ชาย';
+      const scheduleGroupGender = currentScheduleGroupTab === 'ครูหญิง' ? 'หญิง' : 'ชาย';
       const currentDayVal = settings.headsOfDay[currentScheduleViewDay];
       let dayObj = { "ชาย": "", "หญิง": "" };
       
@@ -4770,12 +4768,12 @@
 
       const loginSubtitle = document.getElementById('login-subtitle');
       if (loginSubtitle) {
-        loginSubtitle.textContent = `เวรวัน${settings.dutyDay || 'อังคาร'} ${settings.dutyGroup || 'ครูชาย'} ${settings.schoolName || 'โรงเรียนมูลนิธิอาซิซสถาน'}`;
+        loginSubtitle.textContent = settings.schoolName || 'โรงเรียนมูลนิธิอาซิซสถาน';
       }
-      
+
       const sidebarSubtitle = document.getElementById('sidebar-subtitle');
       if (sidebarSubtitle) {
-        sidebarSubtitle.textContent = `เวรวัน${settings.dutyDay || 'อังคาร'} (${settings.dutyGroup || 'ครูชาย'})`;
+        sidebarSubtitle.textContent = `วันนี้: วัน${getTodayThaiDayName()}`;
       }
       const sidebarSchool = document.getElementById('sidebar-school');
       if (sidebarSchool) {
@@ -4784,7 +4782,7 @@
       
       const mobileSidebarSubtitle = document.getElementById('mobile-sidebar-subtitle');
       if (mobileSidebarSubtitle) {
-        mobileSidebarSubtitle.textContent = `เวรวัน${settings.dutyDay || 'อังคาร'} (${settings.dutyGroup || 'ครูชาย'})`;
+        mobileSidebarSubtitle.textContent = `วันนี้: วัน${getTodayThaiDayName()}`;
       }
 
       const mobileHeaderSchool = document.getElementById('mobile-header-school');
