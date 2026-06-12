@@ -112,7 +112,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.5.1</p>
+          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.5.2</p>
         </div>
         
         <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
@@ -215,7 +215,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.1</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.2</div>
           </div>
         </aside>
 
@@ -312,7 +312,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.1</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.2</div>
         </div>
       </aside>
     </div>
@@ -429,20 +429,21 @@
 
     // Default Mock Data in case Supabase tables do not exist yet
     const defaultTeachers = [
-      { id: 'T001', name: 'นาย ศราวุธ เส้นสะนา',           role: 'teacher', phone: '0811111101', signature: null },
-      { id: 'T002', name: 'นาย ตูวันอับดุลเลาะ ตูวันหะยี', role: 'teacher', phone: '0811111102', signature: null },
-      { id: 'T003', name: 'นาย มูอัมหมัดเปาซี ลาเต็ะ',     role: 'teacher', phone: '0811111103', signature: null },
-      { id: 'T004', name: 'นาย นัสรี บินรัตแก้ว',           role: 'teacher', phone: '0811111104', signature: null },
-      { id: 'T005', name: 'นาย อาหามะ สือแม',               role: 'teacher', phone: '0811111105', signature: null },
-      { id: 'T006', name: 'นาย ฮัมบาลี วาจิ',               role: 'head',    phone: '0811111106', signature: null },
-      { id: 'T007', name: 'นาย นัทธีร์ หะยีเต็ะ',           role: 'teacher', phone: '0811111107', signature: null },
-      { id: 'T008', name: 'นาย อับดุลราฟาร์ ตาเยะ',         role: 'teacher', phone: '0811111108', signature: null },
-      { id: 'T009', name: 'นาย นิมิตร เจะยามา',             role: 'teacher', phone: '0811111109', signature: null },
-      { id: 'T010', name: 'นาย นูรุดีน ดือราแม',            role: 'teacher', phone: '0811111110', signature: null },
-      { id: 'T011', name: 'นาย สาฬูดี บือราเฮง',            role: 'teacher', phone: '0811111111', signature: null },
-      { id: 'T012', name: 'นาย อดินัน สะอิด',               role: 'teacher', phone: '0811111112', signature: null },
-      { id: 'T013', name: 'นาย อับดุลเราะมาน เส้นสะนา',    role: 'teacher', phone: '0811111113', signature: null },
-      { id: 'T014', name: 'นาย บัสรี โนรัตแก้ว',            role: 'teacher', phone: '0811111114', signature: null },
+      { id: 'admin', name: 'แอดมินฝ่ายปกครอง',             role: 'admin',   phone: '0811111100', signature: null, password: '1234' },
+      { id: 'T001', name: 'นาย ศราวุธ เส้นสะนา',           role: 'teacher', phone: '0811111101', signature: null, password: '1234' },
+      { id: 'T002', name: 'นาย ตูวันอับดุลเลาะ ตูวันหะยี', role: 'teacher', phone: '0811111102', signature: null, password: '1234' },
+      { id: 'T003', name: 'นาย มูอัมหมัดเปาซี ลาเต็ะ',     role: 'teacher', phone: '0811111103', signature: null, password: '1234' },
+      { id: 'T004', name: 'นาย นัสรี บินรัตแก้ว',           role: 'teacher', phone: '0811111104', signature: null, password: '1234' },
+      { id: 'T005', name: 'นาย อาหามะ สือแม',               role: 'teacher', phone: '0811111105', signature: null, password: '1234' },
+      { id: 'T006', name: 'นาย ฮัมบาลี วาจิ',               role: 'head',    phone: '0811111106', signature: null, password: '1234' },
+      { id: 'T007', name: 'นาย นัทธีร์ หะยีเต็ะ',           role: 'teacher', phone: '0811111107', signature: null, password: '1234' },
+      { id: 'T008', name: 'นาย อับดุลราฟาร์ ตาเยะ',         role: 'teacher', phone: '0811111108', signature: null, password: '1234' },
+      { id: 'T009', name: 'นาย นิมิตร เจะยามา',             role: 'teacher', phone: '0811111109', signature: null, password: '1234' },
+      { id: 'T010', name: 'นาย นูรุดีน ดือราแม',            role: 'teacher', phone: '0811111110', signature: null, password: '1234' },
+      { id: 'T011', name: 'นาย สาฬูดี บือราเฮง',            role: 'teacher', phone: '0811111111', signature: null, password: '1234' },
+      { id: 'T012', name: 'นาย อดินัน สะอิด',               role: 'teacher', phone: '0811111112', signature: null, password: '1234' },
+      { id: 'T013', name: 'นาย อับดุลเราะมาน เส้นสะนา',    role: 'teacher', phone: '0811111113', signature: null, password: '1234' },
+      { id: 'T014', name: 'นาย บัสรี โนรัตแก้ว',            role: 'teacher', phone: '0811111114', signature: null, password: '1234' },
     ];
 
     const defaultDutyPoints = [
@@ -494,7 +495,8 @@ CREATE TABLE IF NOT EXISTS teachers (
   name TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'teacher',
   phone TEXT,
-  signature TEXT
+  signature TEXT,
+  password TEXT NOT NULL DEFAULT '1234'
 );
 
 -- 2. สร้างตารางจุดปฏิบัติหน้าที่เวรประจำวัน
@@ -552,22 +554,26 @@ ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
 DELETE FROM duty_points;
 DELETE FROM teachers;
 
-INSERT INTO teachers (id, name, role, phone, signature) VALUES
-('T001', 'นาย ศราวุธ เส้นสะนา',           'teacher', '0811111101', NULL),
-('T002', 'นาย ตูวันอับดุลเลาะ ตูวันหะยี', 'teacher', '0811111102', NULL),
-('T003', 'นาย มูอัมหมัดเปาซี ลาเต็ะ',     'teacher', '0811111103', NULL),
-('T004', 'นาย นัสรี บินรัตแก้ว',           'teacher', '0811111104', NULL),
-('T005', 'นาย อาหามะ สือแม',               'teacher', '0811111105', NULL),
-('T006', 'นาย ฮัมบาลี วาจิ',               'head',    '0811111106', NULL),
-('T007', 'นาย นัทธีร์ หะยีเต็ะ',           'teacher', '0811111107', NULL),
-('T008', 'นาย อับดุลราฟาร์ ตาเยะ',         'teacher', '0811111108', NULL),
-('T009', 'นาย นิมิตร เจะยามา',             'teacher', '0811111109', NULL),
-('T010', 'นาย นูรุดีน ดือราแม',            'teacher', '0811111110', NULL),
-('T011', 'นาย สาฬูดี บือราเฮง',            'teacher', '0811111111', NULL),
-('T012', 'นาย อดินัน สะอิด',               'teacher', '0811111112', NULL),
-('T013', 'นาย อับดุลเราะมาน เส้นสะนา',    'teacher', '0811111113', NULL),
-('T014', 'นาย บัสรี โนรัตแก้ว',            'teacher', '0811111114', NULL)
-ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, role=EXCLUDED.role, phone=EXCLUDED.phone;
+-- อัปเกรดฐานข้อมูลเดิมเพิ่มคอลัมน์รหัสผ่านในตาราง (ปลอดภัยกรณีตารางมีอยู่แล้ว)
+ALTER TABLE teachers ADD COLUMN IF NOT EXISTS password TEXT NOT NULL DEFAULT '1234';
+
+INSERT INTO teachers (id, name, role, phone, signature, password) VALUES
+('admin', 'แอดมินฝ่ายปกครอง',             'admin',   '0811111100', NULL, '1234'),
+('T001', 'นาย ศราวุธ เส้นสะนา',           'teacher', '0811111101', NULL, '1234'),
+('T002', 'นาย ตูวันอับดุลเลาะ ตูวันหะยี', 'teacher', '0811111102', NULL, '1234'),
+('T003', 'นาย มูอัมหมัดเปาซี ลาเต็ะ',     'teacher', '0811111103', NULL, '1234'),
+('T004', 'นาย นัสรี บินรัตแก้ว',           'teacher', '0811111104', NULL, '1234'),
+('T005', 'นาย อาหามะ สือแม',               'teacher', '0811111105', NULL, '1234'),
+('T006', 'นาย ฮัมบาลี วาจิ',               'head',    '0811111106', NULL, '1234'),
+('T007', 'นาย นัทธีร์ หะยีเต็ะ',           'teacher', '0811111107', NULL, '1234'),
+('T008', 'นาย อับดุลราฟาร์ ตาเยะ',         'teacher', '0811111108', NULL, '1234'),
+('T009', 'นาย นิมิตร เจะยามา',             'teacher', '0811111109', NULL, '1234'),
+('T010', 'นาย นูรุดีน ดือราแม',            'teacher', '0811111110', NULL, '1234'),
+('T011', 'นาย สาฬูดี บือราเฮง',            'teacher', '0811111111', NULL, '1234'),
+('T012', 'นาย อดินัน สะอิด',               'teacher', '0811111112', NULL, '1234'),
+('T013', 'นาย อับดุลเราะมาน เส้นสะนา',    'teacher', '0811111113', NULL, '1234'),
+('T014', 'นาย บัสรี โนรัตแก้ว',            'teacher', '0811111114', NULL, '1234')
+ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, role=EXCLUDED.role, phone=EXCLUDED.phone, password=EXCLUDED.password;
 
 INSERT INTO duty_points (id, name, time, lat, lng, radius, assigned_to) VALUES
 (1,  'ประจำประตูกับอาแซ',                                                             '08:00-09:00', 6.787680, 101.408120, 50, ARRAY['T001']),
@@ -631,7 +637,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.5.1';
+    const APP_VERSION = '1.5.2';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -768,11 +774,13 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       { id: 'documents', icon: 'file-text', label: 'เอกสารรายงาน' },
       { id: 'memo', icon: 'file-warning', label: 'บันทึกข้อความติดตาม' },
       { id: 'settings', icon: 'settings', label: 'ตั้งค่าระบบ' },
+      { id: 'profile-settings', icon: 'user-cog', label: 'ข้อมูลส่วนตัว' },
     ];
 
     const teacherMenus = [
       { id: 'my-duty', icon: 'clipboard-check', label: 'จุดเวรของฉัน' },
       { id: 'my-history', icon: 'history', label: 'ประวัติการรายงาน' },
+      { id: 'profile-settings', icon: 'user-cog', label: 'ข้อมูลส่วนตัว' },
     ];
 
     // =========================================================================
@@ -782,11 +790,11 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     function loginAs(role) {
       const teachers = db.getTeachers();
       if (role === 'admin') {
-        currentUser = { id: 'A001', name: 'แอดมินฝ่ายปกครอง', role: 'admin' };
+        currentUser = teachers.find(t => t.id === 'admin') || { id: 'admin', name: 'แอดมินฝ่ายปกครอง', role: 'admin', password: '1234' };
       } else if (role === 'head') {
-        currentUser = teachers.find(t => t.role === 'head') || { id: 'T004', name: 'นายอับดุลเลาะ ดอเลาะ', role: 'head' };
+        currentUser = teachers.find(t => t.role === 'head') || { id: 'T006', name: 'นาย ฮัมบาลี วาจิ', role: 'head', password: '1234' };
       } else {
-        currentUser = teachers.find(t => t.role === 'teacher') || teachers[0];
+        currentUser = teachers.find(t => t.id === 'T001') || teachers[0];
       }
       
       document.getElementById('page-login').classList.add('hidden');
@@ -810,12 +818,19 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     function handleLogin(e) {
       e.preventDefault();
       const loginId = document.getElementById('login-id').value.trim();
+      const loginPass = document.getElementById('login-password').value;
       const teachers = db.getTeachers();
       
       // Find teacher matching ID or Phone
       const matched = teachers.find(t => t.id.toLowerCase() === loginId.toLowerCase() || t.phone === loginId);
       
       if (matched) {
+        const userPass = matched.password || '1234';
+        if (loginPass !== userPass) {
+          showToast('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 'error');
+          return;
+        }
+
         currentUser = matched;
         document.getElementById('page-login').classList.add('hidden');
         document.getElementById('page-main').classList.remove('hidden');
@@ -834,9 +849,13 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         navigateTo(currentUser.role === 'teacher' ? 'my-duty' : 'dashboard');
         showToast(`เข้าสู่ระบบสำเร็จ! สวัสดีครับ ${currentUser.name}`, 'success');
       } else if (loginId.toLowerCase() === 'admin') {
-        loginAs('admin');
+        if (loginPass === 'admin' || loginPass === '1234') {
+          loginAs('admin');
+        } else {
+          showToast('รหัสผ่านแอดมินไม่ถูกต้อง', 'error');
+        }
       } else {
-        showToast('ไม่พบข้อมูลผู้ใช้นี้ในระบบ กรุณาใช้ T001-T006 หรือ "admin" เพื่อจำลองระบบ', 'error');
+        showToast('ไม่พบข้อมูลผู้ใช้นี้ในระบบ กรุณาใช้ T001-T014, admin หรือ "admin" เพื่อจำลองระบบ', 'error');
       }
     }
 
@@ -927,6 +946,10 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
           break;
         case 'my-history':
           mc.innerHTML = renderMyHistoryView();
+          break;
+        case 'profile-settings':
+          mc.innerHTML = renderProfileSettingsView();
+          initProfileSignatureCanvas();
           break;
         default:
           mc.innerHTML = `<div class="p-4 text-center text-slate-500">กำลังพัฒนาเนื้อหาหน้า: ${page}</div>`;
@@ -1354,6 +1377,11 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
                   <option value="head">หัวหน้าเวร</option>
                   <option value="admin">ผู้ดูแลระบบ</option>
                 </select>
+              </div>
+              <div id="teacher-reset-password-container" class="hidden">
+                <button type="button" onclick="resetTeacherPassword()" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 py-2 rounded-lg font-bold transition flex items-center justify-center gap-1">
+                  <i data-lucide="key-round" class="w-3.5 h-3.5"></i> รีเซ็ตรหัสผ่านเป็น 1234
+                </button>
               </div>
               <div class="flex gap-2 pt-2">
                 <button type="button" onclick="closeTeacherFormModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ยกเลิก</button>
@@ -2848,6 +2876,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       const nameInput = document.getElementById('teacher-form-name');
       const phoneInput = document.getElementById('teacher-form-phone');
       const roleSelect = document.getElementById('teacher-form-role');
+      const resetPassContainer = document.getElementById('teacher-reset-password-container');
 
       if (teacherId) {
         const t = db.getTeachers().find(x => x.id === teacherId);
@@ -2858,6 +2887,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         nameInput.value = t.name;
         phoneInput.value = t.phone;
         roleSelect.value = t.role;
+        if (resetPassContainer) resetPassContainer.classList.remove('hidden');
       } else {
         title.textContent = 'เพิ่มครูผู้ปฏิบัติเวรท่านใหม่';
         idFlag.value = '';
@@ -2866,10 +2896,31 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         nameInput.value = '';
         phoneInput.value = '';
         roleSelect.value = 'teacher';
+        if (resetPassContainer) resetPassContainer.classList.add('hidden');
       }
 
       modal.classList.remove('hidden');
       lucide.createIcons();
+    }
+
+    async function resetTeacherPassword() {
+      const idFlag = document.getElementById('teacher-form-id-flag').value;
+      if (!idFlag) return;
+      if (confirm('คุณต้องการรีเซ็ตรหัสผ่านของคุณครูท่านนี้เป็น "1234" หรือไม่?')) {
+        const teachers = db.getTeachers();
+        const tIndex = teachers.findIndex(t => t.id === idFlag);
+        if (tIndex !== -1) {
+          teachers[tIndex].password = '1234';
+          db.saveTeachers(teachers);
+          
+          if (useSupabase) {
+            const { error } = await supabaseClient.from('teachers').upsert(teachers[tIndex]);
+            if (error) console.error("Cloud reset password error:", error);
+          }
+          
+          showToast('รีเซ็ตรหัสผ่านเป็น 1234 เรียบร้อยแล้ว', 'success');
+        }
+      }
     }
 
     function closeTeacherFormModal() {
@@ -2905,7 +2956,8 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
           name: nameInput,
           phone: phoneInput,
           role: roleSelect,
-          signature: null
+          signature: null,
+          password: '1234'
         };
         teachers.push(tObj);
       }
@@ -2923,6 +2975,10 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     }
 
     async function deleteTeacher(teacherId) {
+      if (teacherId === 'admin') {
+        showToast('ไม่สามารถลบบัญชีผู้ดูแลระบบหลักได้', 'error');
+        return;
+      }
       if (confirm(`คุณต้องการลบข้อมูลครู ${getTeacherName(teacherId)} ออกจากระบบหรือไม่?`)) {
         let teachers = db.getTeachers();
         teachers = teachers.filter(t => t.id !== teacherId);
@@ -3483,6 +3539,327 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         previewBox.classList.add('flex');
       };
       reader.readAsDataURL(file);
+    }
+
+    // =========================================================================
+    // PROFILE SETTINGS VIEW & LOGIC
+    // =========================================================================
+    let profSignatureCanvas = null;
+    let profSignatureCtx = null;
+    let profSignatureDrawing = false;
+
+    function renderProfileSettingsView() {
+      const teacher = db.getTeachers().find(t => t.id === currentUser.id) || currentUser;
+      const sigSrc = teacher.signature || '';
+      
+      return `
+        <div class="fade-in space-y-6 text-xs max-w-2xl mx-auto">
+          <div class="border-b pb-4">
+            <h3 class="text-lg font-bold text-slate-900">ตั้งค่าข้อมูลส่วนตัว</h3>
+            <p class="text-slate-500 mt-1">จัดการข้อมูลบัญชีผู้ใช้ ลายเซ็นดิจิทัล และรหัสผ่านของคุณ</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Left: Profile Info -->
+            <div class="bg-white border rounded-xl shadow-sm p-5 space-y-4">
+              <h4 class="font-bold text-slate-800 text-xs border-b pb-2 flex items-center gap-1">
+                <i data-lucide="user" class="w-4 h-4 text-brand-700"></i> ข้อมูลทั่วไป
+              </h4>
+              <form id="profile-info-form" onsubmit="saveProfileInfo(event)" class="space-y-3">
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">รหัสประจำตัว:</label>
+                  <input type="text" value="${teacher.id}" readonly class="w-full border rounded-lg p-2.5 bg-slate-50 text-slate-500 outline-none font-semibold cursor-not-allowed">
+                </div>
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">ชื่อ-นามสกุล:</label>
+                  <input type="text" id="prof-name" value="${teacher.name || ''}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 font-semibold text-slate-700">
+                </div>
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">เบอร์โทรศัพท์:</label>
+                  <input type="text" id="prof-phone" value="${teacher.phone || ''}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 font-semibold text-slate-700">
+                </div>
+                <button type="submit" class="w-full bg-brand-850 hover:bg-brand-700 text-white font-bold py-2 rounded shadow transition mt-2 flex items-center justify-center gap-1">
+                  <i data-lucide="save" class="w-3.5 h-3.5"></i> บันทึกข้อมูลทั่วไป
+                </button>
+              </form>
+            </div>
+
+            <!-- Right: Change Password -->
+            <div class="bg-white border rounded-xl shadow-sm p-5 space-y-4">
+              <h4 class="font-bold text-slate-800 text-xs border-b pb-2 flex items-center gap-1">
+                <i data-lucide="key" class="w-4 h-4 text-brand-700"></i> เปลี่ยนรหัสผ่าน
+              </h4>
+              <form id="profile-password-form" onsubmit="saveProfilePassword(event)" class="space-y-3">
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">รหัสผ่านปัจจุบัน:</label>
+                  <input type="password" id="prof-current-pass" required placeholder="ป้อนรหัสผ่านปัจจุบัน" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 font-semibold text-slate-700">
+                </div>
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">รหัสผ่านใหม่:</label>
+                  <input type="password" id="prof-new-pass" required placeholder="ป้อนรหัสผ่านใหม่" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 font-semibold text-slate-700">
+                </div>
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">ยืนยันรหัสผ่านใหม่:</label>
+                  <input type="password" id="prof-confirm-pass" required placeholder="ป้อนรหัสผ่านใหม่อีกครั้ง" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 font-semibold text-slate-700">
+                </div>
+                <button type="submit" class="w-full bg-brand-850 hover:bg-brand-700 text-white font-bold py-2 rounded shadow transition mt-2 flex items-center justify-center gap-1">
+                  <i data-lucide="lock" class="w-3.5 h-3.5"></i> อัปเดตรหัสผ่านใหม่
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Bottom: Signature Area -->
+          <div class="bg-white border rounded-xl shadow-sm p-5 space-y-4">
+            <h4 class="font-bold text-slate-800 text-xs border-b pb-2 flex items-center gap-1">
+              <i data-lucide="feather" class="w-4 h-4 text-brand-700"></i> ลายเซ็นอิเล็กทรอนิกส์ประจำตัว
+            </h4>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- Signature Canvas -->
+              <div class="space-y-3">
+                <label class="block text-slate-500 font-bold">วาดลายเซ็นของคุณลงในกรอบ:</label>
+                <div class="flex justify-center bg-slate-50 border rounded-lg overflow-hidden">
+                  <canvas id="prof-sig-canvas" class="signature-pad bg-white shadow-inner" width="300" height="130"></canvas>
+                </div>
+                <div class="flex gap-2">
+                  <button type="button" onclick="clearProfileSignatureCanvas()" class="flex-1 border border-slate-200 hover:bg-slate-50 py-2 text-slate-700 font-bold rounded transition">ล้างกระดานวาด</button>
+                  <button type="button" onclick="saveProfileSignatureFromCanvas()" class="flex-1 bg-brand-800 hover:bg-brand-700 text-white font-bold py-2 rounded shadow transition">บันทึกลายเซ็นวาด</button>
+                </div>
+              </div>
+
+              <!-- Current Signature & Upload -->
+              <div class="space-y-4 flex flex-col justify-between">
+                <div>
+                  <label class="block text-slate-500 font-bold mb-2">ลายเซ็นที่เปิดใช้งานในระบบปัจจุบัน:</label>
+                  <div id="prof-sig-preview-container" class="border p-4 bg-slate-50 rounded-lg flex items-center justify-center h-28">
+                    ${sigSrc 
+                      ? `<img src="${sigSrc}" class="max-h-20 object-contain p-1 border rounded bg-white shadow-sm" alt="ลายเซ็นของคุณ">` 
+                      : `<span class="text-red-500 font-medium italic">⚠️ ยังไม่มีข้อมูลลายเซ็นของคุณในระบบ</span>`}
+                  </div>
+                </div>
+
+                <div class="space-y-2">
+                  <label class="block text-slate-500 font-bold">หรืออัปโหลดไฟล์รูปลายเซ็นแทนการวาด:</label>
+                  <input type="file" id="prof-sig-image-upload" accept="image/*" onchange="uploadProfileSignatureImage(event)" class="hidden">
+                  <button type="button" onclick="document.getElementById('prof-sig-image-upload').click()" class="w-full border border-dashed border-brand-300 hover:border-brand-500 text-brand-850 hover:bg-brand-50/50 py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="upload" class="w-4 h-4"></i> อัปโหลดรูปภาพลายเซ็น (.png / .jpg)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function initProfileSignatureCanvas() {
+      profSignatureCanvas = document.getElementById('prof-sig-canvas');
+      if (!profSignatureCanvas) return;
+      profSignatureCtx = profSignatureCanvas.getContext('2d');
+      
+      profSignatureCtx.strokeStyle = '#14532d'; // Forest green
+      profSignatureCtx.lineWidth = 2.5;
+      profSignatureCtx.lineJoin = 'round';
+      profSignatureCtx.lineCap = 'round';
+
+      function startProfDrawing(e) {
+        profSignatureDrawing = true;
+        const rect = profSignatureCanvas.getBoundingClientRect();
+        profSignatureCtx.beginPath();
+        profSignatureCtx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+      }
+
+      function drawProf(e) {
+        if (!profSignatureDrawing) return;
+        const rect = profSignatureCanvas.getBoundingClientRect();
+        profSignatureCtx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        profSignatureCtx.stroke();
+      }
+
+      function stopProfDrawing() {
+        profSignatureDrawing = false;
+      }
+
+      // Mouse Events
+      profSignatureCanvas.addEventListener('mousedown', startProfDrawing);
+      profSignatureCanvas.addEventListener('mousemove', drawProf);
+      profSignatureCanvas.addEventListener('mouseup', stopProfDrawing);
+      profSignatureCanvas.addEventListener('mouseout', stopProfDrawing);
+
+      // Mobile Touch support
+      profSignatureCanvas.addEventListener("touchstart", function (e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent("mousedown", {
+          clientX: touch.clientX,
+          clientY: touch.clientY
+        });
+        profSignatureCanvas.dispatchEvent(mouseEvent);
+      }, false);
+
+      profSignatureCanvas.addEventListener("touchend", function (e) {
+        e.preventDefault();
+        const mouseEvent = new MouseEvent("mouseup", {});
+        profSignatureCanvas.dispatchEvent(mouseEvent);
+      }, false);
+
+      profSignatureCanvas.addEventListener("touchmove", function (e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent("mousemove", {
+          clientX: touch.clientX,
+          clientY: touch.clientY
+        });
+        profSignatureCanvas.dispatchEvent(mouseEvent);
+      }, false);
+    }
+
+    function clearProfileSignatureCanvas() {
+      if (profSignatureCanvas) {
+        profSignatureCtx.clearRect(0, 0, profSignatureCanvas.width, profSignatureCanvas.height);
+      }
+    }
+
+    async function saveProfileSignatureFromCanvas() {
+      const dataUrl = profSignatureCanvas.toDataURL('image/png');
+      const blank = document.createElement('canvas');
+      blank.width = profSignatureCanvas.width;
+      blank.height = profSignatureCanvas.height;
+      if (dataUrl === blank.toDataURL('image/png')) {
+        showToast('กรุณาวาดลายมือชื่อของท่านให้สมบูรณ์ก่อนบันทึก', 'error');
+        return;
+      }
+      await updateProfileSignature(dataUrl);
+    }
+
+    function uploadProfileSignatureImage(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(evt) {
+        await updateProfileSignature(evt.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function updateProfileSignature(base64Data) {
+      const teachers = db.getTeachers();
+      const tIndex = teachers.findIndex(t => t.id === currentUser.id);
+      if (tIndex !== -1) {
+        teachers[tIndex].signature = base64Data;
+        db.saveTeachers(teachers);
+        currentUser.signature = base64Data;
+
+        if (useSupabase) {
+          const { error } = await supabaseClient.from('teachers').upsert(teachers[tIndex]);
+          if (error) console.error("Cloud save profile signature error:", error);
+        }
+
+        const previewContainer = document.getElementById('prof-sig-preview-container');
+        if (previewContainer) {
+          previewContainer.innerHTML = `<img src="${base64Data}" class="max-h-20 object-contain p-1 border rounded bg-white shadow-sm" alt="ลายเซ็นของคุณ">`;
+        }
+        clearProfileSignatureCanvas();
+        showToast('บันทึกลายเซ็นใหม่ของคุณเรียบร้อยแล้ว', 'success');
+      } else if (currentUser.role === 'admin') {
+        currentUser.signature = base64Data;
+        showToast('บันทึกลายเซ็นแอดมินเรียบร้อย (บันทึกจำลอง)', 'success');
+        const previewContainer = document.getElementById('prof-sig-preview-container');
+        if (previewContainer) {
+          previewContainer.innerHTML = `<img src="${base64Data}" class="max-h-20 object-contain p-1 border rounded bg-white shadow-sm" alt="ลายเซ็นของคุณ">`;
+        }
+        clearProfileSignatureCanvas();
+      }
+    }
+
+    async function saveProfileInfo(e) {
+      e.preventDefault();
+      const newName = document.getElementById('prof-name').value.trim();
+      const newPhone = document.getElementById('prof-phone').value.trim();
+
+      const teachers = db.getTeachers();
+      const tIndex = teachers.findIndex(t => t.id === currentUser.id);
+      
+      if (tIndex !== -1) {
+        teachers[tIndex].name = newName;
+        teachers[tIndex].phone = newPhone;
+        db.saveTeachers(teachers);
+        
+        currentUser.name = newName;
+        currentUser.phone = newPhone;
+
+        if (useSupabase) {
+          const { error } = await supabaseClient.from('teachers').upsert(teachers[tIndex]);
+          if (error) {
+            console.error("Cloud save profile error:", error);
+            showToast('ปรับปรุงข้อมูลบนระบบคลาวด์ล้มเหลว', 'error');
+          } else {
+            showToast('ปรับปรุงข้อมูลส่วนตัวสำเร็จ!', 'success');
+          }
+        } else {
+          showToast('ปรับปรุงข้อมูลส่วนตัวในเบราว์เซอร์สำเร็จ!', 'success');
+        }
+
+        document.getElementById('user-name').textContent = newName;
+      } else if (currentUser.role === 'admin') {
+        currentUser.name = newName;
+        document.getElementById('user-name').textContent = newName;
+        showToast('ปรับปรุงข้อมูลจำลองผู้ดูแลระบบสำเร็จ!', 'success');
+      }
+    }
+
+    async function saveProfilePassword(e) {
+      e.preventDefault();
+      const currentPassInput = document.getElementById('prof-current-pass').value;
+      const newPassInput = document.getElementById('prof-new-pass').value;
+      const confirmPassInput = document.getElementById('prof-confirm-pass').value;
+
+      const teacher = db.getTeachers().find(t => t.id === currentUser.id) || currentUser;
+      const userCurrentPass = teacher.password || '1234';
+
+      if (currentPassInput !== userCurrentPass) {
+        showToast('รหัสผ่านปัจจุบันไม่ถูกต้อง', 'error');
+        return;
+      }
+
+      if (newPassInput !== confirmPassInput) {
+        showToast('การยืนยันรหัสผ่านใหม่ไม่ตรงกัน', 'error');
+        return;
+      }
+
+      if (newPassInput.length < 4) {
+        showToast('รหัสผ่านต้องมีความยาวอย่างน้อย 4 ตัวอักษร', 'warning');
+        return;
+      }
+
+      const teachers = db.getTeachers();
+      const tIndex = teachers.findIndex(t => t.id === currentUser.id);
+      
+      if (tIndex !== -1) {
+        teachers[tIndex].password = newPassInput;
+        db.saveTeachers(teachers);
+        currentUser.password = newPassInput;
+
+        if (useSupabase) {
+          const { error } = await supabaseClient.from('teachers').upsert(teachers[tIndex]);
+          if (error) {
+            console.error("Cloud change password error:", error);
+            showToast('ปรับเปลี่ยนรหัสผ่านบนระบบคลาวด์ล้มเหลว', 'error');
+          } else {
+            showToast('เปลี่ยนรหัสผ่านสำเร็จแล้ว!', 'success');
+          }
+        } else {
+          showToast('เปลี่ยนรหัสผ่านในเบราว์เซอร์สำเร็จแล้ว!', 'success');
+        }
+      } else if (currentUser.role === 'admin') {
+        currentUser.password = newPassInput;
+        showToast('เปลี่ยนรหัสผ่านผู้ดูแลระบบ (บันทึกจำลอง) สำเร็จ!', 'success');
+      }
+
+      document.getElementById('prof-current-pass').value = '';
+      document.getElementById('prof-new-pass').value = '';
+      document.getElementById('prof-confirm-pass').value = '';
     }
 
     function viewReportDetails(reportId) {
