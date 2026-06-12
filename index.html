@@ -154,7 +154,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.5.5</p>
+          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.6.0</p>
         </div>
         
         <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
@@ -235,7 +235,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.5</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.6.0</div>
           </div>
         </aside>
 
@@ -332,7 +332,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.5</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.6.0</div>
         </div>
       </aside>
     </div>
@@ -412,22 +412,48 @@
 
     function mapSettingsFromDB(dbSett) {
       if (!dbSett) return null;
+      let local = {};
+      try {
+        const localRaw = localStorage.getItem('wen_settings');
+        if (localRaw) local = JSON.parse(localRaw);
+      } catch (e) {
+        console.warn("Failed to parse local settings cache:", e);
+      }
+
+      let parsedHeads = {};
+      if (dbSett.heads_of_day) {
+        if (typeof dbSett.heads_of_day === 'object') {
+          parsedHeads = dbSett.heads_of_day;
+        } else {
+          try {
+            parsedHeads = JSON.parse(dbSett.heads_of_day);
+          } catch (e) {
+            console.error("Failed to parse heads_of_day JSON string:", e);
+          }
+        }
+      } else if (dbSett.headsOfDay) {
+        parsedHeads = dbSett.headsOfDay;
+      } else if (local.headsOfDay) {
+        parsedHeads = local.headsOfDay;
+      }
+
       return {
-        schoolName: dbSett.school_name || dbSett.schoolName || '',
-        headName: dbSett.head_name || dbSett.headName || '',
-        directorName: dbSett.director_name || dbSett.directorName || '',
-        lineToken: dbSett.line_token || dbSett.lineToken || '',
-        telegramToken: dbSett.telegram_token || dbSett.telegramToken || '',
-        telegramChatId: dbSett.telegram_chat_id || dbSett.telegramChatId || '',
-        autoNotifyMinutes: dbSett.auto_notify_minutes !== undefined ? dbSett.auto_notify_minutes : (dbSett.autoNotifyMinutes || 15),
-        dutyDay: dbSett.duty_day || dbSett.dutyDay || 'อังคาร',
-        dutyGroup: dbSett.duty_group || dbSett.dutyGroup || 'ครูชาย',
-        defaultRadius: dbSett.default_radius !== undefined ? dbSett.default_radius : (dbSett.defaultRadius !== undefined ? dbSett.defaultRadius : 50),
-        centerLat: dbSett.center_lat !== undefined ? dbSett.center_lat : (dbSett.centerLat !== undefined ? dbSett.centerLat : 6.787680),
-        centerLng: dbSett.center_lng !== undefined ? dbSett.center_lng : (dbSett.centerLng !== undefined ? dbSett.centerLng : 101.408120),
-        systemLogo: dbSett.system_logo || dbSett.systemLogo || '',
-        systemTitle: dbSett.system_title || dbSett.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร',
-        systemColor: dbSett.system_color || dbSett.systemColor || '#14532d'
+        schoolName: dbSett.school_name || dbSett.schoolName || local.schoolName || '',
+        headName: dbSett.head_name || dbSett.headName || local.headName || '',
+        directorName: dbSett.director_name || dbSett.directorName || local.directorName || '',
+        lineToken: dbSett.line_token || dbSett.lineToken || local.lineToken || '',
+        telegramToken: dbSett.telegram_token || dbSett.telegramToken || local.telegramToken || '',
+        telegramChatId: dbSett.telegram_chat_id || dbSett.telegramChatId || local.telegramChatId || '',
+        autoNotifyMinutes: dbSett.auto_notify_minutes !== undefined && dbSett.auto_notify_minutes !== null ? dbSett.auto_notify_minutes : (dbSett.autoNotifyMinutes !== undefined && dbSett.autoNotifyMinutes !== null ? dbSett.autoNotifyMinutes : (local.autoNotifyMinutes || 15)),
+        dutyDay: dbSett.duty_day || dbSett.dutyDay || local.dutyDay || 'อังคาร',
+        dutyGroup: dbSett.duty_group || dbSett.dutyGroup || local.dutyGroup || 'ครูชาย',
+        defaultRadius: dbSett.default_radius !== undefined && dbSett.default_radius !== null ? dbSett.default_radius : (dbSett.defaultRadius !== undefined && dbSett.defaultRadius !== null ? dbSett.defaultRadius : (local.defaultRadius || 50)),
+        centerLat: dbSett.center_lat !== undefined && dbSett.center_lat !== null ? dbSett.center_lat : (dbSett.centerLat !== undefined && dbSett.centerLat !== null ? dbSett.centerLat : (local.centerLat || 6.787680)),
+        centerLng: dbSett.center_lng !== undefined && dbSett.center_lng !== null ? dbSett.center_lng : (dbSett.centerLng !== undefined && dbSett.centerLng !== null ? dbSett.centerLng : (local.centerLng || 101.408120)),
+        systemLogo: dbSett.system_logo || dbSett.systemLogo || local.systemLogo || '',
+        systemTitle: dbSett.system_title || dbSett.systemTitle || local.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร',
+        systemColor: dbSett.system_color || dbSett.systemColor || local.systemColor || '#14532d',
+        headsOfDay: parsedHeads
       };
     }
 
@@ -449,7 +475,8 @@
         center_lng: jsSett.centerLng !== undefined ? jsSett.centerLng : 101.408120,
         system_logo: jsSett.systemLogo || '',
         system_title: jsSett.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร',
-        system_color: jsSett.systemColor || '#14532d'
+        system_color: jsSett.systemColor || '#14532d',
+        heads_of_day: jsSett.headsOfDay ? (typeof jsSett.headsOfDay === 'object' ? JSON.stringify(jsSett.headsOfDay) : jsSett.headsOfDay) : '{}'
       };
     }
 
@@ -512,7 +539,8 @@
       centerLng: 101.408120,
       systemLogo: '',
       systemTitle: 'ระบบบันทึกและติดตามการปฏิบัติเวร',
-      systemColor: '#14532d'
+      systemColor: '#14532d',
+      headsOfDay: {}
     };
 
     // SQL code block template string
@@ -572,7 +600,8 @@ CREATE TABLE IF NOT EXISTS settings (
   center_lng DOUBLE PRECISION DEFAULT 101.408120,
   system_logo TEXT,
   system_title TEXT,
-  system_color TEXT
+  system_color TEXT,
+  heads_of_day TEXT DEFAULT '{}'
 );
 
 -- 5. ปิดการตั้งค่า RLS เพื่ออนุญาตให้เขียนอ่านตรงได้สำหรับเว็บสาธิตนี้
@@ -639,10 +668,11 @@ ALTER TABLE settings ADD COLUMN IF NOT EXISTS center_lng DOUBLE PRECISION DEFAUL
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_logo TEXT;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_title TEXT;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_color TEXT;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS heads_of_day TEXT DEFAULT '{}';
 
-INSERT INTO settings (id, school_name, head_name, director_name, line_token, telegram_token, telegram_chat_id, auto_notify_minutes, duty_day, duty_group, default_radius, center_lat, center_lng, system_logo, system_title, system_color) VALUES
-('config', 'โรงเรียนมูลนิธิอาซิซสถาน', 'นาย ฮัมบาลี วาจิ', 'ดร.มูฮัมหมัด ซากี', '', '', '', 15, 'อังคาร', 'ครูชาย', 50, 6.787680, 101.408120, NULL, 'ระบบบันทึกและติดตามการปฏิบัติเวร', '#14532d')
-ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLUDED.head_name, director_name=EXCLUDED.director_name, duty_day=EXCLUDED.duty_day, duty_group=EXCLUDED.duty_group, default_radius=EXCLUDED.default_radius, center_lat=EXCLUDED.center_lat, center_lng=EXCLUDED.center_lng, system_logo=EXCLUDED.system_logo, system_title=EXCLUDED.system_title, system_color=EXCLUDED.system_color;
+INSERT INTO settings (id, school_name, head_name, director_name, line_token, telegram_token, telegram_chat_id, auto_notify_minutes, duty_day, duty_group, default_radius, center_lat, center_lng, system_logo, system_title, system_color, heads_of_day) VALUES
+('config', 'โรงเรียนมูลนิธิอาซิซสถาน', 'นาย ฮัมบาลี วาจิ', 'ดร.มูฮัมหมัด ซากี', '', '', '', 15, 'อังคาร', 'ครูชาย', 50, 6.787680, 101.408120, NULL, 'ระบบบันทึกและติดตามการปฏิบัติเวร', '#14532d', '{}')
+ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLUDED.head_name, director_name=EXCLUDED.director_name, duty_day=EXCLUDED.duty_day, duty_group=EXCLUDED.duty_group, default_radius=EXCLUDED.default_radius, center_lat=EXCLUDED.center_lat, center_lng=EXCLUDED.center_lng, system_logo=EXCLUDED.system_logo, system_title=EXCLUDED.system_title, system_color=EXCLUDED.system_color, heads_of_day=EXCLUDED.heads_of_day;
 `;
 
     // Local DB backup
@@ -672,7 +702,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.5.5';
+    const APP_VERSION = '1.6.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -825,6 +855,35 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     // Global schedule view selected day
     let currentScheduleViewDay = null;
 
+    function isUserAdminOrHead() {
+      if (!currentUser) return false;
+      if (currentUser.role === 'admin') return true;
+      if (currentUser.role === 'head') return true;
+      
+      const settings = db.getSettings();
+      const headsOfDay = settings.headsOfDay || {};
+      return Object.values(headsOfDay).includes(currentUser.id);
+    }
+
+    function updateUserRoleBadge() {
+      if (!currentUser) return;
+      const isHead = isUserAdminOrHead();
+      const badgeText = currentUser.role === 'admin' ? 'ผู้ดูแลระบบ' : (currentUser.role === 'head' || isHead) ? 'หัวหน้าเวร' : 'ครูเวร';
+      const badgeClass = "text-[9px] px-2 py-0.5 rounded-full font-bold " + 
+        (currentUser.role === 'admin' ? 'bg-red-100 text-red-800' : (currentUser.role === 'head' || isHead) ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800');
+      
+      const roleBadgeEl = document.getElementById('user-role-badge');
+      if (roleBadgeEl) {
+        roleBadgeEl.textContent = badgeText;
+        roleBadgeEl.className = badgeClass;
+      }
+      
+      const nameEl = document.getElementById('user-name');
+      if (nameEl) {
+        nameEl.textContent = currentUser.name;
+      }
+    }
+
     function loginAs(role) {
       const teachers = db.getTeachers();
       if (role === 'admin') {
@@ -844,18 +903,11 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       document.getElementById('page-login').classList.add('hidden');
       document.getElementById('page-main').classList.remove('hidden');
       
-      document.getElementById('user-role-badge').textContent = 
-        currentUser.role === 'admin' ? 'ผู้ดูแลระบบ' : currentUser.role === 'head' ? 'หัวหน้าเวร' : 'ครูเวร';
-      
-      const badge = document.getElementById('user-role-badge');
-      badge.className = "text-[9px] px-2 py-0.5 rounded-full font-bold " + 
-        (currentUser.role === 'admin' ? 'bg-red-100 text-red-800' : currentUser.role === 'head' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800');
-        
-      document.getElementById('user-name').textContent = currentUser.name;
+      updateUserRoleBadge();
       
       buildSidebar();
       updateDynamicTitles();
-      navigateTo(currentUser.role === 'teacher' ? 'my-duty' : 'dashboard');
+      navigateTo(isUserAdminOrHead() ? 'dashboard' : 'my-duty');
       showToast(`เข้าสู่ระบบในฐานะ: ${currentUser.name}`, 'success');
     }
 
@@ -886,18 +938,11 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         document.getElementById('page-login').classList.add('hidden');
         document.getElementById('page-main').classList.remove('hidden');
         
-        document.getElementById('user-role-badge').textContent = 
-          currentUser.role === 'admin' ? 'ผู้ดูแลระบบ' : currentUser.role === 'head' ? 'หัวหน้าเวร' : 'ครูเวร';
-        
-        const badge = document.getElementById('user-role-badge');
-        badge.className = "text-[9px] px-2 py-0.5 rounded-full font-bold " + 
-          (currentUser.role === 'admin' ? 'bg-red-100 text-red-800' : currentUser.role === 'head' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800');
-          
-        document.getElementById('user-name').textContent = currentUser.name;
+        updateUserRoleBadge();
         
         buildSidebar();
         updateDynamicTitles();
-        navigateTo(currentUser.role === 'teacher' ? 'my-duty' : 'dashboard');
+        navigateTo(isUserAdminOrHead() ? 'dashboard' : 'my-duty');
         showToast(`เข้าสู่ระบบสำเร็จ! สวัสดีครับ ${currentUser.name}`, 'success');
       } else if (loginId.toLowerCase() === 'admin') {
         if (loginPass === 'admin' || loginPass === '1234') {
@@ -921,7 +966,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     }
 
     function buildSidebar() {
-      const menus = currentUser.role === 'teacher' ? teacherMenus : adminMenus;
+      const menus = isUserAdminOrHead() ? adminMenus : teacherMenus;
       const html = menus.map(m => `
         <button onclick="navigateTo('${m.id}')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition" data-page="${m.id}">
           <i data-lucide="${m.icon}" class="w-4.5 h-4.5 text-brand-200"></i>
@@ -1005,18 +1050,11 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
           document.getElementById('page-login').classList.add('hidden');
           document.getElementById('page-main').classList.remove('hidden');
           
-          document.getElementById('user-role-badge').textContent = 
-            currentUser.role === 'admin' ? 'ผู้ดูแลระบบ' : currentUser.role === 'head' ? 'หัวหน้าเวร' : 'ครูเวร';
-          
-          const badge = document.getElementById('user-role-badge');
-          badge.className = "text-[9px] px-2 py-0.5 rounded-full font-bold " + 
-            (currentUser.role === 'admin' ? 'bg-red-100 text-red-800' : currentUser.role === 'head' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800');
+          updateUserRoleBadge();
             
-          document.getElementById('user-name').textContent = currentUser.name;
-          
           buildSidebar();
           updateDynamicTitles();
-          navigateTo(currentUser.role === 'teacher' ? 'my-duty' : 'dashboard');
+          navigateTo(isUserAdminOrHead() ? 'dashboard' : 'my-duty');
           showToast(`เข้าใช้งานต่อในชื่อ: ${currentUser.name} สำเร็จ`, 'success');
         } else {
           showToast('ไม่พบข้อมูลครูนี้ในระบบ กรุณาล็อกอินใหม่', 'error');
@@ -1389,22 +1427,48 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
               <h3 class="text-lg font-bold text-slate-900">จัดการตารางปฏิบัติหน้าที่เวร</h3>
               <p class="text-xs text-slate-500 mt-1">มอบหมายตำแหน่งตรวจเวรตามตารางคุณครูประจำสัปดาห์</p>
             </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 font-bold text-xs">เลือกวันประจำสัปดาห์:</span>
-                <select id="schedule-day-filter" onchange="onScheduleDayChange(this.value)" class="border rounded-lg p-2 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-semibold bg-white text-xs">
-                  <option value="จันทร์" ${currentScheduleViewDay === 'จันทร์' ? 'selected' : ''}>วันจันทร์</option>
-                  <option value="อังคาร" ${currentScheduleViewDay === 'อังคาร' ? 'selected' : ''}>วันอังคาร</option>
-                  <option value="พุธ" ${currentScheduleViewDay === 'พุธ' ? 'selected' : ''}>วันพุธ</option>
-                  <option value="พฤหัสบดี" ${currentScheduleViewDay === 'พฤหัสบดี' ? 'selected' : ''}>วันพฤหัสบดี</option>
-                  <option value="ศุกร์" ${currentScheduleViewDay === 'ศุกร์' ? 'selected' : ''}>วันศุกร์</option>
-                  <option value="เสาร์" ${currentScheduleViewDay === 'เสาร์' ? 'selected' : ''}>วันเสาร์</option>
-                  <option value="อาทิตย์" ${currentScheduleViewDay === 'อาทิตย์' ? 'selected' : ''}>วันอาทิตย์</option>
-                </select>
-              </div>
+            <div>
               <button onclick="showToast('เชื่อมโยงและบันทึกตารางลง Supabase แล้ว', 'success')" class="bg-brand-850 text-white text-xs px-3 py-2 rounded-lg hover:bg-brand-700 transition flex items-center gap-1 shadow-sm font-semibold">
                 <i data-lucide="save" class="w-4 h-4"></i> บันทึกตารางเวรหลัก
               </button>
+            </div>
+          </div>
+
+          <!-- Horizontal Day Tab Switcher -->
+          <div class="flex border-b border-slate-200 overflow-x-auto no-scrollbar py-1 gap-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+            ${['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'].map(day => {
+              const isActive = currentScheduleViewDay === day;
+              return `
+                <button onclick="onScheduleDayChange('${day}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
+                  isActive 
+                    ? 'bg-brand-900 text-white border-brand-900 shadow-sm' 
+                    : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
+                }">
+                  วัน${day}
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Daily Head of Duty Setting Section -->
+          <div class="bg-brand-50/50 border border-brand-200/60 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-lg bg-brand-100 text-brand-900 flex items-center justify-center font-bold">
+                <i data-lucide="shield-check" class="w-5 h-5 text-brand-800"></i>
+              </div>
+              <div>
+                <p class="font-bold text-slate-800 text-xs">หัวหน้าเวรประจำวัน${currentScheduleViewDay}:</p>
+                <p class="text-[10px] text-slate-500">หัวหน้าเวรวัน${currentScheduleViewDay} จะได้รับสิทธิ์ควบคุมดูแลการลงแถวจัดระเบียบและตรวจรายงานเวรวันนี้ทั้งหมด</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="schedule-head-selector" onchange="onScheduleHeadChange(this.value)" class="border border-slate-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-bold bg-white text-xs min-w-[200px] shadow-sm">
+                <option value="">-- ยังไม่ได้กำหนด --</option>
+                ${teachers.filter(t => t.id !== 'admin').map(t => {
+                  const isHead = settings.headsOfDay?.[currentScheduleViewDay] === t.id;
+                  return `<option value="${t.id}" ${isHead ? 'selected' : ''}>${t.name} (${t.id})</option>`;
+                }).join('')}
+              </select>
             </div>
           </div>
 
@@ -2175,6 +2239,41 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
                 </div>
               </div>
 
+              <!-- ปรับแต่งสไตล์และแบรนด์ (Theme Customization) -->
+              <div class="border-t pt-4 space-y-3">
+                <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="palette" class="w-4 h-4 text-brand-700"></i>ปรับแต่งหน้าตาและสีสันระบบ (Theme Customization)</h4>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-slate-500 font-bold mb-1">ชื่อระบบหลัก (System Title):</label>
+                    <input type="text" id="sett-system-title" value="${settings.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร'}" placeholder="ระบบบันทึกและติดตามการปฏิบัติเวร" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                  </div>
+                  <div>
+                    <label class="block text-slate-500 font-bold mb-1">สีแบรนด์หลัก (Theme Color):</label>
+                    <div class="flex items-center gap-2">
+                      <input type="color" id="sett-system-color" value="${settings.systemColor || '#14532d'}" oninput="document.getElementById('sett-system-color-text').value = this.value" class="w-10 h-10 border rounded cursor-pointer p-0">
+                      <input type="text" id="sett-system-color-text" value="${settings.systemColor || '#14532d'}" oninput="const val = this.value.trim(); if (/^#[0-9A-F]{6}$/i.test(val)) { document.getElementById('sett-system-color').value = val; }" class="border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 w-32 text-center font-bold font-mono">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-4 border border-dashed rounded-lg p-3 bg-slate-50">
+                  <div id="settings-logo-preview" class="w-16 h-16 rounded-full border border-slate-200 overflow-hidden flex items-center justify-center bg-white shadow-inner flex-shrink-0">
+                    ${settings.systemLogo ? `<img src="${settings.systemLogo}" class="w-full h-full object-cover">` : `<span class="text-slate-400 font-bold text-[10px]">ไม่มีโลโก้</span>`}
+                  </div>
+                  <div class="space-y-1">
+                    <label class="block text-slate-650 font-bold">โลโก้ระบบ/โรงเรียน (School Logo):</label>
+                    <div class="flex items-center gap-2">
+                      <input type="file" id="sett-system-logo-file" accept="image/*" onchange="handleSystemLogoUpload(this)" class="hidden">
+                      <input type="hidden" id="sett-system-logo-base64" value="${settings.systemLogo || ''}">
+                      <button type="button" onclick="document.getElementById('sett-system-logo-file').click()" class="bg-white hover:bg-slate-50 text-slate-700 text-[10px] px-2.5 py-1.5 rounded border border-slate-250 font-bold shadow-sm transition">เลือกรูปภาพ</button>
+                      <button type="button" onclick="document.getElementById('sett-system-logo-base64').value = ''; document.getElementById('settings-logo-preview').innerHTML = '<span class=\'text-slate-400 font-bold text-[10px]\'>ไม่มีโลโก้</span>'; showToast('ล้างรูปโลโก้ระบบชั่วคราวแล้ว (กดบันทึกเพื่อยืนยัน)', 'info')" class="text-red-650 hover:text-red-800 text-[10px] font-bold">ล้างรูปภาพ</button>
+                    </div>
+                    <p class="text-[9px] text-slate-400">แนะนำรูปทรงจัตุรัส ระบบจะย่อขนาดเหลือ 120x120px อัตโนมัติ</p>
+                  </div>
+                </div>
+              </div>
+
               <div class="border-t pt-4 space-y-3">
                 <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="bell" class="w-4 h-4 text-brand-700"></i>การตั้งค่า LINE / Telegram Group API</h4>
                 
@@ -2206,9 +2305,11 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       `;
     }
 
-    function saveSystemSettings(e) {
+    async function saveSystemSettings(e) {
       e.preventDefault();
+      const current = db.getSettings() || {};
       const settings = {
+        ...current,
         schoolName: document.getElementById('sett-school').value.trim(),
         headName: document.getElementById('sett-head').value.trim(),
         directorName: document.getElementById('sett-director').value.trim(),
@@ -2221,10 +2322,15 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         dutyGroup: document.getElementById('sett-duty-group').value.trim(),
         defaultRadius: parseInt(document.getElementById('sett-radius').value),
         centerLat: parseFloat(document.getElementById('sett-center-lat').value),
-        centerLng: parseFloat(document.getElementById('sett-center-lng').value)
+        centerLng: parseFloat(document.getElementById('sett-center-lng').value),
+        
+        // Custom branding variables
+        systemLogo: document.getElementById('sett-system-logo-base64') ? document.getElementById('sett-system-logo-base64').value : (current.systemLogo || ''),
+        systemTitle: document.getElementById('sett-system-title') ? document.getElementById('sett-system-title').value.trim() : (current.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร'),
+        systemColor: document.getElementById('sett-system-color') ? document.getElementById('sett-system-color').value : (current.systemColor || '#14532d')
       };
 
-      saveSettingsDB(settings);
+      await saveSettingsDB(settings);
     }
 
     async function saveSettingsDB(settings) {
@@ -3169,6 +3275,27 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
 
     function onScheduleDayChange(val) {
       currentScheduleViewDay = val;
+      const mc = document.getElementById('main-content');
+      if (mc) {
+        mc.innerHTML = renderScheduleView();
+        lucide.createIcons();
+      }
+    }
+
+    async function onScheduleHeadChange(val) {
+      const settings = db.getSettings();
+      if (!settings.headsOfDay) settings.headsOfDay = {};
+      settings.headsOfDay[currentScheduleViewDay] = val;
+      
+      await saveSettingsDB(settings);
+      
+      const teacherName = val ? getTeacherName(val) : 'ไม่มีการระบุ';
+      if (val) {
+        showToast(`กำหนดให้ ${teacherName} เป็นหัวหน้าเวรวัน${currentScheduleViewDay} เรียบร้อย`, 'success');
+      } else {
+        showToast(`ล้างการกำหนดหัวหน้าเวรวัน${currentScheduleViewDay} เรียบร้อย`, 'info');
+      }
+
       const mc = document.getElementById('main-content');
       if (mc) {
         mc.innerHTML = renderScheduleView();
