@@ -1573,10 +1573,7 @@ ALTER TABLE duty_points DISABLE ROW LEVEL SECURITY;
 ALTER TABLE reports DISABLE ROW LEVEL SECURITY;
 ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
 
--- 6. นำเข้าข้อมูลเริ่มต้นที่จำเป็นลงในตาราง
--- [ลบข้อมูลเก่าก่อน แล้วค่อยใส่ใหม่ เพื่อป้องกันข้อมูลซ้ำ]
-DELETE FROM duty_points;
-DELETE FROM teachers;
+-- 6. นำเข้าข้อมูลเริ่มต้นที่จำเป็นลงในตาราง (เฉพาะข้อมูลที่ยังไม่มี - จะไม่เขียนทับของเดิม)
 
 -- อัปเกรดฐานข้อมูลเดิมเพิ่มคอลัมน์รหัสผ่านในตาราง (ปลอดภัยกรณีตารางมีอยู่แล้ว)
 ALTER TABLE teachers ADD COLUMN IF NOT EXISTS password TEXT NOT NULL DEFAULT '1234';
@@ -1770,7 +1767,7 @@ INSERT INTO teachers (id, name, role, phone, signature, password) VALUES
 ('2010', 'สีตีมาเรียม เมซา', 'teacher', '0833996635', NULL, '1234'),
 ('2057', 'สุไมยะห์ บินรัตแก้ว', 'teacher', '0930313729', NULL, '1234'),
 ('2062', 'อัดสนะ เจ๊ะแต', 'teacher', '0800000000', NULL, '1234')
-ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, role=EXCLUDED.role, phone=EXCLUDED.phone, password=EXCLUDED.password;
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO duty_points (id, name, time, lat, lng, radius, assigned_to) VALUES
 (1,  'ประจำประตูกับอาแซ', '08:00-09:00', 6.78768, 101.40812, 50, ARRAY['1065']),
@@ -1793,7 +1790,7 @@ INSERT INTO duty_points (id, name, time, lat, lng, radius, assigned_to) VALUES
 (18,  'บริเวณส่วนก สวนเกษตรทางลงนักเรียนหนีกลับบ้านก่อนหมดคาบ', '15:40-16:10', 6.7872, 101.4078, 50, ARRAY['2023']),
 (19,  'หัวมุมอาคาร 3 และห้องน้ำหญิง', '15:40-16:10', 6.78755, 101.40825, 40, ARRAY['2083']),
 (20,  'หน้าอาคาร 5 ตรวจตรานักเรียนหนีลงก่อนหมดคาบ', '15:40-16:10', 6.7877, 101.4084, 50, ARRAY['2056','2061'])
-ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, time=EXCLUDED.time, lat=EXCLUDED.lat, lng=EXCLUDED.lng, radius=EXCLUDED.radius, assigned_to=EXCLUDED.assigned_to;
+ON CONFLICT (id) DO NOTHING;
 
 -- 6.1 จุดปฏิบัติหน้าที่เวร "ครูหญิง" (21 จุด, id 21-41)
 --     lat/lng = พิกัดโรงเรียน (placeholder, แอดมินปรับพิกัดจริงทีหลังผ่านหน้า "ตั้งค่าพิกัดจุดเวร")
@@ -1837,5 +1834,5 @@ ALTER TABLE settings ADD COLUMN IF NOT EXISTS heads_of_day TEXT DEFAULT '{}';
 
 INSERT INTO settings (id, school_name, head_name, director_name, line_token, telegram_token, telegram_chat_id, auto_notify_minutes, duty_day, duty_group, default_radius, center_lat, center_lng, system_logo, system_title, system_color, heads_of_day) VALUES
 ('config', 'โรงเรียนมูลนิธิอาซิซสถาน', 'นาย ฮัมบาลี วาจิ', 'ดร.มูฮัมหมัด ซากี', '', '', '', 15, 'อังคาร', 'ครูชาย', 50, 6.787680, 101.408120, NULL, 'ระบบบันทึกและติดตามการปฏิบัติเวร', '#14532d', '{}')
-ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLUDED.head_name, director_name=EXCLUDED.director_name, duty_day=EXCLUDED.duty_day, duty_group=EXCLUDED.duty_group, default_radius=EXCLUDED.default_radius, center_lat=EXCLUDED.center_lat, center_lng=EXCLUDED.center_lng, system_logo=EXCLUDED.system_logo, system_title=EXCLUDED.system_title, system_color=EXCLUDED.system_color, heads_of_day=EXCLUDED.heads_of_day;
+ON CONFLICT (id) DO NOTHING;
 `;
