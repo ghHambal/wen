@@ -1523,7 +1523,11 @@ CREATE TABLE IF NOT EXISTS duty_points (
   lat DOUBLE PRECISION NOT NULL,
   lng DOUBLE PRECISION NOT NULL,
   radius INTEGER NOT NULL DEFAULT 50,
-  assigned_to TEXT[] NOT NULL DEFAULT '{}'::text[]
+  assigned_to TEXT[] NOT NULL DEFAULT '{}'::text[],
+  duty_group TEXT NOT NULL DEFAULT 'ครูชาย',
+  lat2 DOUBLE PRECISION,
+  lng2 DOUBLE PRECISION,
+  radius2 INTEGER
 );
 
 -- 3. สร้างตารางรายงานผลการปฏิบัติหน้าที่เวร
@@ -1576,6 +1580,12 @@ DELETE FROM teachers;
 
 -- อัปเกรดฐานข้อมูลเดิมเพิ่มคอลัมน์รหัสผ่านในตาราง (ปลอดภัยกรณีตารางมีอยู่แล้ว)
 ALTER TABLE teachers ADD COLUMN IF NOT EXISTS password TEXT NOT NULL DEFAULT '1234';
+
+-- อัปเกรดฐานข้อมูลเดิมเพิ่มคอลัมน์กลุ่มเวรและพิกัดบริเวณที่ 2 ในตาราง duty_points (ปลอดภัยกรณีตารางมีอยู่แล้ว)
+ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS duty_group TEXT NOT NULL DEFAULT 'ครูชาย';
+ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS lat2 DOUBLE PRECISION;
+ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS lng2 DOUBLE PRECISION;
+ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS radius2 INTEGER;
 
 INSERT INTO teachers (id, name, role, phone, signature, password) VALUES
 ('admin', 'แอดมินฝ่ายปกครอง', 'admin', '0811111100', NULL, '1234'),

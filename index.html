@@ -301,7 +301,11 @@
         lat: dbPt.lat,
         lng: dbPt.lng,
         radius: dbPt.radius,
-        assignedTo: dbPt.assigned_to || dbPt.assignedTo || []
+        assignedTo: dbPt.assigned_to || dbPt.assignedTo || [],
+        dutyGroup: dbPt.duty_group || dbPt.dutyGroup || 'ครูชาย',
+        lat2: dbPt.lat2 ?? null,
+        lng2: dbPt.lng2 ?? null,
+        radius2: dbPt.radius2 ?? null
       };
     }
 
@@ -314,7 +318,11 @@
         lat: jsPt.lat,
         lng: jsPt.lng,
         radius: jsPt.radius,
-        assigned_to: jsPt.assignedTo || jsPt.assigned_to || []
+        assigned_to: jsPt.assignedTo || jsPt.assigned_to || [],
+        duty_group: jsPt.dutyGroup || jsPt.duty_group || 'ครูชาย',
+        lat2: jsPt.lat2 ?? null,
+        lng2: jsPt.lng2 ?? null,
+        radius2: jsPt.radius2 ?? null
       };
     }
 
@@ -451,7 +459,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.7.3';
+    const APP_VERSION = '1.7.4';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -578,6 +586,8 @@
     let pointMarkerInstance = null;
     let modalMapInstance = null; // Map picker inside the point creation/edit modal
     let modalMapMarker = null;
+    let modalMapMarker2 = null; // marker for บริเวณที่ 2 (lat2/lng2)
+    let modalPickerTarget = 'primary'; // 'primary' | 'secondary' - บริเวณที่กำลังเลือกจากแผนที่
 
     const adminMenus = [
       { id: 'dashboard', icon: 'layout-dashboard', label: 'Dashboard' },
@@ -607,6 +617,7 @@
     let currentScheduleViewDay = null;
     let activeRoleMode = 'teacher';
     let currentExecutiveGroupFilter = 'all'; // 'all', 'ชาย', 'หญิง'
+    let currentDutyPointsGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าตั้งค่าพิกัด
     
     // Global states for teacher page filtering and view toggling
     let currentTeachersViewType = 'grid'; // 'grid' or 'table'
@@ -1065,17 +1076,7 @@
                   ${points.flatMap(p => {
                     const assignedList = p.assignedTo || p.assigned_to || [];
                     const todayDay = getTodayThaiDayName();
-                    const settings = db.getSettings();
-                    const defaultDay = settings.dutyDay || 'อังคาร';
-                    
-                    const todayAssigned = assignedList.filter(item => {
-                      if (item.includes(':')) {
-                        const [itemDay, itemTeacherId] = item.split(':');
-                        return itemDay === todayDay;
-                      } else {
-                        return todayDay === defaultDay;
-                      }
-                    });
+                    const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
 
                     return todayAssigned.map(item => {
                       const teacherId = item.includes(':') ? item.split(':')[1] : item;
@@ -1126,17 +1127,7 @@
               ${points.flatMap(p => {
                 const assignedList = p.assignedTo || p.assigned_to || [];
                 const todayDay = getTodayThaiDayName();
-                const settings = db.getSettings();
-                const defaultDay = settings.dutyDay || 'อังคาร';
-                
-                const todayAssigned = assignedList.filter(item => {
-                  if (item.includes(':')) {
-                    const [itemDay, itemTeacherId] = item.split(':');
-                    return itemDay === todayDay;
-                  } else {
-                    return todayDay === defaultDay;
-                  }
-                });
+                const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
 
                 return todayAssigned.map(item => {
                   const teacherId = item.includes(':') ? item.split(':')[1] : item;
@@ -1584,9 +1575,9 @@
 
     // B. SCHEDULE VIEW (Admin View)
     function renderScheduleView() {
-      const points = db.getDutyPoints();
-      const teachers = db.getTeachers();
       const settings = db.getSettings();
+      const points = db.getDutyPoints().filter(p => (p.dutyGroup || 'ครูชาย') === (settings.dutyGroup || 'ครูชาย'));
+      const teachers = db.getTeachers();
       
       if (!currentScheduleViewDay) {
         currentScheduleViewDay = settings.dutyDay || 'อังคาร';
@@ -1608,7 +1599,7 @@
 
           <!-- Horizontal Day Tab Switcher -->
           <div class="flex border-b border-slate-200 overflow-x-auto no-scrollbar py-1 gap-1 -mx-4 px-4 sm:mx-0 sm:px-0">
-            ${['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'].map(day => {
+            ${['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'].map(day => {
               const isActive = currentScheduleViewDay === day;
               return `
                 <button onclick="onScheduleDayChange('${day}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
@@ -1694,16 +1685,9 @@
                     
                     const dayTeachers = [];
                     assignedList.forEach(item => {
-                      if (item.includes(':')) {
-                        const [itemDay, itemTeacherId] = item.split(':');
-                        if (itemDay === currentScheduleViewDay) {
-                          dayTeachers.push(itemTeacherId);
-                        }
-                      } else {
-                        const defaultDay = settings.dutyDay || 'อังคาร';
-                        if (currentScheduleViewDay === defaultDay) {
-                          dayTeachers.push(item);
-                        }
+                      if (isAssignedOnDay(item, currentScheduleViewDay)) {
+                        const itemTeacherId = item.includes(':') ? item.split(':')[1] : item;
+                        dayTeachers.push(itemTeacherId);
                       }
                     });
 
@@ -1774,7 +1758,7 @@
     function renderAppointHeadsView() {
       const settings = db.getSettings();
       const teachers = db.getTeachers();
-      const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
+      const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
       
       const filteredTeachers = teachers.filter(t => {
         if (t.id === 'admin' || t.id === 'chief' || t.id === 'director') return false;
@@ -2229,8 +2213,8 @@
 
     // D. DUTY POINTS VIEW (Admin View)
     function renderDutyPointsView() {
-      const points = db.getDutyPoints();
-      
+      const points = db.getDutyPoints().filter(p => (p.dutyGroup || 'ครูชาย') === currentDutyPointsGroupTab);
+
       return `
         <div class="fade-in space-y-6">
           <div class="flex justify-between items-center border-b pb-4">
@@ -2241,6 +2225,22 @@
             <button onclick="openDutyPointModal()" class="bg-brand-850 text-white text-xs px-3 py-2 rounded-lg hover:bg-brand-700 font-bold transition flex items-center gap-1 shadow">
               <i data-lucide="map-pin" class="w-4 h-4"></i> เพิ่มจุดเวรใหม่
             </button>
+          </div>
+
+          <!-- Duty Group Tab Switcher -->
+          <div class="flex border-b border-slate-200 gap-1">
+            ${['ครูชาย', 'ครูหญิง'].map(group => {
+              const isActive = currentDutyPointsGroupTab === group;
+              return `
+                <button onclick="onDutyPointsGroupTabChange('${group}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
+                  isActive
+                    ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
+                    : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
+                }">
+                  เวร${group}
+                </button>
+              `;
+            }).join('')}
           </div>
 
           <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -2266,6 +2266,15 @@
                         <i data-lucide="external-link" class="w-3 h-3"></i> ดู Google Maps
                       </a>
                     </p>
+                    ${p.lat2 != null && p.lng2 != null ? `
+                    <p class="flex items-center gap-1 text-slate-700">
+                      <i data-lucide="map-pin" class="w-3.5 h-3.5 text-blue-500"></i>
+                      <span>บริเวณที่ 2: ${p.lat2.toFixed(6)}, ${p.lng2.toFixed(6)} (รัศมี ${p.radius2 || p.radius} ม.)</span>
+                      <a href="https://www.google.com/maps/search/?api=1&query=${p.lat2},${p.lng2}" target="_blank" class="text-blue-600 hover:underline inline-flex items-center gap-0.5 ml-2 font-bold" title="เปิดแผนที่ Google Maps">
+                        <i data-lucide="external-link" class="w-3 h-3"></i> ดู Google Maps
+                      </a>
+                    </p>
+                    ` : ''}
                     <p class="flex items-center gap-1"><i data-lucide="users" class="w-3.5 h-3.5 text-slate-400"></i> ผู้ดูแล: ${(p.assignedTo || p.assigned_to || []).map(id => getTeacherName(id)).join(', ') || '<span class="text-red-500">ยังไม่มีผู้รับผิดชอบ</span>'}</p>
                   </div>
 
@@ -2303,6 +2312,13 @@
                 <input type="text" id="point-form-name" required placeholder="เช่น หน้าประตูทางออกหลังโรงเรียน" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
               </div>
               <div>
+                <label class="block text-slate-500 mb-1 font-bold">กลุ่มเวร:</label>
+                <select id="point-form-duty-group" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+                  <option value="ครูชาย">ครูชาย</option>
+                  <option value="ครูหญิง">ครูหญิง</option>
+                </select>
+              </div>
+              <div>
                 <label class="block text-slate-500 mb-1 font-bold">ช่วงเวลาปฏิบัติงานเวร:</label>
                 <input type="text" id="point-form-time" required placeholder="เช่น 06:30-07:30" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
               </div>
@@ -2334,6 +2350,11 @@
                 
                 <!-- Expanded Map Picker Container -->
                 <div id="modal-map-picker-container" class="mt-2 hidden border rounded-lg overflow-hidden flex flex-col space-y-2 p-2 bg-slate-50">
+                  <!-- บริเวณที่กำลังเลือกจากแผนที่ (แสดงเมื่อมีบริเวณที่ 2) -->
+                  <div id="modal-picker-target-toggle" class="hidden gap-1 text-[10px]">
+                    <button type="button" onclick="setModalPickerTarget('primary')" id="picker-target-primary-btn" class="flex-1 py-1.5 rounded font-bold border transition">📍 เลือกบริเวณที่ 1</button>
+                    <button type="button" onclick="setModalPickerTarget('secondary')" id="picker-target-secondary-btn" class="flex-1 py-1.5 rounded font-bold border transition">📍 เลือกบริเวณที่ 2</button>
+                  </div>
                   <!-- Nominatim Place Search Bar -->
                   <div class="flex gap-1 relative">
                     <input type="text" id="modal-map-search-input" onkeydown="if(event.key === 'Enter') { event.preventDefault(); searchLocationOnMap(); }" placeholder="🔍 ค้นหาชื่อสถานที่ เช่น โรงเรียนมูลนิธิอาซิซสถาน..." class="flex-1 border rounded px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-brand-500">
@@ -2351,6 +2372,40 @@
                   <div id="modal-picker-map" class="w-full h-64 bg-slate-100 z-10 border rounded"></div>
                 </div>
               </div>
+
+              <div class="border-t pt-2 mt-2">
+                <label class="flex items-center gap-2 text-slate-600 font-bold cursor-pointer">
+                  <input type="checkbox" id="point-form-has-second-location" onchange="toggleSecondLocationFields()" class="rounded">
+                  จุดนี้มีการปฏิบัติหน้าที่ 2 บริเวณ (เพิ่มพิกัดสำรอง)
+                </label>
+
+                <div id="second-location-fields" class="hidden mt-2 space-y-2 bg-slate-50 border rounded-lg p-3">
+                  <p class="text-[10px] text-slate-400 font-bold">พิกัดบริเวณที่ 2:</p>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-slate-500 mb-1 font-bold">ละติจูด (Lat):</label>
+                      <input type="number" step="any" id="point-form-lat2" placeholder="6.787680" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+                    </div>
+                    <div>
+                      <label class="block text-slate-500 mb-1 font-bold">ลองจิจูด (Lng):</label>
+                      <input type="number" step="any" id="point-form-lng2" placeholder="101.408120" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-slate-500 mb-1 font-bold">ขอบเขตรัศมี (เมตร):</label>
+                      <input type="number" id="point-form-radius2" placeholder="50" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+                    </div>
+                    <div class="flex items-end">
+                      <button type="button" onclick="autoDetectCoordinates2()" class="w-full bg-blue-50 text-blue-750 border border-blue-200 py-2.5 rounded-lg hover:bg-blue-100 transition font-bold flex items-center justify-center gap-1">
+                        <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ใช้พิกัดโรงเรียน
+                      </button>
+                    </div>
+                  </div>
+                  <p class="text-[10px] text-slate-400">เปิด "เลือกพิกัดจากแผนที่ในตัว" ด้านบน แล้วกดปุ่ม "เลือกบริเวณที่ 2" เพื่อคลิกเลือกพิกัดบนแผนที่</p>
+                </div>
+              </div>
+
               <div class="flex gap-2 pt-2 border-t mt-2 flex-shrink-0">
                 <button type="button" onclick="closeDutyPointModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ยกเลิก</button>
                 <button type="submit" class="flex-1 bg-brand-850 hover:bg-brand-700 py-2.5 rounded-lg text-white font-semibold shadow transition">บันทึกพอยท์</button>
@@ -2407,17 +2462,7 @@
                 ${points.flatMap((p, idx) => {
                   const assignedList = p.assignedTo || p.assigned_to || [];
                   const todayDay = getTodayThaiDayName();
-                  const settings = db.getSettings();
-                  const defaultDay = settings.dutyDay || 'อังคาร';
-                  
-                  const todayAssigned = assignedList.filter(item => {
-                    if (item.includes(':')) {
-                      const [itemDay, itemTeacherId] = item.split(':');
-                      return itemDay === todayDay;
-                    } else {
-                      return todayDay === defaultDay;
-                    }
-                  });
+                  const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
 
                   if (todayAssigned.length === 0) return [];
 
@@ -2500,18 +2545,10 @@
 
       const unReports = [];
       const todayDay = getTodayThaiDayName();
-      const defaultDay = settings.dutyDay || 'อังคาร';
 
       points.forEach(p => {
         const assignedList = p.assignedTo || p.assigned_to || [];
-        const todayAssigned = assignedList.filter(item => {
-          if (item.includes(':')) {
-            const [itemDay, itemTeacherId] = item.split(':');
-            return itemDay === todayDay;
-          } else {
-            return todayDay === defaultDay;
-          }
-        });
+        const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
 
         todayAssigned.forEach(item => {
           const teacherId = item.includes(':') ? item.split(':')[1] : item;
@@ -2615,19 +2652,10 @@
 
       const unReports = [];
       const todayDay = getTodayThaiDayName();
-      const settings = db.getSettings();
-      const defaultDay = settings.dutyDay || 'อังคาร';
 
       points.forEach(p => {
         const assignedList = p.assignedTo || p.assigned_to || [];
-        const todayAssigned = assignedList.filter(item => {
-          if (item.includes(':')) {
-            const [itemDay, itemTeacherId] = item.split(':');
-            return itemDay === todayDay;
-          } else {
-            return todayDay === defaultDay;
-          }
-        });
+        const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
 
         todayAssigned.forEach(item => {
           const teacherId = item.includes(':') ? item.split(':')[1] : item;
@@ -2666,19 +2694,10 @@
 
       const unReports = [];
       const todayDay = getTodayThaiDayName();
-      const settings = db.getSettings();
-      const defaultDay = settings.dutyDay || 'อังคาร';
 
       points.forEach(p => {
         const assignedList = p.assignedTo || p.assigned_to || [];
-        const todayAssigned = assignedList.filter(item => {
-          if (item.includes(':')) {
-            const [itemDay, itemTeacherId] = item.split(':');
-            return itemDay === todayDay;
-          } else {
-            return todayDay === defaultDay;
-          }
-        });
+        const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
 
         todayAssigned.forEach(item => {
           const teacherId = item.includes(':') ? item.split(':')[1] : item;
@@ -2931,22 +2950,8 @@
 
     // H. MY DUTY VIEW (Teacher View)
     function renderMyDutyView() {
-      const points = db.getDutyPoints();
       const todayDay = getTodayThaiDayName();
-      const settings = db.getSettings();
-      const defaultDay = settings.dutyDay || 'อังคาร';
-
-      const myPoints = points.filter(p => {
-        const list = p.assignedTo || p.assigned_to || [];
-        return list.some(item => {
-          if (item.includes(':')) {
-            const [itemDay, itemTeacherId] = item.split(':');
-            return itemDay === todayDay && itemTeacherId === currentUser.id;
-          } else {
-            return todayDay === defaultDay && item === currentUser.id;
-          }
-        });
-      });
+      const myPoints = getMyDutyPoints();
       const reports = db.getReports().filter(r => r.date === getTodayISODate() && r.teacherId === currentUser.id);
 
       return `
@@ -3001,10 +3006,16 @@
                     </div>
                     <div>
                       <strong class="text-slate-450 block font-normal">เป้าหมาย Geofence:</strong>
-                      <span class="font-semibold text-slate-800">${p.lat.toFixed(6)}, ${p.lng.toFixed(6)} (รัศมี ${p.radius} ม.)</span>
+                      <span class="font-semibold text-slate-800">${p.lat2 != null ? 'บริเวณที่ 1: ' : ''}${p.lat.toFixed(6)}, ${p.lng.toFixed(6)} (รัศมี ${p.radius} ม.)</span>
                       <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" class="text-brand-800 hover:text-brand-900 font-bold block mt-1 hover:underline inline-flex items-center gap-0.5">
                         <i data-lucide="navigation" class="w-3 h-3 text-brand-850"></i> นำทางด้วย Google Maps
                       </a>
+                      ${p.lat2 != null ? `
+                        <span class="font-semibold text-slate-800 block mt-1.5">บริเวณที่ 2: ${p.lat2.toFixed(6)}, ${p.lng2.toFixed(6)} (รัศมี ${p.radius2 || p.radius} ม.)</span>
+                        <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat2},${p.lng2}" target="_blank" class="text-brand-800 hover:text-brand-900 font-bold block mt-1 hover:underline inline-flex items-center gap-0.5">
+                          <i data-lucide="navigation" class="w-3 h-3 text-brand-850"></i> นำทางด้วย Google Maps
+                        </a>
+                      ` : ''}
                     </div>
                     <div>
                       <strong class="text-slate-450 block font-normal">ระยะพิกัดห่าง:</strong>
@@ -3156,8 +3167,9 @@
       const pt = points.find(p => p.id === reportModalActivePointId);
       if (!pt) return;
 
-      const distance = checkTeacherDistanceToPoint(mockLatitude, mockLongitude, pt.lat, pt.lng);
-      if (distance > pt.radius) {
+      const geo = getDutyGeofenceDistance(pt, mockLatitude, mockLongitude);
+      const distance = geo.distance;
+      if (distance > geo.radius) {
         showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้', 'error');
         return;
       }
@@ -3300,20 +3312,11 @@
       const reports = db.getReports().filter(r => r.date === getTodayISODate());
       const points = db.getDutyPoints();
       const todayDay = getTodayThaiDayName();
-      const settings = db.getSettings();
-      const defaultDay = settings.dutyDay || 'อังคาร';
-      
+
       const rows = [];
       points.forEach(p => {
         const assignedList = p.assignedTo || p.assigned_to || [];
-        const todayAssigned = assignedList.filter(item => {
-          if (item.includes(':')) {
-            const [itemDay, itemTeacherId] = item.split(':');
-            return itemDay === todayDay;
-          } else {
-            return todayDay === defaultDay;
-          }
-        });
+        const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
 
         todayAssigned.forEach(item => {
           const teacherId = item.includes(':') ? item.split(':')[1] : item;
@@ -3493,6 +3496,48 @@
         return 'ชาย';
       }
       return 'หญิง';
+    }
+
+    function getTeacherDutyGroup(t) {
+      return getTeacherGender(t) === 'ชาย' ? 'ครูชาย' : 'ครูหญิง';
+    }
+
+    // entry แบบไม่มี prefix วัน (เช่น "1087") = มอบหมายทุกวัน
+    // entry แบบมี prefix วัน (เช่น "อังคาร:1087") = มอบหมายเฉพาะวันนั้น
+    function isAssignedOnDay(item, day) {
+      if (item.includes(':')) {
+        return item.split(':')[0] === day;
+      }
+      return true;
+    }
+
+    // จุดเวรของ currentUser สำหรับ "วันนี้" - จุดของกลุ่มตัวเองใช้เหมือนกันทุกวัน
+    // (entry แบบมี prefix วัน เช่น "อังคาร:1087" ยังคงจำกัดเฉพาะวันนั้น)
+    function getMyDutyPoints() {
+      const points = db.getDutyPoints();
+      const todayDay = getTodayThaiDayName();
+      const myGroup = getTeacherDutyGroup(currentUser);
+
+      return points.filter(p => {
+        if ((p.dutyGroup || 'ครูชาย') !== myGroup) return false;
+        const list = p.assignedTo || p.assigned_to || [];
+        return list.some(item => {
+          if (item.includes(':')) {
+            const [itemDay, itemTeacherId] = item.split(':');
+            return itemDay === todayDay && itemTeacherId === currentUser.id;
+          }
+          return item === currentUser.id;
+        });
+      });
+    }
+
+    // ระยะทาง+รัศมีของบริเวณที่ใกล้ที่สุด (รองรับจุดเวรที่มี 2 บริเวณผ่าน lat2/lng2/radius2)
+    function getDutyGeofenceDistance(p, lat, lng) {
+      const d1 = checkTeacherDistanceToPoint(lat, lng, p.lat, p.lng);
+      if (p.lat2 == null || p.lng2 == null) return { distance: d1, radius: p.radius, zone: 1 };
+      const d2 = checkTeacherDistanceToPoint(lat, lng, p.lat2, p.lng2);
+      const r2 = p.radius2 || p.radius;
+      return (d1 <= p.radius || d1 <= d2) ? { distance: d1, radius: p.radius, zone: 1 } : { distance: d2, radius: r2, zone: 2 };
     }
 
     function setupThaiToEnglishKeyboardConverter() {
@@ -3802,16 +3847,10 @@
       const pt = points.find(p => p.id === pointId);
       if (pt) {
         const assignedList = pt.assignedTo || pt.assigned_to || [];
-        const settings = db.getSettings();
-        const defaultDay = settings.dutyDay || 'อังคาร';
 
         pt.assignedTo = assignedList.filter(item => {
-          if (item.includes(':')) {
-            const [itemDay, itemTeacherId] = item.split(':');
-            return !(itemDay === currentScheduleViewDay && itemTeacherId === teacherId);
-          } else {
-            return !(currentScheduleViewDay === defaultDay && item === teacherId);
-          }
+          const itemTeacherId = item.includes(':') ? item.split(':')[1] : item;
+          return !(isAssignedOnDay(item, currentScheduleViewDay) && itemTeacherId === teacherId);
         });
 
         saveDutyPointsDB(points);
@@ -3838,20 +3877,12 @@
       const teachers = db.getTeachers();
 
       const assignedList = pt.assignedTo || pt.assigned_to || [];
-      const settings = db.getSettings();
-      const defaultDay = settings.dutyDay || 'อังคาร';
 
       const assignedOnThisDay = [];
       assignedList.forEach(item => {
-        if (item.includes(':')) {
-          const [itemDay, itemTeacherId] = item.split(':');
-          if (itemDay === currentScheduleViewDay) {
-            assignedOnThisDay.push(itemTeacherId);
-          }
-        } else {
-          if (currentScheduleViewDay === defaultDay) {
-            assignedOnThisDay.push(item);
-          }
+        if (isAssignedOnDay(item, currentScheduleViewDay)) {
+          const itemTeacherId = item.includes(':') ? item.split(':')[1] : item;
+          assignedOnThisDay.push(itemTeacherId);
         }
       });
 
@@ -4128,7 +4159,7 @@
         schedPanel.classList.add('hidden');
       }
 
-      const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
+      const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
       days.forEach(day => {
         const panel = document.getElementById(`appoint-head-dropdown-panel-${day}`);
         if (panel) {
@@ -4182,18 +4213,35 @@
       showToast('ตั้งพิกัดเริ่มต้น (โรงเรียน) สำเร็จ', 'info');
     }
 
+    function autoDetectCoordinates2() {
+      const settings = db.getSettings();
+      const lat = Number(settings.centerLat) || mockLatitude;
+      const lng = Number(settings.centerLng) || mockLongitude;
+      document.getElementById('point-form-lat2').value = lat.toFixed(6);
+      document.getElementById('point-form-lng2').value = lng.toFixed(6);
+      if (modalMapInstance) {
+        updateModalMapMarker2(lat, lng);
+      }
+      showToast('ตั้งพิกัดบริเวณที่ 2 เป็นพิกัดโรงเรียนสำเร็จ', 'info');
+    }
+
+    function onDutyPointsGroupTabChange(group) {
+      currentDutyPointsGroupTab = group;
+      renderPage('duty-points');
+    }
+
     // Leaflet map setup for admin
     function initDutyPointsMap() {
       const settings = db.getSettings();
       const lat = settings.centerLat || 6.787680;
       const lng = settings.centerLng || 101.408120;
       currentMapInstance = L.map('duty-map').setView([lat, lng], 17);
-      
+
       L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
         attribution: '&copy; Google Maps'
       }).addTo(currentMapInstance);
 
-      const points = db.getDutyPoints();
+      const points = db.getDutyPoints().filter(p => (p.dutyGroup || 'ครูชาย') === currentDutyPointsGroupTab);
       points.forEach(p => {
         L.marker([p.lat, p.lng]).addTo(currentMapInstance)
           .bindPopup(`<b>จุดที่ ${p.id}: ${p.name}</b><br>เวลาเวร: ${p.time}`);
@@ -4204,6 +4252,25 @@
           fillOpacity: 0.3,
           radius: p.radius
         }).addTo(currentMapInstance);
+
+        if (p.lat2 != null && p.lng2 != null) {
+          L.marker([p.lat2, p.lng2], {
+            icon: L.divIcon({
+              html: '<div style="background:#2563eb;width:16px;height:16px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.5)"></div>',
+              className: '',
+              iconSize: [16, 16],
+              iconAnchor: [8, 8]
+            })
+          }).addTo(currentMapInstance)
+            .bindPopup(`<b>จุดที่ ${p.id}: ${p.name}</b><br>บริเวณที่ 2`);
+
+          L.circle([p.lat2, p.lng2], {
+            color: '#2563eb',
+            fillColor: '#93c5fd',
+            fillOpacity: 0.3,
+            radius: p.radius2 || p.radius
+          }).addTo(currentMapInstance);
+        }
       });
 
       setTimeout(() => currentMapInstance.invalidateSize(), 150);
@@ -4372,38 +4439,64 @@
       const title = document.getElementById('point-modal-title');
       const idFlag = document.getElementById('point-form-id-flag');
       const nameInput = document.getElementById('point-form-name');
+      const groupSelect = document.getElementById('point-form-duty-group');
       const timeInput = document.getElementById('point-form-time');
       const latInput = document.getElementById('point-form-lat');
       const lngInput = document.getElementById('point-form-lng');
       const radInput = document.getElementById('point-form-radius');
+      const hasSecondCheckbox = document.getElementById('point-form-has-second-location');
+      const lat2Input = document.getElementById('point-form-lat2');
+      const lng2Input = document.getElementById('point-form-lng2');
+      const radius2Input = document.getElementById('point-form-radius2');
 
       if (pointId) {
         const p = db.getDutyPoints().find(x => x.id === pointId);
         title.textContent = 'แก้ไขพิกัดจุดเวร';
         idFlag.value = p.id;
         nameInput.value = p.name;
+        groupSelect.value = p.dutyGroup || 'ครูชาย';
         timeInput.value = p.time;
         latInput.value = p.lat;
         lngInput.value = p.lng;
         radInput.value = p.radius;
+
+        if (p.lat2 != null && p.lng2 != null) {
+          hasSecondCheckbox.checked = true;
+          lat2Input.value = p.lat2;
+          lng2Input.value = p.lng2;
+          radius2Input.value = p.radius2 || p.radius;
+        } else {
+          hasSecondCheckbox.checked = false;
+          lat2Input.value = '';
+          lng2Input.value = '';
+          radius2Input.value = '';
+        }
       } else {
         const settings = db.getSettings();
         title.textContent = 'สร้างพิกัดจุดเวรเพิ่มเติม';
         idFlag.value = '';
         nameInput.value = '';
+        groupSelect.value = currentDutyPointsGroupTab;
         timeInput.value = '08:00-08:30';
         latInput.value = settings.centerLat || mockLatitude;
         lngInput.value = settings.centerLng || mockLongitude;
         radInput.value = settings.defaultRadius || 50;
+
+        hasSecondCheckbox.checked = false;
+        lat2Input.value = '';
+        lng2Input.value = '';
+        radius2Input.value = '';
       }
+
+      toggleSecondLocationFields();
 
       modal.classList.remove('hidden');
       updateGmapsModalLink();
-      
+
       // Bind updates on manual coordinate entry
       latInput.oninput = updateGmapsModalLink;
       lngInput.oninput = updateGmapsModalLink;
-      
+
       lucide.createIcons();
     }
 
@@ -4428,6 +4521,19 @@
       if (container.classList.contains('hidden')) {
         container.classList.remove('hidden');
         initModalPickerMap();
+
+        const hasSecond = document.getElementById('point-form-has-second-location').checked;
+        const toggle = document.getElementById('modal-picker-target-toggle');
+        if (toggle) {
+          if (hasSecond) {
+            toggle.classList.remove('hidden');
+            toggle.classList.add('flex');
+          } else {
+            toggle.classList.add('hidden');
+            toggle.classList.remove('flex');
+          }
+        }
+        setModalPickerTarget('primary');
       } else {
         container.classList.add('hidden');
       }
@@ -4447,11 +4553,16 @@
         modalMapInstance.on('click', function(e) {
           const clickedLat = e.latlng.lat;
           const clickedLng = e.latlng.lng;
-          
-          document.getElementById('point-form-lat').value = clickedLat.toFixed(6);
-          document.getElementById('point-form-lng').value = clickedLng.toFixed(6);
-          
-          updateModalMapMarker(clickedLat, clickedLng);
+
+          if (modalPickerTarget === 'secondary') {
+            document.getElementById('point-form-lat2').value = clickedLat.toFixed(6);
+            document.getElementById('point-form-lng2').value = clickedLng.toFixed(6);
+            updateModalMapMarker2(clickedLat, clickedLng);
+          } else {
+            document.getElementById('point-form-lat').value = clickedLat.toFixed(6);
+            document.getElementById('point-form-lng').value = clickedLng.toFixed(6);
+            updateModalMapMarker(clickedLat, clickedLng);
+          }
         });
       } else {
         modalMapInstance.setView([lat, lng], 17);
@@ -4460,6 +4571,15 @@
       setTimeout(() => {
         modalMapInstance.invalidateSize();
         updateModalMapMarker(lat, lng);
+
+        const lat2 = parseFloat(document.getElementById('point-form-lat2').value);
+        const lng2 = parseFloat(document.getElementById('point-form-lng2').value);
+        if (!isNaN(lat2) && !isNaN(lng2)) {
+          updateModalMapMarker2(lat2, lng2);
+        } else if (modalMapMarker2) {
+          modalMapInstance.removeLayer(modalMapMarker2);
+          modalMapMarker2 = null;
+        }
       }, 150);
     }
 
@@ -4470,6 +4590,64 @@
       modalMapMarker = L.marker([lat, lng]).addTo(modalMapInstance)
         .bindPopup("พิกัดจุดปฏิบัติหน้าที่")
         .openPopup();
+    }
+
+    function updateModalMapMarker2(lat, lng) {
+      if (modalMapMarker2) {
+        modalMapInstance.removeLayer(modalMapMarker2);
+      }
+      const icon2 = L.divIcon({
+        html: '<div style="background:#2563eb;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.5)"></div>',
+        className: '',
+        iconSize: [14, 14],
+        iconAnchor: [7, 7]
+      });
+      modalMapMarker2 = L.marker([lat, lng], { icon: icon2 }).addTo(modalMapInstance)
+        .bindPopup("พิกัดบริเวณที่ 2")
+        .openPopup();
+    }
+
+    function setModalPickerTarget(target) {
+      modalPickerTarget = target;
+      const primaryBtn = document.getElementById('picker-target-primary-btn');
+      const secondaryBtn = document.getElementById('picker-target-secondary-btn');
+      const activeClass = 'bg-blue-600 text-white border-blue-600';
+      const inactiveClass = 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100';
+      if (primaryBtn && secondaryBtn) {
+        primaryBtn.className = `flex-1 py-1.5 rounded font-bold border transition ${target === 'primary' ? activeClass : inactiveClass}`;
+        secondaryBtn.className = `flex-1 py-1.5 rounded font-bold border transition ${target === 'secondary' ? activeClass : inactiveClass}`;
+      }
+    }
+
+    function toggleSecondLocationFields() {
+      const checked = document.getElementById('point-form-has-second-location').checked;
+      const fields = document.getElementById('second-location-fields');
+      const toggle = document.getElementById('modal-picker-target-toggle');
+
+      if (checked) {
+        fields.classList.remove('hidden');
+      } else {
+        fields.classList.add('hidden');
+        document.getElementById('point-form-lat2').value = '';
+        document.getElementById('point-form-lng2').value = '';
+        document.getElementById('point-form-radius2').value = '';
+        if (modalMapMarker2 && modalMapInstance) {
+          modalMapInstance.removeLayer(modalMapMarker2);
+          modalMapMarker2 = null;
+        }
+      }
+
+      const pickerContainer = document.getElementById('modal-map-picker-container');
+      if (toggle) {
+        if (checked && pickerContainer && !pickerContainer.classList.contains('hidden')) {
+          toggle.classList.remove('hidden');
+          toggle.classList.add('flex');
+        } else {
+          toggle.classList.add('hidden');
+          toggle.classList.remove('flex');
+        }
+      }
+      setModalPickerTarget('primary');
     }
 
     async function searchLocationOnMap() {
@@ -4761,10 +4939,16 @@
       e.preventDefault();
       const idFlag = document.getElementById('point-form-id-flag').value;
       const name = document.getElementById('point-form-name').value.trim();
+      const dutyGroup = document.getElementById('point-form-duty-group').value;
       const time = document.getElementById('point-form-time').value.trim();
       const lat = parseFloat(document.getElementById('point-form-lat').value);
       const lng = parseFloat(document.getElementById('point-form-lng').value);
       const radius = parseInt(document.getElementById('point-form-radius').value);
+
+      const hasSecond = document.getElementById('point-form-has-second-location').checked;
+      const lat2 = hasSecond ? parseFloat(document.getElementById('point-form-lat2').value) : null;
+      const lng2 = hasSecond ? parseFloat(document.getElementById('point-form-lng2').value) : null;
+      const radius2 = hasSecond ? parseInt(document.getElementById('point-form-radius2').value) : null;
 
       const points = db.getDutyPoints();
       let ptObj = null;
@@ -4773,10 +4957,14 @@
         const pIndex = points.findIndex(x => x.id === parseInt(idFlag));
         if (pIndex !== -1) {
           points[pIndex].name = name;
+          points[pIndex].dutyGroup = dutyGroup;
           points[pIndex].time = time;
           points[pIndex].lat = lat;
           points[pIndex].lng = lng;
           points[pIndex].radius = radius;
+          points[pIndex].lat2 = lat2;
+          points[pIndex].lng2 = lng2;
+          points[pIndex].radius2 = radius2;
           ptObj = points[pIndex];
         }
       } else {
@@ -4784,10 +4972,14 @@
         ptObj = {
           id: nextId,
           name: name,
+          dutyGroup: dutyGroup,
           time: time,
           lat: lat,
           lng: lng,
           radius: radius,
+          lat2: lat2,
+          lng2: lng2,
+          radius2: radius2,
           assignedTo: []
         };
         points.push(ptObj);
@@ -4886,33 +5078,18 @@
       }
 
       const points = db.getDutyPoints();
-      const todayDay = getTodayThaiDayName();
-      const settings = db.getSettings();
-      const defaultDay = settings.dutyDay || 'อังคาร';
-      
-      const myPoints = points.filter(p => {
-        const list = p.assignedTo || p.assigned_to || [];
-        return list.some(item => {
-          if (item.includes(':')) {
-            const [itemDay, itemTeacherId] = item.split(':');
-            return itemDay === todayDay && itemTeacherId === currentUser.id;
-          } else {
-            return todayDay === defaultDay && item === currentUser.id;
-          }
-        });
-      });
+      const myPoints = getMyDutyPoints();
 
       myPoints.forEach(p => {
         const spanDist = document.getElementById(`my-distance-check-${p.id}`);
         if (spanDist) {
-          const dist = checkTeacherDistanceToPoint(mockLatitude, mockLongitude, p.lat, p.lng);
-          const inRadius = dist <= p.radius;
-          
-          if (inRadius) {
-            spanDist.innerHTML = `✅ อยู่ในรัศมี (${dist.toFixed(1)} เมตร)`;
+          const geo = getDutyGeofenceDistance(p, mockLatitude, mockLongitude);
+
+          if (geo.distance <= geo.radius) {
+            spanDist.innerHTML = `✅ อยู่ในรัศมี (${geo.distance.toFixed(1)} เมตร)`;
             spanDist.className = "font-semibold text-green-600";
           } else {
-            spanDist.innerHTML = `❌ อยู่นอกรัศมี (${dist.toFixed(1)} เมตร / เป้าหมาย ${p.radius} ม.)`;
+            spanDist.innerHTML = `❌ อยู่นอกรัศมี (${geo.distance.toFixed(1)} เมตร / เป้าหมาย ${geo.radius} ม.)`;
             spanDist.className = "font-semibold text-red-650";
           }
         }
@@ -4922,20 +5099,19 @@
         const activePt = points.find(p => p.id === reportModalActivePointId);
         const distAlert = document.getElementById('modal-distance-alert');
         if (activePt && distAlert) {
-          const dist = checkTeacherDistanceToPoint(mockLatitude, mockLongitude, activePt.lat, activePt.lng);
-          const inRadius = dist <= activePt.radius;
-          
-          if (inRadius) {
+          const geo = getDutyGeofenceDistance(activePt, mockLatitude, mockLongitude);
+
+          if (geo.distance <= geo.radius) {
             distAlert.className = "p-3 rounded-lg border font-bold flex items-center gap-2 bg-green-50 text-green-800 border-green-200";
             distAlert.innerHTML = `
               <i data-lucide="check-circle" class="w-4 h-4 text-green-650"></i>
-              <span>อยู่ในระยะลงชื่อปฏิบัติงาน (ห่างจากจุด ${dist.toFixed(1)} เมตร)</span>
+              <span>อยู่ในระยะลงชื่อปฏิบัติงาน (ห่างจากจุด ${geo.distance.toFixed(1)} เมตร)</span>
             `;
           } else {
             distAlert.className = "p-3 rounded-lg border font-bold flex items-center gap-2 bg-red-50 text-red-800 border-red-200";
             distAlert.innerHTML = `
               <i data-lucide="alert-triangle" class="w-4 h-4 text-red-650"></i>
-              <span>อยู่นอกระยะปฏิบัติงาน (ห่างจากจุด ${dist.toFixed(1)} เมตร, รัศมีสูงสุด ${activePt.radius} เมตร)</span>
+              <span>อยู่นอกระยะปฏิบัติงาน (ห่างจากจุด ${geo.distance.toFixed(1)} เมตร, รัศมีสูงสุด ${geo.radius} เมตร)</span>
             `;
           }
           lucide.createIcons();
