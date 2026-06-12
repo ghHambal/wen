@@ -2443,6 +2443,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       { id: 'executive-overview', icon: 'award', label: 'ภาพรวมผู้บริหาร' },
       { id: 'today-report', icon: 'clipboard-list', label: 'รายงานเวรวันนี้' },
       { id: 'schedule', icon: 'calendar', label: 'ตารางเวร' },
+      { id: 'appoint-heads', icon: 'shield-check', label: 'แต่งตั้งหัวหน้าเวร' },
       { id: 'teachers', icon: 'users', label: 'ครูผู้ปฏิบัติหน้าที่' },
       { id: 'duty-points', icon: 'map-pin', label: 'จุดเวรและพิกัด' },
       { id: 'documents', icon: 'file-text', label: 'เอกสารรายงาน' },
@@ -2479,7 +2480,16 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       
       const settings = db.getSettings();
       const headsOfDay = settings.headsOfDay || {};
-      return Object.values(headsOfDay).includes(currentUser.id);
+      
+      for (const day in headsOfDay) {
+        const val = headsOfDay[day];
+        if (typeof val === 'string') {
+          if (val === currentUser.id) return true;
+        } else if (val && typeof val === 'object') {
+          if (val["ชาย"] === currentUser.id || val["หญิง"] === currentUser.id) return true;
+        }
+      }
+      return false;
     }
 
     function updateUserRoleBadge() {
@@ -2740,6 +2750,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         'executive-overview': 'คะแนนการปฏิบัติหน้าที่ของครู (Executive Overview)',
         'today-report': 'ติดตามการปฏิบัติเวรวันนี้',
         schedule: 'จัดการตารางเวรประจำวัน',
+        'appoint-heads': 'แต่งตั้งหัวหน้าเวรประจำวัน',
         teachers: 'ข้อมูลครูผู้ปฏิบัติหน้าที่',
         'duty-points': 'ตั้งค่าจุดเวรและพิกัด Geofence',
         documents: 'เอกสารรายงานทางการ',
@@ -2771,6 +2782,9 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
           break;
         case 'schedule':
           mc.innerHTML = renderScheduleView();
+          break;
+        case 'appoint-heads':
+          mc.innerHTML = renderAppointHeadsView();
           break;
         case 'teachers':
           mc.innerHTML = renderTeachersView();
@@ -3481,8 +3495,10 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
             <div class="flex items-center gap-2">
               <select id="schedule-head-selector" onchange="onScheduleHeadChange(this.value)" class="border border-slate-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-bold bg-white text-xs min-w-[200px] shadow-sm">
                 <option value="">-- ยังไม่ได้กำหนด --</option>
-                ${teachers.filter(t => t.id !== 'admin').map(t => {
-                  const isHead = settings.headsOfDay?.[currentScheduleViewDay] === t.id;
+                ${teachers.filter(t => t.id !== 'admin' && t.id !== 'chief' && t.id !== 'director').map(t => {
+                  const scheduleGroupGender = settings.dutyGroup === 'ครูหญิง' ? 'หญิง' : 'ชาย';
+                  const dayVal = settings.headsOfDay?.[currentScheduleViewDay];
+                  const isHead = (typeof dayVal === 'string' && dayVal === t.id) || (dayVal && typeof dayVal === 'object' && dayVal[scheduleGroupGender] === t.id);
                   return `<option value="${t.id}" ${isHead ? 'selected' : ''}>${t.name} (${t.id})</option>`;
                 }).join('')}
               </select>
@@ -3577,6 +3593,150 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
           </div>
         </div>
       `;
+    }
+
+    let appointHeadsActiveTab = 'ชาย'; // 'ชาย' or 'หญิง'
+
+    function renderAppointHeadsView() {
+      const settings = db.getSettings();
+      const teachers = db.getTeachers();
+      const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
+      
+      const filteredTeachers = teachers.filter(t => {
+        if (t.id === 'admin' || t.id === 'chief' || t.id === 'director') return false;
+        return getTeacherGender(t) === appointHeadsActiveTab;
+      });
+
+      return `
+        <div class="fade-in space-y-6 text-xs">
+          <!-- Page Header -->
+          <div class="border-b pb-4">
+            <h3 class="text-lg font-bold text-slate-900">แต่งตั้งหัวหน้าเวรประจำวัน</h3>
+            <p class="text-xs text-slate-500 mt-1">แต่งตั้งผู้ทำหน้าที่เป็นหัวหน้าเวรดูแลระบบและการรายงานผลในแต่ละวัน โดยแยกตามกลุ่มเวรชาย-หญิง</p>
+          </div>
+
+          <!-- Active Gender Tabs -->
+          <div class="flex border-b border-slate-200 gap-1 no-print">
+            ${[
+              { val: 'ชาย', label: 'กลุ่มเวรครูชาย (Male Group)' },
+              { val: 'หญิง', label: 'กลุ่มเวรครูหญิง (Female Group)' }
+            ].map(item => {
+              const isActive = appointHeadsActiveTab === item.val;
+              return `
+                <button onclick="changeAppointHeadsTab('${item.val}')" class="px-5 py-2.5 text-xs font-bold border-b-2 transition-all ${
+                  isActive 
+                    ? 'border-brand-900 text-brand-900 font-extrabold' 
+                    : 'border-transparent text-slate-400 hover:text-slate-650 hover:border-slate-300'
+                }">
+                  ${item.label}
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Daily Cards List -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            ${days.map(day => {
+              let currentHeadId = '';
+              const val = settings.headsOfDay?.[day];
+              if (typeof val === 'string') {
+                const t = teachers.find(x => x.id === val);
+                if (t && getTeacherGender(t) === appointHeadsActiveTab) {
+                  currentHeadId = val;
+                }
+              } else if (val && typeof val === 'object') {
+                currentHeadId = val[appointHeadsActiveTab] || '';
+              }
+
+              const headTeacher = teachers.find(t => t.id === currentHeadId);
+              
+              return `
+                <div class="bg-white border rounded-xl p-4 shadow-sm space-y-4 hover:shadow transition flex flex-col justify-between">
+                  <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm font-bold text-slate-800">วัน${day}</span>
+                      <span class="px-2 py-0.5 rounded text-[10px] font-bold ${
+                        appointHeadsActiveTab === 'ชาย' ? 'bg-emerald-50 text-emerald-800 border border-emerald-150' : 'bg-pink-50 text-pink-850 border border-pink-150'
+                      }">
+                        กลุ่มครู${appointHeadsActiveTab}
+                      </span>
+                    </div>
+
+                    ${headTeacher ? `
+                      <div class="bg-slate-50 border rounded-lg p-3 flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-full bg-brand-100 text-brand-900 flex items-center justify-center font-bold text-xs">
+                          ${headTeacher.name.split(' ')[1] ? headTeacher.name.split(' ')[1].substring(0,2) : headTeacher.name.substring(3,5)}
+                        </div>
+                        <div>
+                          <p class="font-bold text-slate-800 text-xs">${headTeacher.name}</p>
+                          <p class="text-[9px] text-slate-400 mt-0.5">ID: ${headTeacher.id} | โทร: ${headTeacher.phone || '-'}</p>
+                        </div>
+                      </div>
+                    ` : `
+                      <div class="bg-amber-50/55 border border-dashed border-amber-200 rounded-lg p-3.5 text-center text-amber-800 font-medium">
+                        ⚠️ ยังไม่ได้รับการแต่งตั้งหัวหน้าเวร
+                      </div>
+                    `}
+                  </div>
+
+                  <div class="pt-3 border-t border-slate-100 space-y-1.5">
+                    <label class="block text-[10px] text-slate-500 font-bold">เลือกแต่งตั้งใหม่:</label>
+                    <select onchange="onAppointHeadChange('${day}', '${appointHeadsActiveTab}', this.value)" class="w-full border rounded-lg p-2 bg-white outline-none focus:ring-1 focus:ring-brand-500 text-xs font-semibold text-slate-700">
+                      <option value="">-- ล้างการแต่งตั้ง --</option>
+                      ${filteredTeachers.map(t => {
+                        return `<option value="${t.id}" ${t.id === currentHeadId ? 'selected' : ''}>${t.name} (${t.id})</option>`;
+                      }).join('')}
+                    </select>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function changeAppointHeadsTab(gender) {
+      appointHeadsActiveTab = gender;
+      const mc = document.getElementById('main-content');
+      if (mc) {
+        mc.innerHTML = renderAppointHeadsView();
+        lucide.createIcons();
+      }
+    }
+
+    async function onAppointHeadChange(day, gender, teacherId) {
+      const settings = db.getSettings();
+      if (!settings.headsOfDay) settings.headsOfDay = {};
+      
+      const currentDayVal = settings.headsOfDay[day];
+      let dayObj = { "ชาย": "", "หญิง": "" };
+      
+      if (currentDayVal && typeof currentDayVal === 'object') {
+        dayObj = { ...currentDayVal };
+      } else if (typeof currentDayVal === 'string') {
+        const teacher = db.getTeachers().find(t => t.id === currentDayVal);
+        const legacyGender = teacher ? getTeacherGender(teacher) : 'ชาย';
+        dayObj[legacyGender] = currentDayVal;
+      }
+      
+      dayObj[gender] = teacherId;
+      settings.headsOfDay[day] = dayObj;
+      
+      await saveSettingsDB(settings);
+      
+      const teacherName = teacherId ? getTeacherName(teacherId) : 'ล้างการกำหนด';
+      if (teacherId) {
+        showToast(`แต่งตั้งให้ ${teacherName} เป็นหัวหน้าเวรวัน${day} (กลุ่มครู${gender}) เรียบร้อย`, 'success');
+      } else {
+        showToast(`ล้างการแต่งตั้งหัวหน้าเวรวัน${day} (กลุ่มครู${gender}) เรียบร้อย`, 'info');
+      }
+      
+      const mc = document.getElementById('main-content');
+      if (mc) {
+        mc.innerHTML = renderAppointHeadsView();
+        lucide.createIcons();
+      }
     }
 
     // C. TEACHERS VIEW (Admin View)
@@ -5551,15 +5711,29 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     async function onScheduleHeadChange(val) {
       const settings = db.getSettings();
       if (!settings.headsOfDay) settings.headsOfDay = {};
-      settings.headsOfDay[currentScheduleViewDay] = val;
+      
+      const scheduleGroupGender = settings.dutyGroup === 'ครูหญิง' ? 'หญิง' : 'ชาย';
+      const currentDayVal = settings.headsOfDay[currentScheduleViewDay];
+      let dayObj = { "ชาย": "", "หญิง": "" };
+      
+      if (currentDayVal && typeof currentDayVal === 'object') {
+        dayObj = { ...currentDayVal };
+      } else if (typeof currentDayVal === 'string') {
+        const teacher = db.getTeachers().find(t => t.id === currentDayVal);
+        const legacyGender = teacher ? getTeacherGender(teacher) : 'ชาย';
+        dayObj[legacyGender] = currentDayVal;
+      }
+      
+      dayObj[scheduleGroupGender] = val;
+      settings.headsOfDay[currentScheduleViewDay] = dayObj;
       
       await saveSettingsDB(settings);
       
       const teacherName = val ? getTeacherName(val) : 'ไม่มีการระบุ';
       if (val) {
-        showToast(`กำหนดให้ ${teacherName} เป็นหัวหน้าเวรวัน${currentScheduleViewDay} เรียบร้อย`, 'success');
+        showToast(`กำหนดให้ ${teacherName} เป็นหัวหน้าเวรวัน${currentScheduleViewDay} (กลุ่มครู${scheduleGroupGender}) เรียบร้อย`, 'success');
       } else {
-        showToast(`ล้างการกำหนดหัวหน้าเวรวัน${currentScheduleViewDay} เรียบร้อย`, 'info');
+        showToast(`ล้างการกำหนดหัวหน้าเวรวัน${currentScheduleViewDay} (กลุ่มครู${scheduleGroupGender}) เรียบร้อย`, 'info');
       }
 
       const mc = document.getElementById('main-content');
