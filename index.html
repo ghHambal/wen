@@ -48,6 +48,48 @@
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   
   <style>
+    :root {
+      --brand-color: #14532d;
+    }
+
+    /* Dynamically override Tailwind classes that use brand-color */
+    .bg-brand-950 { background-color: color-mix(in srgb, var(--brand-color) 70%, black) !important; }
+    .bg-brand-900 { background-color: var(--brand-color) !important; }
+    .bg-brand-850 { background-color: color-mix(in srgb, var(--brand-color) 90%, white) !important; }
+    .bg-brand-800 { background-color: color-mix(in srgb, var(--brand-color) 80%, white) !important; }
+    .bg-brand-700 { background-color: color-mix(in srgb, var(--brand-color) 75%, white) !important; }
+    .bg-brand-50  { background-color: color-mix(in srgb, var(--brand-color) 10%, white) !important; }
+    .bg-brand-100 { background-color: color-mix(in srgb, var(--brand-color) 20%, white) !important; }
+    
+    .hover\:bg-brand-700:hover { background-color: color-mix(in srgb, var(--brand-color) 75%, white) !important; }
+    .hover\:bg-brand-800:hover { background-color: color-mix(in srgb, var(--brand-color) 80%, white) !important; }
+    
+    .text-brand-950 { color: color-mix(in srgb, var(--brand-color) 70%, black) !important; }
+    .text-brand-900 { color: var(--brand-color) !important; }
+    .text-brand-850 { color: color-mix(in srgb, var(--brand-color) 90%, white) !important; }
+    .text-brand-800 { color: color-mix(in srgb, var(--brand-color) 80%, white) !important; }
+    .text-brand-700 { color: color-mix(in srgb, var(--brand-color) 75%, white) !important; }
+    .text-brand-200 { color: color-mix(in srgb, var(--brand-color) 40%, white) !important; }
+    .text-brand-300 { color: color-mix(in srgb, var(--brand-color) 50%, white) !important; }
+    
+    .border-brand-950 { border-color: color-mix(in srgb, var(--brand-color) 70%, black) !important; }
+    .border-brand-900 { border-color: var(--brand-color) !important; }
+    .border-brand-850 { border-color: color-mix(in srgb, var(--brand-color) 90%, white) !important; }
+    .border-brand-800 { border-color: color-mix(in srgb, var(--brand-color) 80%, white) !important; }
+    .border-brand-350, .border-brand-300 { border-color: color-mix(in srgb, var(--brand-color) 45%, white) !important; }
+
+    .focus\:ring-brand-500:focus { --tw-ring-color: var(--brand-color) !important; border-color: var(--brand-color) !important; }
+    .focus\:border-brand-500:focus { border-color: var(--brand-color) !important; }
+
+    /* Gradient overrides */
+    .from-brand-900 {
+      --tw-gradient-from: var(--brand-color) !important;
+      --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(20, 83, 45, 0)) !important;
+    }
+    .to-brand-800 {
+      --tw-gradient-to: color-mix(in srgb, var(--brand-color) 80%, white) !important;
+    }
+
     * { font-family: 'Sarabun', sans-serif; }
     .sidebar-item { transition: all 0.2s; }
     .sidebar-item:hover, .sidebar-item.active { background: rgba(255, 255, 255, 0.12); }
@@ -103,7 +145,7 @@
     <div id="page-login" class="h-full w-full flex items-center justify-center p-4 min-h-screen" style="background: linear-gradient(135deg, #14532d 0%, #166534 50%, #14532d 100%);">
       <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl w-full max-w-md p-8 border border-white/20 fade-in">
         <div class="text-center mb-6">
-          <div class="w-20 h-20 mx-auto mb-3 bg-brand-800 rounded-full flex items-center justify-center shadow-lg border border-white/20">
+          <div id="login-logo-container" class="w-20 h-20 mx-auto mb-3 bg-brand-800 rounded-full flex items-center justify-center shadow-lg border border-white/20">
             <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
               <circle cx="24" cy="24" r="20" stroke="white" stroke-width="2" />
               <path d="M24 12 L24 36 M16 20 L24 12 L32 20" stroke="white" stroke-width="2" fill="none" />
@@ -112,7 +154,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.5.3</p>
+          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.5.4</p>
         </div>
         
         <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
@@ -132,7 +174,7 @@
           </div>
           <div class="flex items-center justify-between text-xs">
             <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500"> 
+              <input type="checkbox" id="login-remember" checked class="rounded border-slate-300 text-brand-600 focus:ring-brand-500"> 
               <span>จดจำฉัน</span>
             </label>
             <a href="#" onclick="showToast('ระบบรองรับการเข้าสู่ระบบแบบรวดเร็วผ่านเมนูด้านล่างสำหรับการทดสอบ', 'info')" class="text-brand-700 hover:underline">ลืมรหัสผ่าน?</a>
@@ -140,29 +182,7 @@
           <button type="submit" class="w-full bg-brand-800 text-white py-3 rounded-lg font-semibold hover:bg-brand-700 shadow-md hover:shadow-lg transition">เข้าสู่ระบบ</button>
         </form>
 
-        <div class="relative my-6">
-          <div class="absolute inset-0 flex items-center" aria-hidden="true">
-            <div class="w-full border-t border-slate-200"></div>
-          </div>
-          <div class="relative flex justify-center text-xs uppercase">
-            <span class="bg-white px-2 text-slate-400">เข้าใช้งานแบบทดสอบด่วน (Quick Test)</span>
-          </div>
-        </div>
-
-        <div id="login-roles" class="grid grid-cols-3 gap-2">
-          <button onclick="loginAs('admin')" class="text-xs border border-brand-200 rounded-lg p-2.5 hover:bg-brand-50 text-center transition flex flex-col items-center">
-            <i data-lucide="shield" class="w-4 h-4 mb-1 text-brand-700"></i>
-            <span class="font-medium text-brand-900">แอดมิน</span>
-          </button>
-          <button onclick="loginAs('head')" class="text-xs border border-brand-200 rounded-lg p-2.5 hover:bg-brand-50 text-center transition flex flex-col items-center">
-            <i data-lucide="crown" class="w-4 h-4 mb-1 text-amber-600"></i>
-            <span class="font-medium text-brand-900">หัวหน้าเวร</span>
-          </button>
-          <button onclick="loginAs('teacher')" class="text-xs border border-brand-200 rounded-lg p-2.5 hover:bg-brand-50 text-center transition flex flex-col items-center">
-            <i data-lucide="user-check" class="w-4 h-4 mb-1 text-blue-600"></i>
-            <span class="font-medium text-brand-900">ครูเวร (ศราวุธ)</span>
-          </button>
-        </div>
+        <div id="quick-login-container"></div>
       </div>
     </div>
 
@@ -194,10 +214,10 @@
         <aside id="sidebar" class="w-64 bg-brand-900 text-white flex-shrink-0 hidden lg:flex flex-col border-r border-brand-950 shadow-xl z-25">
           <div class="p-4 border-b border-brand-850">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-sm font-bold shadow-inner">อซ</div>
+              <div id="sidebar-logo-container" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-sm font-bold shadow-inner">อซ</div>
               <div>
                 <p class="font-bold text-sm text-white" id="sidebar-school">ร.ร.มูลนิธิอาซิซสถาน</p>
-                <p class="text-[10px] text-brand-200 bg-brand-950/40 px-2 py-0.5 rounded-full inline-block mt-0.5">เวรวันอังคาร (ครูชาย)</p>
+                <p class="text-[10px] text-brand-200 bg-brand-950/40 px-2 py-0.5 rounded-full inline-block mt-0.5" id="sidebar-subtitle">เวรวันอังคาร (ครูชาย)</p>
               </div>
             </div>
           </div>
@@ -215,7 +235,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.3</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.4</div>
           </div>
         </aside>
 
@@ -292,9 +312,9 @@
       <aside id="sidebar-mobile" class="fixed left-0 top-0 h-full w-64 bg-brand-900 text-white z-50 transform -translate-x-full transition-transform lg:hidden flex flex-col shadow-2xl">
         <div class="p-4 border-b border-brand-850 flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-sm font-bold shadow-inner">อซ</div>
+            <div id="mobile-sidebar-logo-container" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-sm font-bold shadow-inner">อซ</div>
             <div>
-              <p class="font-bold text-sm">ร.ร.มูลนิธิอาซิซสถาน</p>
+              <p class="font-bold text-sm" id="mobile-sidebar-school">ร.ร.มูลนิธิอาซิซสถาน</p>
               <p class="text-[10px] text-brand-200" id="mobile-sidebar-subtitle">เวรวันอังคาร (ครูชาย)</p>
             </div>
           </div>
@@ -312,7 +332,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.3</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.4</div>
         </div>
       </aside>
     </div>
@@ -404,7 +424,10 @@
         dutyGroup: dbSett.duty_group || dbSett.dutyGroup || 'ครูชาย',
         defaultRadius: dbSett.default_radius !== undefined ? dbSett.default_radius : (dbSett.defaultRadius !== undefined ? dbSett.defaultRadius : 50),
         centerLat: dbSett.center_lat !== undefined ? dbSett.center_lat : (dbSett.centerLat !== undefined ? dbSett.centerLat : 6.787680),
-        centerLng: dbSett.center_lng !== undefined ? dbSett.center_lng : (dbSett.centerLng !== undefined ? dbSett.centerLng : 101.408120)
+        centerLng: dbSett.center_lng !== undefined ? dbSett.center_lng : (dbSett.centerLng !== undefined ? dbSett.centerLng : 101.408120),
+        systemLogo: dbSett.system_logo || dbSett.systemLogo || '',
+        systemTitle: dbSett.system_title || dbSett.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร',
+        systemColor: dbSett.system_color || dbSett.systemColor || '#14532d'
       };
     }
 
@@ -423,7 +446,10 @@
         duty_group: jsSett.dutyGroup || 'ครูชาย',
         default_radius: jsSett.defaultRadius !== undefined ? jsSett.defaultRadius : 50,
         center_lat: jsSett.centerLat !== undefined ? jsSett.centerLat : 6.787680,
-        center_lng: jsSett.centerLng !== undefined ? jsSett.centerLng : 101.408120
+        center_lng: jsSett.centerLng !== undefined ? jsSett.centerLng : 101.408120,
+        system_logo: jsSett.systemLogo || '',
+        system_title: jsSett.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร',
+        system_color: jsSett.systemColor || '#14532d'
       };
     }
 
@@ -483,7 +509,10 @@
       dutyGroup: 'ครูชาย',
       defaultRadius: 50,
       centerLat: 6.787680,
-      centerLng: 101.408120
+      centerLng: 101.408120,
+      systemLogo: '',
+      systemTitle: 'ระบบบันทึกและติดตามการปฏิบัติเวร',
+      systemColor: '#14532d'
     };
 
     // SQL code block template string
@@ -540,7 +569,10 @@ CREATE TABLE IF NOT EXISTS settings (
   duty_group TEXT DEFAULT 'ครูชาย',
   default_radius INTEGER DEFAULT 50,
   center_lat DOUBLE PRECISION DEFAULT 6.787680,
-  center_lng DOUBLE PRECISION DEFAULT 101.408120
+  center_lng DOUBLE PRECISION DEFAULT 101.408120,
+  system_logo TEXT,
+  system_title TEXT,
+  system_color TEXT
 );
 
 -- 5. ปิดการตั้งค่า RLS เพื่ออนุญาตให้เขียนอ่านตรงได้สำหรับเว็บสาธิตนี้
@@ -604,10 +636,13 @@ ALTER TABLE settings ADD COLUMN IF NOT EXISTS duty_group TEXT DEFAULT 'ครู
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_radius INTEGER DEFAULT 50;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS center_lat DOUBLE PRECISION DEFAULT 6.787680;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS center_lng DOUBLE PRECISION DEFAULT 101.408120;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_logo TEXT;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_title TEXT;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_color TEXT;
 
-INSERT INTO settings (id, school_name, head_name, director_name, line_token, telegram_token, telegram_chat_id, auto_notify_minutes, duty_day, duty_group, default_radius, center_lat, center_lng) VALUES
-('config', 'โรงเรียนมูลนิธิอาซิซสถาน', 'นาย ฮัมบาลี วาจิ', 'ดร.มูฮัมหมัด ซากี', '', '', '', 15, 'อังคาร', 'ครูชาย', 50, 6.787680, 101.408120)
-ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLUDED.head_name, director_name=EXCLUDED.director_name, duty_day=EXCLUDED.duty_day, duty_group=EXCLUDED.duty_group, default_radius=EXCLUDED.default_radius, center_lat=EXCLUDED.center_lat, center_lng=EXCLUDED.center_lng;
+INSERT INTO settings (id, school_name, head_name, director_name, line_token, telegram_token, telegram_chat_id, auto_notify_minutes, duty_day, duty_group, default_radius, center_lat, center_lng, system_logo, system_title, system_color) VALUES
+('config', 'โรงเรียนมูลนิธิอาซิซสถาน', 'นาย ฮัมบาลี วาจิ', 'ดร.มูฮัมหมัด ซากี', '', '', '', 15, 'อังคาร', 'ครูชาย', 50, 6.787680, 101.408120, NULL, 'ระบบบันทึกและติดตามการปฏิบัติเวร', '#14532d')
+ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLUDED.head_name, director_name=EXCLUDED.director_name, duty_day=EXCLUDED.duty_day, duty_group=EXCLUDED.duty_group, default_radius=EXCLUDED.default_radius, center_lat=EXCLUDED.center_lat, center_lng=EXCLUDED.center_lng, system_logo=EXCLUDED.system_logo, system_title=EXCLUDED.system_title, system_color=EXCLUDED.system_color;
 `;
 
     // Local DB backup
@@ -637,7 +672,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.5.3';
+    const APP_VERSION = '1.5.4';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -787,6 +822,9 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     // 3. AUTHENTICATION & NAVIGATION
     // =========================================================================
     
+    // Global schedule view selected day
+    let currentScheduleViewDay = null;
+
     function loginAs(role) {
       const teachers = db.getTeachers();
       if (role === 'admin') {
@@ -796,6 +834,12 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       } else {
         currentUser = teachers.find(t => t.id === 'T001') || teachers[0];
       }
+      
+      localStorage.setItem('wen_saved_account', JSON.stringify({
+        id: currentUser.id,
+        name: currentUser.name,
+        role: currentUser.role
+      }));
       
       document.getElementById('page-login').classList.add('hidden');
       document.getElementById('page-main').classList.remove('hidden');
@@ -818,7 +862,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     function handleLogin(e) {
       e.preventDefault();
       const loginId = document.getElementById('login-id').value.trim();
-      const loginPass = document.getElementById('login-password').value;
+      const loginPass = document.getElementById('login-pass').value;
       const teachers = db.getTeachers();
       
       // Find teacher matching ID or Phone
@@ -832,6 +876,13 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         }
 
         currentUser = matched;
+        
+        localStorage.setItem('wen_saved_account', JSON.stringify({
+          id: matched.id,
+          name: matched.name,
+          role: matched.role
+        }));
+
         document.getElementById('page-login').classList.add('hidden');
         document.getElementById('page-main').classList.remove('hidden');
         
@@ -863,7 +914,9 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       currentUser = null;
       document.getElementById('page-login').classList.remove('hidden');
       document.getElementById('page-main').classList.add('hidden');
+      document.getElementById('login-pass').value = '';
       if (sidebarOpen) toggleSidebar();
+      renderQuickLogin();
       showToast('ออกจากระบบเรียบร้อยแล้ว', 'info');
     }
 
@@ -878,6 +931,109 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       document.getElementById('sidebar-nav').innerHTML = html;
       document.getElementById('sidebar-nav-mobile').innerHTML = html;
       lucide.createIcons();
+    }
+
+    function renderQuickLogin() {
+      const container = document.getElementById('quick-login-container');
+      if (!container) return;
+
+      const savedStr = localStorage.getItem('wen_saved_account');
+      if (!savedStr) {
+        container.innerHTML = '';
+        return;
+      }
+
+      try {
+        const saved = JSON.parse(savedStr);
+        let roleName = 'ครูเวร';
+        let roleBadge = 'คร';
+        let badgeBg = 'bg-blue-600';
+        if (saved.role === 'admin') {
+          roleName = 'ผู้ดูแลระบบ';
+          roleBadge = 'แอด';
+          badgeBg = 'bg-red-650';
+        } else if (saved.role === 'head') {
+          roleName = 'หัวหน้าเวร';
+          roleBadge = 'หน';
+          badgeBg = 'bg-amber-500';
+        }
+
+        container.innerHTML = `
+          <div class="relative my-6">
+            <div class="absolute inset-0 flex items-center" aria-hidden="true">
+              <div class="w-full border-t border-slate-200"></div>
+            </div>
+            <div class="relative flex justify-center text-xs uppercase">
+              <span class="bg-white px-2 text-slate-400">เข้าใช้งานล่าสุด</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="loginAsSavedAccount()" class="flex-1 bg-brand-50 hover:bg-brand-100 text-brand-900 border border-brand-200 py-3 px-4 rounded-lg font-bold flex items-center justify-between transition shadow-sm group">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full ${badgeBg} text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm">
+                  ${roleBadge}
+                </div>
+                <div class="text-left">
+                  <p class="text-[10px] text-slate-500 font-normal">เข้าใช้งานต่อในชื่อ:</p>
+                  <p class="text-xs font-bold text-brand-900">${saved.name} (${roleName})</p>
+                </div>
+              </div>
+              <i data-lucide="arrow-right" class="w-4 h-4 text-brand-700 transition group-hover:translate-x-0.5"></i>
+            </button>
+            <button type="button" onclick="clearSavedAccount()" class="p-3 border border-red-200 hover:bg-red-50 text-red-650 hover:text-red-750 rounded-lg transition" title="ล้างประวัติการจำชื่อผู้ใช้">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        `;
+        lucide.createIcons();
+      } catch (e) {
+        console.error("Failed to parse saved account:", e);
+        localStorage.removeItem('wen_saved_account');
+        container.innerHTML = '';
+      }
+    }
+
+    function loginAsSavedAccount() {
+      const savedStr = localStorage.getItem('wen_saved_account');
+      if (!savedStr) return;
+      try {
+        const saved = JSON.parse(savedStr);
+        const teachers = db.getTeachers();
+        const matched = teachers.find(t => t.id === saved.id);
+        if (matched) {
+          currentUser = matched;
+          document.getElementById('page-login').classList.add('hidden');
+          document.getElementById('page-main').classList.remove('hidden');
+          
+          document.getElementById('user-role-badge').textContent = 
+            currentUser.role === 'admin' ? 'ผู้ดูแลระบบ' : currentUser.role === 'head' ? 'หัวหน้าเวร' : 'ครูเวร';
+          
+          const badge = document.getElementById('user-role-badge');
+          badge.className = "text-[9px] px-2 py-0.5 rounded-full font-bold " + 
+            (currentUser.role === 'admin' ? 'bg-red-100 text-red-800' : currentUser.role === 'head' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800');
+            
+          document.getElementById('user-name').textContent = currentUser.name;
+          
+          buildSidebar();
+          updateDynamicTitles();
+          navigateTo(currentUser.role === 'teacher' ? 'my-duty' : 'dashboard');
+          showToast(`เข้าใช้งานต่อในชื่อ: ${currentUser.name} สำเร็จ`, 'success');
+        } else {
+          showToast('ไม่พบข้อมูลครูนี้ในระบบ กรุณาล็อกอินใหม่', 'error');
+          localStorage.removeItem('wen_saved_account');
+          renderQuickLogin();
+        }
+      } catch (e) {
+        console.error(e);
+        localStorage.removeItem('wen_saved_account');
+        renderQuickLogin();
+      }
+    }
+
+    function clearSavedAccount() {
+      localStorage.removeItem('wen_saved_account');
+      renderQuickLogin();
+      showToast('ล้างข้อมูลเข้าสู่ระบบล่าสุดแล้ว', 'info');
     }
 
     function toggleSidebar() {
@@ -1061,7 +1217,21 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
                 <tbody class="divide-y divide-slate-150">
                   ${points.flatMap(p => {
                     const assignedList = p.assignedTo || p.assigned_to || [];
-                    return assignedList.map(teacherId => {
+                    const todayDay = getTodayThaiDayName();
+                    const settings = db.getSettings();
+                    const defaultDay = settings.dutyDay || 'อังคาร';
+                    
+                    const todayAssigned = assignedList.filter(item => {
+                      if (item.includes(':')) {
+                        const [itemDay, itemTeacherId] = item.split(':');
+                        return itemDay === todayDay;
+                      } else {
+                        return todayDay === defaultDay;
+                      }
+                    });
+
+                    return todayAssigned.map(item => {
+                      const teacherId = item.includes(':') ? item.split(':')[1] : item;
                       const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
                       const status = rep ? rep.status : 'not_reported';
                       
@@ -1091,7 +1261,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
                                 <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                               </button>
                             ` : `
-                              <button onclick="triggerSimulatedTeacherReport('${p.id}', '${teacherId}')" class="text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-0.5" title="จำลองการลงทะเบียนเวร">
+                              <button onclick="triggerSimulatedTeacherReport('${p.id}', '${teacherId}')" class="text-blue-650 hover:text-blue-850 font-bold inline-flex items-center gap-0.5" title="จำลองการลงทะเบียนเวร">
                                 <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
                               </button>
                             `}
@@ -1108,7 +1278,21 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
             <div class="block md:hidden p-4 space-y-3 bg-slate-50" id="dashboard-mobile-list">
               ${points.flatMap(p => {
                 const assignedList = p.assignedTo || p.assigned_to || [];
-                return assignedList.map(teacherId => {
+                const todayDay = getTodayThaiDayName();
+                const settings = db.getSettings();
+                const defaultDay = settings.dutyDay || 'อังคาร';
+                
+                const todayAssigned = assignedList.filter(item => {
+                  if (item.includes(':')) {
+                    const [itemDay, itemTeacherId] = item.split(':');
+                    return itemDay === todayDay;
+                  } else {
+                    return todayDay === defaultDay;
+                  }
+                });
+
+                return todayAssigned.map(item => {
+                  const teacherId = item.includes(':') ? item.split(':')[1] : item;
                   const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
                   const status = rep ? rep.status : 'not_reported';
                   
@@ -1192,22 +1376,41 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     function renderScheduleView() {
       const points = db.getDutyPoints();
       const teachers = db.getTeachers();
+      const settings = db.getSettings();
+      
+      if (!currentScheduleViewDay) {
+        currentScheduleViewDay = settings.dutyDay || 'อังคาร';
+      }
 
       return `
         <div class="fade-in space-y-6">
-          <div class="flex justify-between items-center border-b pb-4">
+          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b pb-4 gap-4">
             <div>
               <h3 class="text-lg font-bold text-slate-900">จัดการตารางปฏิบัติหน้าที่เวร</h3>
               <p class="text-xs text-slate-500 mt-1">มอบหมายตำแหน่งตรวจเวรตามตารางคุณครูประจำสัปดาห์</p>
             </div>
-            <button onclick="showToast('เชื่อมโยงและบันทึกตารางลง Supabase แล้ว', 'success')" class="bg-brand-850 text-white text-xs px-3 py-2 rounded-lg hover:bg-brand-700 transition flex items-center gap-1 shadow-sm font-semibold">
-              <i data-lucide="save" class="w-4 h-4"></i> บันทึกตารางเวรหลัก
-            </button>
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="flex items-center gap-2">
+                <span class="text-slate-500 font-bold text-xs">เลือกวันประจำสัปดาห์:</span>
+                <select id="schedule-day-filter" onchange="onScheduleDayChange(this.value)" class="border rounded-lg p-2 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-semibold bg-white text-xs">
+                  <option value="จันทร์" ${currentScheduleViewDay === 'จันทร์' ? 'selected' : ''}>วันจันทร์</option>
+                  <option value="อังคาร" ${currentScheduleViewDay === 'อังคาร' ? 'selected' : ''}>วันอังคาร</option>
+                  <option value="พุธ" ${currentScheduleViewDay === 'พุธ' ? 'selected' : ''}>วันพุธ</option>
+                  <option value="พฤหัสบดี" ${currentScheduleViewDay === 'พฤหัสบดี' ? 'selected' : ''}>วันพฤหัสบดี</option>
+                  <option value="ศุกร์" ${currentScheduleViewDay === 'ศุกร์' ? 'selected' : ''}>วันศุกร์</option>
+                  <option value="เสาร์" ${currentScheduleViewDay === 'เสาร์' ? 'selected' : ''}>วันเสาร์</option>
+                  <option value="อาทิตย์" ${currentScheduleViewDay === 'อาทิตย์' ? 'selected' : ''}>วันอาทิตย์</option>
+                </select>
+              </div>
+              <button onclick="showToast('เชื่อมโยงและบันทึกตารางลง Supabase แล้ว', 'success')" class="bg-brand-850 text-white text-xs px-3 py-2 rounded-lg hover:bg-brand-700 transition flex items-center gap-1 shadow-sm font-semibold">
+                <i data-lucide="save" class="w-4 h-4"></i> บันทึกตารางเวรหลัก
+              </button>
+            </div>
           </div>
 
           <div class="bg-white border rounded-xl shadow-sm overflow-hidden text-xs">
             <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-              <span class="font-bold text-slate-950">จุดเวรวันอังคารของคณะครูชาย</span>
+              <span class="font-bold text-slate-950">จุดเวรวัน${currentScheduleViewDay}ของคณะ${settings.dutyGroup || 'ครูชาย'}</span>
               <span class="bg-green-100 text-green-800 text-[10px] px-2 py-0.5 rounded-full font-bold">ตารางปัจจุบัน</span>
             </div>
             <div class="overflow-x-auto">
@@ -1224,6 +1427,22 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
                 <tbody class="divide-y">
                   ${points.map(p => {
                     const assignedList = p.assignedTo || p.assigned_to || [];
+                    
+                    const dayTeachers = [];
+                    assignedList.forEach(item => {
+                      if (item.includes(':')) {
+                        const [itemDay, itemTeacherId] = item.split(':');
+                        if (itemDay === currentScheduleViewDay) {
+                          dayTeachers.push(itemTeacherId);
+                        }
+                      } else {
+                        const defaultDay = settings.dutyDay || 'อังคาร';
+                        if (currentScheduleViewDay === defaultDay) {
+                          dayTeachers.push(item);
+                        }
+                      }
+                    });
+
                     return `
                       <tr class="hover:bg-slate-50 transition">
                         <td class="px-4 py-3 text-center font-bold text-slate-700">จุดที่ ${p.id}</td>
@@ -1231,14 +1450,14 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
                         <td class="px-4 py-3 text-slate-500">${p.time} น.</td>
                         <td class="px-4 py-3 font-bold text-brand-950">
                           <div class="flex flex-wrap gap-1.5">
-                            ${assignedList.map(teacherId => `
+                            ${dayTeachers.map(teacherId => `
                               <span class="bg-brand-50 text-brand-900 border border-brand-200 px-2 py-1 rounded flex items-center gap-1">
                                 <span>${getTeacherName(teacherId)}</span>
                                 <button onclick="removeTeacherFromPoint(${p.id}, '${teacherId}')" class="text-red-500 hover:text-red-700 hover:bg-slate-100 rounded-full w-4 h-4 flex items-center justify-center font-bold">×</button>
                               </span>
                             `).join('')}
                             <button onclick="openAddTeacherToPointModal(${p.id})" class="border border-dashed border-slate-300 hover:border-brand-500 text-slate-500 hover:text-brand-700 px-2 py-1 rounded flex items-center gap-1 transition">
-                              <i data-lucide="plus" class="w-3 h-3"></i> มอบหมายเวร
+                              <i data-lucide="plus" class="w-3.5 h-3.5"></i> มอบหมายเวร
                             </button>
                           </div>
                         </td>
@@ -1572,7 +1791,23 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
               <tbody>
                 ${points.flatMap((p, idx) => {
                   const assignedList = p.assignedTo || p.assigned_to || [];
-                  return assignedList.map((teacherId, tIdx) => {
+                  const todayDay = getTodayThaiDayName();
+                  const settings = db.getSettings();
+                  const defaultDay = settings.dutyDay || 'อังคาร';
+                  
+                  const todayAssigned = assignedList.filter(item => {
+                    if (item.includes(':')) {
+                      const [itemDay, itemTeacherId] = item.split(':');
+                      return itemDay === todayDay;
+                    } else {
+                      return todayDay === defaultDay;
+                    }
+                  });
+
+                  if (todayAssigned.length === 0) return [];
+
+                  return todayAssigned.map((item, tIdx) => {
+                    const teacherId = item.includes(':') ? item.split(':')[1] : item;
                     const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
                     const teacher = db.getTeachers().find(t => t.id === teacherId);
                     
@@ -1607,9 +1842,9 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
                     return `
                       <tr>
                         ${tIdx === 0 ? `
-                          <td class="border border-slate-400 px-2 py-2 text-center font-bold" rowspan="${assignedList.length}">${p.id}</td>
-                          <td class="border border-slate-400 px-3 py-2 font-bold text-slate-800" rowspan="${assignedList.length}">${p.name}</td>
-                          <td class="border border-slate-400 px-2 py-2 text-center text-slate-700" rowspan="${assignedList.length}">${p.time} น.</td>
+                          <td class="border border-slate-400 px-2 py-2 text-center font-bold" rowspan="${todayAssigned.length}">${p.id}</td>
+                          <td class="border border-slate-400 px-3 py-2 font-bold text-slate-800" rowspan="${todayAssigned.length}">${p.name}</td>
+                          <td class="border border-slate-400 px-2 py-2 text-center text-slate-700" rowspan="${todayAssigned.length}">${p.time} น.</td>
                         ` : ''}
                         <td class="border border-slate-400 px-3 py-2">${getTeacherName(teacherId)}</td>
                         <td class="border border-slate-400 px-3 py-2">
@@ -1649,9 +1884,23 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       const reports = db.getReports().filter(r => r.date === getTodayISODate());
 
       const unReports = [];
+      const todayDay = getTodayThaiDayName();
+      const settings = db.getSettings();
+      const defaultDay = settings.dutyDay || 'อังคาร';
+
       points.forEach(p => {
         const assignedList = p.assignedTo || p.assigned_to || [];
-        assignedList.forEach(teacherId => {
+        const todayAssigned = assignedList.filter(item => {
+          if (item.includes(':')) {
+            const [itemDay, itemTeacherId] = item.split(':');
+            return itemDay === todayDay;
+          } else {
+            return todayDay === defaultDay;
+          }
+        });
+
+        todayAssigned.forEach(item => {
+          const teacherId = item.includes(':') ? item.split(':')[1] : item;
           const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
           if (!rep) {
             unReports.push({ point: p, teacherId: teacherId, teacherName: getTeacherName(teacherId) });
@@ -1751,9 +2000,23 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       const reports = db.getReports().filter(r => r.date === getTodayISODate());
 
       const unReports = [];
+      const todayDay = getTodayThaiDayName();
+      const settings = db.getSettings();
+      const defaultDay = settings.dutyDay || 'อังคาร';
+
       points.forEach(p => {
         const assignedList = p.assignedTo || p.assigned_to || [];
-        assignedList.forEach(teacherId => {
+        const todayAssigned = assignedList.filter(item => {
+          if (item.includes(':')) {
+            const [itemDay, itemTeacherId] = item.split(':');
+            return itemDay === todayDay;
+          } else {
+            return todayDay === defaultDay;
+          }
+        });
+
+        todayAssigned.forEach(item => {
+          const teacherId = item.includes(':') ? item.split(':')[1] : item;
           const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
           if (!rep) {
             unReports.push({ point: p, teacherId: teacherId, teacherName: getTeacherName(teacherId) });
@@ -1788,9 +2051,23 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       const reports = db.getReports().filter(r => r.date === getTodayISODate());
 
       const unReports = [];
+      const todayDay = getTodayThaiDayName();
+      const settings = db.getSettings();
+      const defaultDay = settings.dutyDay || 'อังคาร';
+
       points.forEach(p => {
         const assignedList = p.assignedTo || p.assigned_to || [];
-        assignedList.forEach(teacherId => {
+        const todayAssigned = assignedList.filter(item => {
+          if (item.includes(':')) {
+            const [itemDay, itemTeacherId] = item.split(':');
+            return itemDay === todayDay;
+          } else {
+            return todayDay === defaultDay;
+          }
+        });
+
+        todayAssigned.forEach(item => {
+          const teacherId = item.includes(':') ? item.split(':')[1] : item;
           const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
           if (!rep) {
             unReports.push({ point: p, teacherId: teacherId, teacherName: getTeacherName(teacherId) });
@@ -1971,14 +2248,19 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
             line_token: settings.lineToken,
             telegram_token: settings.telegramToken,
             telegram_chat_id: settings.telegramChatId,
-            auto_notify_minutes: settings.autoNotifyMinutes
+            auto_notify_minutes: settings.autoNotifyMinutes,
+            duty_day: settings.dutyDay,
+            duty_group: settings.dutyGroup,
+            default_radius: settings.defaultRadius,
+            center_lat: settings.centerLat,
+            center_lng: settings.centerLng
           };
           const fallbackResult = await supabaseClient.from('settings').upsert(baseDbSettings);
           if (fallbackResult.error) {
             console.error("Base settings upsert failed:", fallbackResult.error);
             showToast('ไม่สามารถเชื่อมต่อบันทึกข้อมูลตั้งค่าบน Supabase ได้', 'error');
           } else {
-            showToast('บันทึกข้อมูลตั้งค่าหลักลงระบบคลาวด์แล้ว (ข้อมูลการจำลองบันทึกเฉพาะที่เครื่องนี้)', 'warning');
+            showToast('บันทึกข้อมูลตั้งค่าหลักลงระบบคลาวด์แล้ว (การปรับเปลี่ยนตกแต่งจำลองเฉพาะที่เครื่องนี้)', 'warning');
           }
         } else {
           showToast('อัปเดตระบบคลาวด์และบันทึกการตั้งค่าเสร็จสิ้น', 'success');
@@ -1994,7 +2276,21 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     // H. MY DUTY VIEW (Teacher View)
     function renderMyDutyView() {
       const points = db.getDutyPoints();
-      const myPoints = points.filter(p => (p.assignedTo || p.assigned_to || []).includes(currentUser.id));
+      const todayDay = getTodayThaiDayName();
+      const settings = db.getSettings();
+      const defaultDay = settings.dutyDay || 'อังคาร';
+
+      const myPoints = points.filter(p => {
+        const list = p.assignedTo || p.assigned_to || [];
+        return list.some(item => {
+          if (item.includes(':')) {
+            const [itemDay, itemTeacherId] = item.split(':');
+            return itemDay === todayDay && itemTeacherId === currentUser.id;
+          } else {
+            return todayDay === defaultDay && item === currentUser.id;
+          }
+        });
+      });
       const reports = db.getReports().filter(r => r.date === getTodayISODate() && r.teacherId === currentUser.id);
 
       return `
@@ -2004,7 +2300,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
             <div>
               <p class="text-brand-200">สวัสดีครับคุณครูผู้ปฏิบัติหน้าที่</p>
               <h3 class="text-base font-bold mt-1">${currentUser.name} (รหัส: ${currentUser.id})</h3>
-              <p class="text-[10px] text-brand-100 mt-0.5">มีจุดตรวจดูแลความปลอดภัยที่ต้องลงบันทึก <b>${myPoints.length}</b> จุดเวรในวันนี้</p>
+              <p class="text-[10px] text-brand-100 mt-0.5">มีจุดตรวจดูแลความปลอดภัยที่ต้องลงบันทึก <b>${myPoints.length}</b> จุดเวรในวันนี้ (เวรวัน${todayDay})</p>
             </div>
             <div class="flex items-center gap-2">
               <span class="text-[10px] text-brand-200">พิกัดปัจจุบัน:</span>
@@ -2347,11 +2643,24 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     function exportToExcel() {
       const reports = db.getReports().filter(r => r.date === getTodayISODate());
       const points = db.getDutyPoints();
+      const todayDay = getTodayThaiDayName();
+      const settings = db.getSettings();
+      const defaultDay = settings.dutyDay || 'อังคาร';
       
       const rows = [];
       points.forEach(p => {
         const assignedList = p.assignedTo || p.assigned_to || [];
-        assignedList.forEach(teacherId => {
+        const todayAssigned = assignedList.filter(item => {
+          if (item.includes(':')) {
+            const [itemDay, itemTeacherId] = item.split(':');
+            return itemDay === todayDay;
+          } else {
+            return todayDay === defaultDay;
+          }
+        });
+
+        todayAssigned.forEach(item => {
+          const teacherId = item.includes(':') ? item.split(':')[1] : item;
           const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
           rows.push({
             'จุดเวร': `จุดที่ ${p.id}`,
@@ -2371,7 +2680,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "รายงานตรวจเวรประจำวัน");
       
-      const filename = `รายงานตรวจเวรประจำวัน_วันอังคาร_${getTodayISODate()}.xlsx`;
+      const filename = `รายงานตรวจเวรประจำวัน_วัน${todayDay}_${getTodayISODate()}.xlsx`;
       XLSX.writeFile(wb, filename);
       showToast('ดาวน์โหลดเอกสาร Excel เรียบร้อยแล้ว', 'success');
     }
@@ -2503,27 +2812,37 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       return d.toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     }
 
+    function getTodayThaiDayName() {
+      const dayStr = new Date().toLocaleDateString('th-TH', { weekday: 'long' });
+      return dayStr.replace(/^วัน/, '');
+    }
+
     function getTeacherName(id) {
-      const t = db.getTeachers().find(x => x.id === id);
-      return t ? t.name : id;
+      let cleanId = id;
+      let prefix = '';
+      if (id && id.includes(':')) {
+        const parts = id.split(':');
+        prefix = `(${parts[0]}) `;
+        cleanId = parts[1];
+      }
+      const t = db.getTeachers().find(x => x.id === cleanId);
+      return t ? `${prefix}${t.name}` : id;
     }
 
     // =========================================================================
     // 8. ON STARTUP & INITIAL EVENTS LOADING
     // =========================================================================
     window.addEventListener('load', () => {
-      // Sync mock coordinates focus to settings center coordinates on startup
       const settings = db.getSettings();
       mockLatitude = settings.centerLat || mockLatitude;
       mockLongitude = settings.centerLng || mockLongitude;
 
-      // Initialize Supabase Online connection
       initSupabase();
       updateDynamicTitles();
+      renderQuickLogin();
       lucide.createIcons();
       updateNotificationLogsUI();
 
-      // Initialize GPS/Simulation coordinates & trigger permission request
       changeGPSSimulation();
     });
 
@@ -2753,7 +3072,18 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       const pt = points.find(p => p.id === pointId);
       if (pt) {
         const assignedList = pt.assignedTo || pt.assigned_to || [];
-        pt.assignedTo = assignedList.filter(id => id !== teacherId);
+        const settings = db.getSettings();
+        const defaultDay = settings.dutyDay || 'อังคาร';
+
+        pt.assignedTo = assignedList.filter(item => {
+          if (item.includes(':')) {
+            const [itemDay, itemTeacherId] = item.split(':');
+            return !(itemDay === currentScheduleViewDay && itemTeacherId === teacherId);
+          } else {
+            return !(currentScheduleViewDay === defaultDay && item === teacherId);
+          }
+        });
+
         saveDutyPointsDB(points);
         renderPage('schedule');
         showToast('ลบครูผู้รับผิดชอบเวรออกแล้ว', 'success');
@@ -2775,7 +3105,24 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       const teachers = db.getTeachers();
 
       const assignedList = pt.assignedTo || pt.assigned_to || [];
-      const nonAssigned = teachers.filter(t => !assignedList.includes(t.id));
+      const settings = db.getSettings();
+      const defaultDay = settings.dutyDay || 'อังคาร';
+
+      const assignedOnThisDay = [];
+      assignedList.forEach(item => {
+        if (item.includes(':')) {
+          const [itemDay, itemTeacherId] = item.split(':');
+          if (itemDay === currentScheduleViewDay) {
+            assignedOnThisDay.push(itemTeacherId);
+          }
+        } else {
+          if (currentScheduleViewDay === defaultDay) {
+            assignedOnThisDay.push(item);
+          }
+        }
+      });
+
+      const nonAssigned = teachers.filter(t => !assignedOnThisDay.includes(t.id));
       const select = document.getElementById('select-new-teacher-opt');
       
       document.getElementById('add-teacher-point-id').value = pointId;
@@ -2807,11 +3154,26 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       const pt = points.find(p => p.id === pointId);
       if (pt) {
         if (!pt.assignedTo) pt.assignedTo = pt.assigned_to || [];
-        pt.assignedTo.push(teacherId);
+        
+        const settings = db.getSettings();
+        if (!currentScheduleViewDay) {
+          currentScheduleViewDay = settings.dutyDay || 'อังคาร';
+        }
+        pt.assignedTo.push(`${currentScheduleViewDay}:${teacherId}`);
+        
         saveDutyPointsDB(points);
         closeAddTeacherModal();
         renderPage('schedule');
         showToast('แต่งตั้งครูเข้าคุมจุดเวรเรียบร้อย', 'success');
+      }
+    }
+
+    function onScheduleDayChange(val) {
+      currentScheduleViewDay = val;
+      const mc = document.getElementById('main-content');
+      if (mc) {
+        mc.innerHTML = renderScheduleView();
+        lucide.createIcons();
       }
     }
 
@@ -2991,7 +3353,12 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         const points = db.getDutyPoints();
         points.forEach(p => {
           const assignedList = p.assignedTo || p.assigned_to || [];
-          p.assignedTo = assignedList.filter(id => id !== teacherId);
+          p.assignedTo = assignedList.filter(item => {
+            if (item.includes(':')) {
+              return item.split(':')[1] !== teacherId;
+            }
+            return item !== teacherId;
+          });
         });
         saveDutyPointsDB(points);
 
@@ -3152,8 +3519,65 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       updateGmapsModalLink();
     }
 
+    function renderSystemLogos(settings) {
+      const loginLogo = document.getElementById('login-logo-container');
+      const sidebarLogo = document.getElementById('sidebar-logo-container');
+      const mobileLogo = document.getElementById('mobile-sidebar-logo-container');
+      
+      if (settings && settings.systemLogo) {
+        if (loginLogo) loginLogo.innerHTML = `<img src="${settings.systemLogo}" class="w-full h-full object-cover rounded-full" alt="logo">`;
+        if (sidebarLogo) sidebarLogo.innerHTML = `<img src="${settings.systemLogo}" class="w-full h-full object-cover rounded-full" alt="logo">`;
+        if (mobileLogo) mobileLogo.innerHTML = `<img src="${settings.systemLogo}" class="w-full h-full object-cover rounded-full" alt="logo">`;
+      } else {
+        if (loginLogo) {
+          loginLogo.innerHTML = `
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <circle cx="24" cy="24" r="20" stroke="white" stroke-width="2" />
+              <path d="M24 12 L24 36 M16 20 L24 12 L32 20" stroke="white" stroke-width="2" fill="none" />
+              <text x="24" y="34" text-anchor="middle" fill="white" font-size="8" font-weight="bold">อซ</text>
+            </svg>
+          `;
+        }
+        if (sidebarLogo) sidebarLogo.innerHTML = 'อซ';
+        if (mobileLogo) mobileLogo.innerHTML = 'อซ';
+      }
+    }
+
+    function handleSystemLogoUpload(input) {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        compressImageFile(file, 120, 120, 0.7, (compressedBase64) => {
+          document.getElementById('sett-system-logo-base64').value = compressedBase64;
+          const previewDiv = document.getElementById('settings-logo-preview');
+          if (previewDiv) {
+            previewDiv.innerHTML = `<img src="${compressedBase64}" class="w-full h-full object-cover">`;
+          }
+          showToast('ประมวลผลรูปโลโก้เรียบร้อยแล้ว', 'success');
+        });
+      }
+    }
+
     function updateDynamicTitles() {
       const settings = db.getSettings();
+
+      // Apply brand theme color
+      if (settings.systemColor) {
+        document.documentElement.style.setProperty('--brand-color', settings.systemColor);
+      } else {
+        document.documentElement.style.setProperty('--brand-color', '#14532d');
+      }
+
+      // Apply system logo
+      renderSystemLogos(settings);
+
+      // Document title
+      document.title = `${settings.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร'} | ${settings.schoolName || 'โรงเรียนมูลนิธิอาซิซสถาน'}`;
+
+      const loginTitle = document.getElementById('login-title');
+      if (loginTitle) {
+        loginTitle.textContent = settings.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร';
+      }
+
       const loginSubtitle = document.getElementById('login-subtitle');
       if (loginSubtitle) {
         loginSubtitle.textContent = `เวรวัน${settings.dutyDay || 'อังคาร'} ${settings.dutyGroup || 'ครูชาย'} ${settings.schoolName || 'โรงเรียนมูลนิธิอาซิซสถาน'}`;
@@ -3176,6 +3600,11 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       const mobileHeaderSchool = document.getElementById('mobile-header-school');
       if (mobileHeaderSchool) {
         mobileHeaderSchool.textContent = settings.schoolName || 'ร.ร.มูลนิธิอาซิซสถาน';
+      }
+
+      const mobileSidebarSchool = document.getElementById('mobile-sidebar-school');
+      if (mobileSidebarSchool) {
+        mobileSidebarSchool.textContent = settings.schoolName || 'ร.ร.มูลนิธิอาซิซสถาน';
       }
     }
 
@@ -3457,7 +3886,21 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       }
 
       const points = db.getDutyPoints();
-      const myPoints = points.filter(p => (p.assignedTo || p.assigned_to || []).includes(currentUser.id));
+      const todayDay = getTodayThaiDayName();
+      const settings = db.getSettings();
+      const defaultDay = settings.dutyDay || 'อังคาร';
+      
+      const myPoints = points.filter(p => {
+        const list = p.assignedTo || p.assigned_to || [];
+        return list.some(item => {
+          if (item.includes(':')) {
+            const [itemDay, itemTeacherId] = item.split(':');
+            return itemDay === todayDay && itemTeacherId === currentUser.id;
+          } else {
+            return todayDay === defaultDay && item === currentUser.id;
+          }
+        });
+      });
 
       myPoints.forEach(p => {
         const spanDist = document.getElementById(`my-distance-check-${p.id}`);
