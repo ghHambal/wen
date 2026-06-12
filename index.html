@@ -451,7 +451,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.7.2';
+    const APP_VERSION = '1.7.3';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -4205,6 +4205,8 @@
           radius: p.radius
         }).addTo(currentMapInstance);
       });
+
+      setTimeout(() => currentMapInstance.invalidateSize(), 150);
     }
 
     function focusOnPointInMap(lat, lng, radius, name) {
