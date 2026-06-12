@@ -436,6 +436,8 @@
         systemLogo: dbSett.system_logo || dbSett.systemLogo || local.systemLogo || '',
         systemTitle: dbSett.system_title || dbSett.systemTitle || local.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร',
         systemColor: dbSett.system_color || dbSett.systemColor || local.systemColor || '#14532d',
+        weekStartDate: dbSett.week_start_date || dbSett.weekStartDate || local.weekStartDate || '',
+        totalWeeks: dbSett.total_weeks !== undefined && dbSett.total_weeks !== null ? dbSett.total_weeks : (dbSett.totalWeeks !== undefined && dbSett.totalWeeks !== null ? dbSett.totalWeeks : (local.totalWeeks || 20)),
         headsOfDay: parsedHeads
       };
     }
@@ -457,6 +459,8 @@
         system_logo: jsSett.systemLogo || '',
         system_title: jsSett.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร',
         system_color: jsSett.systemColor || '#14532d',
+        week_start_date: jsSett.weekStartDate || null,
+        total_weeks: jsSett.totalWeeks !== undefined ? jsSett.totalWeeks : 20,
         heads_of_day: jsSett.headsOfDay ? (typeof jsSett.headsOfDay === 'object' ? JSON.stringify(jsSett.headsOfDay) : jsSett.headsOfDay) : '{}'
       };
     }
@@ -488,7 +492,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.11.0';
+    const APP_VERSION = '1.12.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -2630,6 +2634,8 @@
       const points = db.getDutyPoints();
       if (!currentDocumentsDate) currentDocumentsDate = getTodayISODate();
       const docDay = getThaiDayNameForDate(currentDocumentsDate);
+      const docDateThai = getTodayThaiFullDate(currentDocumentsDate + 'T00:00:00');
+      const weekNum = getWeekNumber(currentDocumentsDate, settings);
       const reports = db.getReports().filter(r => r.date === currentDocumentsDate);
 
       const malePoints = points.filter(p => (p.dutyGroup || 'ครูชาย') === 'ครูชาย');
@@ -2657,42 +2663,8 @@
             </div>
           </div>
 
-          <!-- Document Box -->
-          <div class="bg-white border rounded-xl shadow-lg p-6 md:p-12 max-w-4xl mx-auto print-container text-black" style="font-family: 'Sarabun', sans-serif;">
-
-            <div class="text-center space-y-2 mb-8">
-              <div class="w-16 h-16 mx-auto bg-brand-850 rounded-full flex items-center justify-center text-white font-bold text-base border-2 border-brand-900">
-                อซ
-              </div>
-              <h2 class="text-base font-bold">${settings.schoolName}</h2>
-              <p class="text-[11px] text-slate-600">รายงานผลการปฏิบัติหน้าที่เวรประจำวัน</p>
-              <h3 class="text-xs font-bold text-slate-800">วัน${docDay}</h3>
-              <p class="text-[10px] text-slate-400">วันที่ตรวจเวร: ${getTodayThaiFullDate(currentDocumentsDate + 'T00:00:00')}</p>
-            </div>
-
-            ${renderDutyReportTable('ครูชาย', malePoints, docDay, reports)}
-            ${renderDutyReportTable('ครูหญิง', femalePoints, docDay, reports)}
-
-            <!-- Foot signatures -->
-            <div class="mt-12 grid grid-cols-3 gap-8 text-center text-[10px]">
-              <div class="space-y-1">
-                <p>ลงชื่อ.......................................................... หัวหน้าเวรประจำวัน</p>
-                <p class="font-bold text-slate-800">${dailyHeadName ? `(${dailyHeadName})` : '(..........................................)'}</p>
-                <p class="text-slate-400">หัวหน้าเวรประจำวัน${docDay}</p>
-              </div>
-              <div class="space-y-1">
-                <p>ลงชื่อ.......................................................... หัวหน้าเวร</p>
-                <p class="font-bold text-slate-800">(${settings.headName})</p>
-                <p class="text-slate-400">ผู้ประมวลใบเวร</p>
-              </div>
-              <div class="space-y-1">
-                <p>ลงชื่อ.......................................................... ผู้อำนวยการ</p>
-                <p class="font-bold text-slate-800">(${settings.directorName})</p>
-                <p class="text-slate-400">ผู้อำนวยการ${settings.schoolName}</p>
-              </div>
-            </div>
-
-          </div>
+          ${renderDutyReportPage('ครูชาย', malePoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName)}
+          ${renderDutyReportPage('ครูหญิง', femalePoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName)}
         </div>
       `;
     }
@@ -2731,8 +2703,8 @@
             const sigSrc = rep.signature || (teacher ? teacher.signature : null);
             if (sigSrc) {
               sigMarkup = `
-                <div class="mt-1.5 text-center">
-                  <img src="${sigSrc}" class="max-h-7 mx-auto border rounded bg-white p-0.5" alt="Signature">
+                <div class="mt-1 text-center">
+                  <img src="${sigSrc}" class="max-h-5 mx-auto border rounded bg-white p-0.5" alt="Signature">
                   <span class="text-[8px] text-slate-400 block mt-0.5">ลงชื่อแล้วเวลา ${rep.time} น.</span>
                 </div>
               `;
@@ -2747,12 +2719,12 @@
           return `
             <tr>
               ${tIdx === 0 ? `
-                <td class="border border-slate-400 px-2 py-2 text-center font-bold" rowspan="${dayAssigned.length}">${getDutyPointDisplayNumber(p)}</td>
-                <td class="border border-slate-400 px-3 py-2 font-bold text-slate-800" rowspan="${dayAssigned.length}">${p.name}</td>
-                <td class="border border-slate-400 px-2 py-2 text-center text-slate-700" rowspan="${dayAssigned.length}">${p.time} น.</td>
+                <td class="border border-slate-400 px-1.5 py-1 text-center font-bold" rowspan="${dayAssigned.length}">${getDutyPointDisplayNumber(p)}</td>
+                <td class="border border-slate-400 px-2 py-1 font-bold text-slate-800" rowspan="${dayAssigned.length}">${p.name}</td>
+                <td class="border border-slate-400 px-1.5 py-1 text-center text-slate-700" rowspan="${dayAssigned.length}">${p.time} น.</td>
               ` : ''}
-              <td class="border border-slate-400 px-3 py-2">${getTeacherName(teacherId)}</td>
-              <td class="border border-slate-400 px-3 py-2">
+              <td class="border border-slate-400 px-2 py-1">${getTeacherName(teacherId)}</td>
+              <td class="border border-slate-400 px-2 py-1">
                 <p class="text-slate-700 leading-relaxed">${resultText}</p>
                 ${sigMarkup}
               </td>
@@ -2762,28 +2734,59 @@
       });
     }
 
-    // สร้างตารางรายงานเวรของกลุ่ม (เวรครูชาย/เวรครูหญิง) พร้อมหัวข้อ - คืนค่าว่างถ้าไม่มีจุดที่ต้องรายงานในวันนั้น
-    function renderDutyReportTable(groupLabel, groupPoints, docDay, reports) {
+    // สร้างเอกสารรายงาน 1 หน้า (A4) ของกลุ่มเวรที่กำหนด พร้อมหัวกระดาษ (โลโก้+ชื่อ ร.ร.+คำอธิบาย วัน/สัปดาห์),
+    // ตารางจุดเวร และผู้ลงชื่อรับรอง 3 คน - คืนค่าว่างถ้าไม่มีจุดที่ต้องรายงานในวันนั้น
+    function renderDutyReportPage(groupLabel, groupPoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName) {
       const rows = renderDutyReportRows(groupPoints, docDay, reports);
       if (rows.length === 0) return '';
 
+      const weekText = weekNum ? ` สัปดาห์ที่ ${weekNum}` : '';
+
       return `
-        <div class="mt-6">
-          <h4 class="text-xs font-bold text-slate-800 mb-2">เวร${groupLabel}</h4>
-          <table class="w-full text-[10px] border-collapse border border-slate-400">
+        <div class="bg-white border rounded-xl shadow-lg p-6 md:p-8 max-w-4xl mx-auto print-container doc-page text-black" style="font-family: 'Sarabun', sans-serif;">
+
+          <div class="text-center space-y-1 mb-4">
+            <div class="w-14 h-14 mx-auto rounded-full overflow-hidden flex items-center justify-center text-white font-bold text-sm border-2 border-brand-900 bg-brand-850">
+              ${settings.systemLogo ? `<img src="${settings.systemLogo}" class="w-full h-full object-cover">` : 'อซ'}
+            </div>
+            <h2 class="text-sm font-bold">${settings.schoolName}</h2>
+            <p class="text-[10px] font-bold text-slate-700">รายงานผลการปฏิบัติหน้าที่เวร${groupLabel} ประจำ${docDateThai}${weekText}</p>
+          </div>
+
+          <table class="w-full text-[9px] border-collapse border border-slate-400 doc-table">
             <thead>
               <tr class="bg-slate-50">
-                <th class="border border-slate-400 px-2 py-2 text-center font-bold" style="width: 8%">จุดที่</th>
-                <th class="border border-slate-400 px-3 py-2 text-left font-bold" style="width: 25%">จุดปฏิบัติหน้าที่</th>
-                <th class="border border-slate-400 px-2 py-2 text-center font-bold" style="width: 15%">ช่วงเวลา</th>
-                <th class="border border-slate-400 px-3 py-2 text-left font-bold" style="width: 20%">ครูเวรผู้รับผิดชอบ</th>
-                <th class="border border-slate-400 px-3 py-2 text-left font-bold" style="width: 32%">ผลการปฏิบัติหน้าที่และหลักฐานลงชื่อ</th>
+                <th class="border border-slate-400 px-1.5 py-1 text-center font-bold" style="width: 8%">จุดที่</th>
+                <th class="border border-slate-400 px-2 py-1 text-left font-bold" style="width: 25%">จุดปฏิบัติหน้าที่</th>
+                <th class="border border-slate-400 px-1.5 py-1 text-center font-bold" style="width: 14%">ช่วงเวลา</th>
+                <th class="border border-slate-400 px-2 py-1 text-left font-bold" style="width: 20%">ครูเวรผู้รับผิดชอบ</th>
+                <th class="border border-slate-400 px-2 py-1 text-left font-bold" style="width: 33%">ผลการปฏิบัติหน้าที่และหลักฐานลงชื่อ</th>
               </tr>
             </thead>
             <tbody>
               ${rows.join('')}
             </tbody>
           </table>
+
+          <!-- Foot signatures -->
+          <div class="mt-6 grid grid-cols-3 gap-6 text-center text-[9px] doc-signatures">
+            <div class="space-y-1">
+              <p>ลงชื่อ.......................................................... หัวหน้าเวรประจำวัน</p>
+              <p class="font-bold text-slate-800">${dailyHeadName ? `(${dailyHeadName})` : '(..........................................)'}</p>
+              <p class="text-slate-400">หัวหน้าเวรประจำวัน${docDay}</p>
+            </div>
+            <div class="space-y-1">
+              <p>ลงชื่อ.......................................................... หัวหน้าเวร</p>
+              <p class="font-bold text-slate-800">(${settings.headName})</p>
+              <p class="text-slate-400">ผู้ประมวลใบเวร</p>
+            </div>
+            <div class="space-y-1">
+              <p>ลงชื่อ.......................................................... ผู้อำนวยการ</p>
+              <p class="font-bold text-slate-800">(${settings.directorName})</p>
+              <p class="text-slate-400">ผู้อำนวยการ${settings.schoolName}</p>
+            </div>
+          </div>
+
         </div>
       `;
     }
@@ -3513,6 +3516,23 @@
                 </div>
               </div>
 
+              <!-- ตั้งค่าสัปดาห์ปฏิบัติงาน (สำหรับเอกสารรายงาน) -->
+              <div class="border-t pt-4 space-y-3">
+                <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="calendar" class="w-4 h-4 text-brand-700"></i>ตั้งค่าสัปดาห์ปฏิบัติงาน (สำหรับเอกสารรายงาน)</h4>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-slate-500 font-bold mb-1">วันเริ่มต้นสัปดาห์ที่ 1:</label>
+                    <input type="date" id="sett-week-start" value="${settings.weekStartDate || ''}" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                  </div>
+                  <div>
+                    <label class="block text-slate-500 font-bold mb-1">จำนวนสัปดาห์ทั้งหมด:</label>
+                    <input type="number" id="sett-total-weeks" min="1" value="${settings.totalWeeks || 20}" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                  </div>
+                </div>
+                <p class="text-[9px] text-slate-400">ระบบจะใช้ข้อมูลนี้คำนวณ "สัปดาห์ที่..." ที่แสดงในเอกสารรายงานผลการปฏิบัติหน้าที่เวรโดยอัตโนมัติ</p>
+              </div>
+
               <div class="border-t pt-4 space-y-3">
                 <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="bell" class="w-4 h-4 text-brand-700"></i>การตั้งค่า LINE / Telegram Group API</h4>
                 
@@ -3564,7 +3584,11 @@
         // Custom branding variables
         systemLogo: document.getElementById('sett-system-logo-base64') ? document.getElementById('sett-system-logo-base64').value : (current.systemLogo || ''),
         systemTitle: document.getElementById('sett-system-title') ? document.getElementById('sett-system-title').value.trim() : (current.systemTitle || 'ระบบบันทึกและติดตามการปฏิบัติเวร'),
-        systemColor: document.getElementById('sett-system-color') ? document.getElementById('sett-system-color').value : (current.systemColor || '#14532d')
+        systemColor: document.getElementById('sett-system-color') ? document.getElementById('sett-system-color').value : (current.systemColor || '#14532d'),
+
+        // ตั้งค่าสัปดาห์ปฏิบัติงาน
+        weekStartDate: document.getElementById('sett-week-start') ? document.getElementById('sett-week-start').value : (current.weekStartDate || ''),
+        totalWeeks: document.getElementById('sett-total-weeks') ? (parseInt(document.getElementById('sett-total-weeks').value) || 20) : (current.totalWeeks || 20)
       };
 
       await saveSettingsDB(settings);
@@ -4178,6 +4202,19 @@
     function getThaiDayNameForDate(dateStr) {
       const d = new Date(dateStr + 'T00:00:00');
       return d.toLocaleDateString('th-TH', { weekday: 'long' }).replace(/^วัน/, '');
+    }
+
+    // คำนวณ "สัปดาห์ที่" (เริ่ม 1) ของวันที่ที่กำหนด เทียบกับวันเริ่มต้นสัปดาห์ที่ 1 ใน settings
+    // คืนค่า null ถ้ายังไม่ตั้งค่าวันเริ่มต้น หรือวันที่อยู่ก่อนสัปดาห์ที่ 1 หรือเกินจำนวนสัปดาห์ทั้งหมด
+    function getWeekNumber(dateStr, settings) {
+      if (!settings || !settings.weekStartDate) return null;
+      const start = new Date(settings.weekStartDate + 'T00:00:00');
+      const target = new Date(dateStr + 'T00:00:00');
+      const diffDays = Math.floor((target - start) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0) return null;
+      const weekNum = Math.floor(diffDays / 7) + 1;
+      const totalWeeks = settings.totalWeeks || 20;
+      return weekNum <= totalWeeks ? weekNum : null;
     }
 
     function getTeacherName(id) {
