@@ -283,7 +283,7 @@
       <!-- ★ Mobile Bottom Navigation Bar (Teacher Mode Only) ★ -->
       <nav id="mobile-bottom-nav" class="lg:hidden no-print">
         <!-- Left: History -->
-        <button class="bottom-nav-item" id="bnav-history" onclick="navigateTo('my-history')">
+        <button class="bottom-nav-item ripple-btn" id="bnav-history" onclick="triggerRipple(event, true); navigateTo('my-history')">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
@@ -292,8 +292,8 @@
         </button>
 
         <!-- Center: FAB Report -->
-        <button class="bottom-nav-fab" id="bnav-fab" onclick="navigateTo('my-duty')">
-          <div class="fab-circle">
+        <button class="bottom-nav-fab scale-spring-active" id="bnav-fab" onclick="const circle = this.querySelector('.fab-circle'); if (circle) { triggerRipple({ currentTarget: circle, clientX: event.clientX, clientY: event.clientY }, false); } navigateTo('my-duty');">
+          <div class="fab-circle ripple-btn">
             <svg width="26" height="26" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
             </svg>
@@ -302,7 +302,7 @@
         </button>
 
         <!-- Right: Profile -->
-        <button class="bottom-nav-item" id="bnav-profile" onclick="navigateTo('profile-settings')">
+        <button class="bottom-nav-item ripple-btn" id="bnav-profile" onclick="triggerRipple(event, true); navigateTo('profile-settings')">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
           </svg>
@@ -830,6 +830,30 @@
       }
     }
 
+    // Ripple effect helper
+    function triggerRipple(event, dark = false) {
+      const btn = event.currentTarget;
+      if (!btn) return;
+      
+      const rect = btn.getBoundingClientRect();
+      const circle = document.createElement("span");
+      const diameter = Math.max(btn.clientWidth, btn.clientHeight);
+      const radius = diameter / 2;
+
+      circle.style.width = circle.style.height = `${diameter}px`;
+      circle.style.left = `${event.clientX - rect.left - radius}px`;
+      circle.style.top = `${event.clientY - rect.top - radius}px`;
+      circle.className = dark ? "ripple-effect-dark" : "ripple-effect";
+
+      // Remove existing ripples if any
+      const existing = btn.querySelector(".ripple-effect, .ripple-effect-dark");
+      if (existing) {
+        existing.remove();
+      }
+
+      btn.appendChild(circle);
+    }
+
     // Update bottom nav active tab state
     function updateBottomNav(page) {
       const bnav = document.getElementById('mobile-bottom-nav');
@@ -858,7 +882,22 @@
       const profBtn = document.getElementById('bnav-profile');
       if (histBtn) histBtn.classList.toggle('active', page === 'my-history');
       if (profBtn) profBtn.classList.toggle('active', page === 'profile-settings');
-      // FAB stays visually prominent always (no active class needed)
+      
+      // Dynamic FAB breathe pulse depending on unreported points
+      if (isTeacherMode) {
+        const myPoints = getMyDutyPoints();
+        const reports = db.getReports().filter(r => r.date === getTodayISODate() && r.teacherId === currentUser.id);
+        const remainingCount = myPoints.length - reports.length;
+        
+        const fabCircle = document.querySelector('.fab-circle');
+        if (fabCircle) {
+          if (remainingCount > 0) {
+            fabCircle.classList.add('fab-pulse-active');
+          } else {
+            fabCircle.classList.remove('fab-pulse-active');
+          }
+        }
+      }
     }
 
     // Toggle mini-map inside a teacher duty point card
@@ -3180,7 +3219,7 @@
               const mapArgs = `${p.id},${p.lat},${p.lng},${p.radius},${p.lat2 ?? 'null'},${p.lng2 ?? 'null'},${p.radius2 ?? 'null'}`;
 
               return `
-                <div class="bg-white border-2 ${isDone ? (hasProblem ? 'border-red-200' : 'border-green-200') : 'border-slate-100'} rounded-2xl shadow-sm overflow-hidden transition hover:shadow-md">
+                <div class="premium-duty-card bg-white border-2 ${isDone ? (hasProblem ? 'border-red-200' : 'border-green-200') : 'border-slate-100'} rounded-2xl shadow-sm overflow-hidden transition">
                   
                   <!-- Card Header -->
                   <div class="flex items-start justify-between gap-3 p-4 pb-3">
@@ -3189,9 +3228,9 @@
                         <span class="bg-brand-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">จุดที่ ${getDutyPointDisplayNumber(p)}</span>
                         ${isDone
                           ? hasProblem
-                            ? '<span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full">⚠️ แจ้งเหตุ</span>'
-                            : '<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">✅ ส่งแล้ว</span>'
-                          : '<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full">⏳ รอบันทึก</span>'}
+                            ? '<span class="bg-red-500/10 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-red-500"></span>⚠️ แจ้งเหตุ</span>'
+                            : '<span class="bg-green-500/10 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-green-500"></span>✅ ส่งแล้ว</span>'
+                          : '<span class="bg-amber-500/10 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-amber-500"></span>⏳ รอบันทึก</span>'}
                       </div>
                       <h4 class="font-bold text-slate-900 text-xs leading-snug">${p.name}</h4>
                       <p class="text-slate-400 text-[10px] mt-0.5 font-medium flex items-center gap-1">
@@ -3237,19 +3276,19 @@
                   <!-- Action Row -->
                   <div class="px-4 pb-4 flex gap-2">
                     <!-- Map toggle button -->
-                    <button id="my-duty-map-btn-${p.id}" onclick="toggleMyDutyMap(${mapArgs})" 
-                      class="flex-1 border border-slate-200 hover:border-brand-400 hover:bg-brand-50 text-slate-600 hover:text-brand-800 font-bold py-2.5 rounded-xl transition inline-flex items-center justify-center gap-1.5 text-[11px]">
+                    <button id="my-duty-map-btn-${p.id}" onclick="triggerRipple(event, true); toggleMyDutyMap(${mapArgs})" 
+                      class="ripple-btn scale-spring-active flex-1 border border-slate-200 hover:border-brand-400 hover:bg-brand-50 text-slate-600 hover:text-brand-800 font-bold py-2.5 rounded-xl transition inline-flex items-center justify-center gap-1.5 text-[11px]">
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
                       ดูแผนที่จุดเวร
                     </button>
                     ${isDone ? `
-                      <button onclick="viewReportDetails('${rep.id}')" class="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-2.5 rounded-xl transition inline-flex items-center justify-center gap-1.5 text-[11px]">
+                      <button onclick="triggerRipple(event, true); viewReportDetails('${rep.id}')" class="ripple-btn scale-spring-active flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-2.5 rounded-xl transition inline-flex items-center justify-center gap-1.5 text-[11px]">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                         ดูรายงาน
                       </button>
                     ` : `
-                      <button id="btn-report-point-${p.id}" onclick="openReportForm(${p.id})"
-                        class="flex-1 bg-brand-800 hover:bg-brand-700 active:scale-95 text-white font-bold py-2.5 rounded-xl shadow-md transition inline-flex items-center justify-center gap-1.5 text-[11px]">
+                      <button id="btn-report-point-${p.id}" onclick="triggerRipple(event, false); openReportForm(${p.id})"
+                        class="ripple-btn scale-spring-active flex-1 bg-brand-800 hover:bg-brand-700 text-white font-bold py-2.5 rounded-xl shadow-md transition inline-flex items-center justify-center gap-1.5 text-[11px]">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                         รายงานจุดนี้
                       </button>
