@@ -459,7 +459,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.7.6';
+    const APP_VERSION = '1.7.7';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -1090,7 +1090,7 @@
 
                       return `
                         <tr class="hover:bg-slate-50 transition cursor-default dash-row" data-point-id="${p.id}" data-status="${status}" data-teacher-name="${getTeacherName(teacherId)}">
-                          <td class="px-4 py-3 text-center font-bold text-brand-900">จุดที่ ${p.id}</td>
+                          <td class="px-4 py-3 text-center font-bold text-brand-900">จุดที่ ${getDutyPointDisplayNumber(p)}</td>
                           <td class="px-4 py-3 font-semibold text-slate-800">${p.name}</td>
                           <td class="px-4 py-3 text-slate-500">${p.time} น.</td>
                           <td class="px-4 py-3 font-bold text-slate-800">${getTeacherName(teacherId)}</td>
@@ -1142,7 +1142,7 @@
                   return `
                     <div class="bg-white border rounded-xl p-3 shadow-sm space-y-2 dash-row" data-point-id="${p.id}" data-status="${status}" data-teacher-name="${getTeacherName(teacherId)}">
                       <div class="flex justify-between items-center">
-                        <span class="font-bold text-slate-800 text-[11px]">จุดที่ ${p.id}: ${p.name}</span>
+                        <span class="font-bold text-slate-800 text-[11px]">จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name}</span>
                         ${badge}
                       </div>
                       <div class="text-[10px] text-slate-500 space-y-0.5">
@@ -1693,7 +1693,7 @@
 
                     return `
                       <tr class="hover:bg-slate-50 transition">
-                        <td class="px-4 py-3 text-center font-bold text-slate-700">จุดที่ ${p.id}</td>
+                        <td class="px-4 py-3 text-center font-bold text-slate-700">จุดที่ ${getDutyPointDisplayNumber(p)}</td>
                         <td class="px-4 py-3 font-semibold text-slate-800">${p.name}</td>
                         <td class="px-4 py-3 text-slate-500">${p.time} น.</td>
                         <td class="px-4 py-3 font-bold text-brand-950">
@@ -2250,7 +2250,7 @@
                 <div class="bg-white border rounded-xl p-4 shadow-sm hover:border-brand-500 transition cursor-pointer" onclick="focusOnPointInMap(${p.lat}, ${p.lng}, ${p.radius}, '${p.name}')">
                   <div class="flex justify-between items-start">
                     <div>
-                      <h4 class="font-bold text-slate-800 text-xs">จุดที่ ${p.id}: ${p.name}</h4>
+                      <h4 class="font-bold text-slate-800 text-xs">จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name}</h4>
                       <p class="text-[9px] text-slate-400 mt-0.5 flex items-center gap-1"><i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i> เวลาเวร: ${p.time} น.</p>
                     </div>
                     <span class="bg-brand-100 text-brand-900 border border-brand-200 text-[9px] font-bold px-2 py-0.5 rounded-full">
@@ -2669,7 +2669,7 @@
       const selected = unReports[idx];
       if (!selected) return;
 
-      const sub = `ขอความร่วมมือชี้แจงเหตุผลไม่เข้ารายงานเวร จุดที่ ${selected.point.id} (${selected.point.name})`;
+      const sub = `ขอความร่วมมือชี้แจงเหตุผลไม่เข้ารายงานเวร จุดที่ ${getDutyPointDisplayNumber(selected.point)} (${selected.point.name})`;
       document.getElementById('memo-subject-input').value = sub;
       document.getElementById('memo-subject-field').textContent = sub;
 
@@ -2987,7 +2987,7 @@
                 <div class="bg-white border rounded-xl p-4 shadow-sm hover:border-brand-500 transition">
                   <div class="flex justify-between items-center gap-3">
                     <div>
-                      <h4 class="font-bold text-slate-800 text-xs">จุดที่ ${p.id}: ${p.name}</h4>
+                      <h4 class="font-bold text-slate-800 text-xs">จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name}</h4>
                       <p class="text-slate-400 mt-0.5 font-medium">เวลาประจำจุดเวร: ${p.time} น.</p>
                     </div>
                     <div>
@@ -3202,7 +3202,7 @@
 
       // Simulated notification message
       let alertMsg = `📢 แจ้งผลปฏิบัติเวร โรงเรียนมูลนิธิอาซิซสถาน \n`;
-      alertMsg += `จุดเวร: จุดที่ ${pt.id} (${pt.name})\n`;
+      alertMsg += `จุดเวร: จุดที่ ${getDutyPointDisplayNumber(pt)} (${pt.name})\n`;
       alertMsg += `ผู้ปฏิบัติ: ${currentUser.name}\n`;
       alertMsg += `เวลาบันทึก: ${timeNow} น.\n`;
       alertMsg += `สถานะ: ${statusSelect === 'problem' ? '⚠️ พบประเด็นขัดข้อง!' : '✅ ปกติเรียบร้อยดี'}\n`;
@@ -3278,7 +3278,7 @@
                     return `
                       <tr class="hover:bg-slate-50 transition cursor-default">
                         <td class="px-4 py-3 text-center font-bold text-slate-600">${getTodayThaiFullDate(r.date)}</td>
-                        <td class="px-4 py-3 font-semibold text-brand-950">${pt ? `จุดที่ ${pt.id}: ${pt.name}` : `จุดที่ ${r.pointId}`}</td>
+                        <td class="px-4 py-3 font-semibold text-brand-950">${pt ? `จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}` : `จุดที่ ${r.pointId}`}</td>
                         <td class="px-4 py-3 text-center font-semibold text-slate-800">${r.time} น.</td>
                         <td class="px-4 py-3 text-center">${r.distance.toFixed(1)} ม.</td>
                         <td class="px-4 py-3 text-center">
@@ -3322,7 +3322,7 @@
           const teacherId = item.includes(':') ? item.split(':')[1] : item;
           const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
           rows.push({
-            'จุดเวร': `จุดที่ ${p.id}`,
+            'จุดเวร': `จุดที่ ${getDutyPointDisplayNumber(p)}`,
             'จุดปฏิบัติงาน': p.name,
             'ช่วงเวลาเวร': p.time,
             'ชื่อคุณครู': getTeacherName(teacherId),
@@ -3486,6 +3486,18 @@
       }
       const t = db.getTeachers().find(x => x.id === cleanId);
       return t ? `${prefix}${t.name}` : id;
+    }
+
+    // เลขจุดเวรที่แสดงผล: เริ่มที่ 1 ในแต่ละกลุ่ม (เวรครูชาย/เวรครูหญิง แยกชุดเลขกันคนละชุด)
+    // แทนการใช้ p.id ตรงๆ ซึ่งเวรครูหญิงเก็บใน id 21-41 ต่อจากเวรครูชาย (1-20)
+    function getDutyPointDisplayNumber(p) {
+      if (!p) return '';
+      const group = p.dutyGroup || 'ครูชาย';
+      const groupPoints = db.getDutyPoints()
+        .filter(gp => (gp.dutyGroup || 'ครูชาย') === group)
+        .sort((a, b) => a.id - b.id);
+      const idx = groupPoints.findIndex(gp => gp.id === p.id);
+      return idx >= 0 ? idx + 1 : p.id;
     }
 
     function getTeacherGender(t) {
@@ -4244,7 +4256,7 @@
       const points = db.getDutyPoints().filter(p => (p.dutyGroup || 'ครูชาย') === currentDutyPointsGroupTab);
       points.forEach(p => {
         L.marker([p.lat, p.lng]).addTo(currentMapInstance)
-          .bindPopup(`<b>จุดที่ ${p.id}: ${p.name}</b><br>เวลาเวร: ${p.time}`);
+          .bindPopup(`<b>จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name}</b><br>เวลาเวร: ${p.time}`);
 
         L.circle([p.lat, p.lng], {
           color: '#15803d',
@@ -4262,7 +4274,7 @@
               iconAnchor: [8, 8]
             })
           }).addTo(currentMapInstance)
-            .bindPopup(`<b>จุดที่ ${p.id}: ${p.name}</b><br>บริเวณที่ 2`);
+            .bindPopup(`<b>จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name}</b><br>บริเวณที่ 2`);
 
           L.circle([p.lat2, p.lng2], {
             color: '#2563eb',
@@ -5155,7 +5167,7 @@
       const points = db.getDutyPoints();
       const pt = points.find(p => p.id === pointId);
       if (pt) {
-        document.getElementById('form-modal-title').textContent = `รายงานผลการปฏิบัติหน้าที่ - จุดที่ ${pt.id}: ${pt.name}`;
+        document.getElementById('form-modal-title').textContent = `รายงานผลการปฏิบัติหน้าที่ - จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}`;
       }
 
       loadTeacherSignatureStatus();
@@ -5545,7 +5557,7 @@
         <div class="grid grid-cols-2 gap-4 border-b pb-3 text-slate-700">
           <div>
             <span class="block text-[10px] text-slate-400">จุดเวร</span>
-            <strong class="text-brand-900 text-sm">จุดที่ ${pt ? pt.id : ''}: ${pt ? pt.name : ''}</strong>
+            <strong class="text-brand-900 text-sm">จุดที่ ${pt ? getDutyPointDisplayNumber(pt) : ''}: ${pt ? pt.name : ''}</strong>
           </div>
           <div class="text-right">
             <span class="block text-[10px] text-slate-400">สถานะรายงาน</span>
