@@ -279,7 +279,40 @@
           <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.7.5</div>
         </div>
       </aside>
+
+      <!-- ★ Mobile Bottom Navigation Bar (Teacher Mode Only) ★ -->
+      <nav id="mobile-bottom-nav" class="lg:hidden no-print">
+        <!-- Left: History -->
+        <button class="bottom-nav-item" id="bnav-history" onclick="navigateTo('my-history')">
+          <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span>ประวัติ</span>
+          <div class="bottom-nav-dot"></div>
+        </button>
+
+        <!-- Center: FAB Report -->
+        <button class="bottom-nav-fab" id="bnav-fab" onclick="navigateTo('my-duty')">
+          <div class="fab-circle">
+            <svg width="26" height="26" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+            </svg>
+          </div>
+          <span class="fab-label">รายงานเวร</span>
+        </button>
+
+        <!-- Right: Profile -->
+        <button class="bottom-nav-item" id="bnav-profile" onclick="navigateTo('profile-settings')">
+          <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
+          <span>โปรไฟล์</span>
+          <div class="bottom-nav-dot"></div>
+        </button>
+      </nav>
+
     </div>
+
   </div>
 
   <script>
@@ -455,7 +488,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.9.0';
+    const APP_VERSION = '1.10.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -615,7 +648,11 @@
     let currentExecutiveGroupFilter = 'all'; // 'all', 'ชาย', 'หญิง'
     let currentDutyPointsGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าตั้งค่าพิกัด
     let currentScheduleGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าจัดการตารางเวร
+    let currentDocumentsDate = null; // วันที่เลือกในหน้าเอกสารรายงานทางการ (YYYY-MM-DD)
     
+    // Mini-maps in My Duty view (teacher)
+    let myDutyMaps = {};
+
     // Global states for teacher page filtering and view toggling
     let currentTeachersViewType = 'grid'; // 'grid' or 'table'
     let teachersSearchQuery = '';
@@ -779,9 +816,117 @@
       buildSidebar();
       
       if (mode === 'head') {
+        // Hide bottom nav in head/admin mode
+        const bnav = document.getElementById('mobile-bottom-nav');
+        if (bnav) bnav.classList.remove('visible');
+        const mc = document.getElementById('main-content');
+        if (mc) mc.classList.remove('has-bottom-nav');
         navigateTo('dashboard');
       } else {
+        // Show bottom nav in teacher mode
+        const bnav = document.getElementById('mobile-bottom-nav');
+        if (bnav) bnav.classList.add('visible');
         navigateTo('my-duty');
+      }
+    }
+
+    // Update bottom nav active tab state
+    function updateBottomNav(page) {
+      const bnav = document.getElementById('mobile-bottom-nav');
+      if (!bnav) return;
+
+      // Only show on mobile in teacher mode
+      const isTeacherMode = activeRoleMode === 'teacher' && currentUser;
+      if (isTeacherMode) {
+        bnav.classList.add('visible');
+      } else {
+        bnav.classList.remove('visible');
+      }
+
+      // Manage main-content bottom padding
+      const mc = document.getElementById('main-content');
+      if (mc) {
+        if (isTeacherMode) {
+          mc.classList.add('has-bottom-nav');
+        } else {
+          mc.classList.remove('has-bottom-nav');
+        }
+      }
+
+      // Set active states
+      const histBtn = document.getElementById('bnav-history');
+      const profBtn = document.getElementById('bnav-profile');
+      if (histBtn) histBtn.classList.toggle('active', page === 'my-history');
+      if (profBtn) profBtn.classList.toggle('active', page === 'profile-settings');
+      // FAB stays visually prominent always (no active class needed)
+    }
+
+    // Toggle mini-map inside a teacher duty point card
+    function toggleMyDutyMap(pointId, lat, lng, radius, lat2, lng2, radius2) {
+      const container = document.getElementById(`my-duty-map-wrap-${pointId}`);
+      if (!container) return;
+
+      const isHidden = container.classList.contains('hidden');
+      const btn = document.getElementById(`my-duty-map-btn-${pointId}`);
+
+      if (isHidden) {
+        container.classList.remove('hidden');
+        if (btn) btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg> ซ่อนแผนที่`;
+
+        if (!myDutyMaps[pointId]) {
+          setTimeout(() => {
+            const mapEl = document.getElementById(`my-duty-map-${pointId}`);
+            if (!mapEl) return;
+
+            const map = L.map(`my-duty-map-${pointId}`, { zoomControl: true, attributionControl: false }).setView([lat, lng], 17);
+            L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: '© Google Maps' }).addTo(map);
+
+            // Primary zone (green)
+            L.circle([lat, lng], { color: '#14532d', fillColor: '#14532d', fillOpacity: 0.14, weight: 2, radius }).addTo(map);
+            L.marker([lat, lng], {
+              icon: L.divIcon({
+                className: '',
+                html: `<div style="width:13px;height:13px;background:#14532d;border-radius:50%;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>`,
+                iconSize: [13, 13], iconAnchor: [6.5, 6.5]
+              })
+            }).addTo(map).bindPopup('📍 จุดเวรหลัก').openPopup();
+
+            // Secondary zone if exists (purple)
+            if (lat2 != null && lng2 != null) {
+              const r2 = radius2 || radius;
+              L.circle([lat2, lng2], { color: '#7c3aed', fillColor: '#7c3aed', fillOpacity: 0.12, weight: 2, radius: r2 }).addTo(map);
+              L.marker([lat2, lng2], {
+                icon: L.divIcon({
+                  className: '',
+                  html: `<div style="width:13px;height:13px;background:#7c3aed;border-radius:50%;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>`,
+                  iconSize: [13, 13], iconAnchor: [6.5, 6.5]
+                })
+              }).addTo(map).bindPopup('📍 จุดเวรบริเวณที่ 2');
+            }
+
+            // Current GPS position (blue pulsing dot)
+            const gpsMarker = L.circleMarker([mockLatitude, mockLongitude], {
+              radius: 8,
+              color: '#2563eb',
+              fillColor: '#3b82f6',
+              fillOpacity: 0.88,
+              weight: 2.5
+            }).addTo(map).bindPopup('🔵 ตำแหน่งของคุณ');
+
+            // Fit map to show both duty point and current GPS
+            const bounds = L.latLngBounds([[lat, lng], [mockLatitude, mockLongitude]]);
+            if (lat2 != null && lng2 != null) bounds.extend([lat2, lng2]);
+            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+
+            map.invalidateSize();
+            myDutyMaps[pointId] = { map, gpsMarker };
+          }, 120);
+        } else {
+          myDutyMaps[pointId].map.invalidateSize();
+        }
+      } else {
+        container.classList.add('hidden');
+        if (btn) btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg> ดูแผนที่จุดเวร`;
       }
     }
 
@@ -912,6 +1057,7 @@
       const titleEl = document.getElementById('page-title');
       if (titleEl) titleEl.textContent = titles[page] || page;
       renderPage(page);
+      updateBottomNav(page);
     }
 
     // =========================================================================
@@ -2443,7 +2589,19 @@
     function renderDocumentsView() {
       const settings = db.getSettings();
       const points = db.getDutyPoints();
-      const reports = db.getReports().filter(r => r.date === getTodayISODate());
+      if (!currentDocumentsDate) currentDocumentsDate = getTodayISODate();
+      const docDay = getThaiDayNameForDate(currentDocumentsDate);
+      const reports = db.getReports().filter(r => r.date === currentDocumentsDate);
+
+      const malePoints = points.filter(p => (p.dutyGroup || 'ครูชาย') === 'ครูชาย');
+      const femalePoints = points.filter(p => (p.dutyGroup || 'ครูชาย') === 'ครูหญิง');
+
+      const headEntry = settings.headsOfDay?.[docDay];
+      let dailyHeadId = '';
+      if (headEntry) {
+        dailyHeadId = typeof headEntry === 'string' ? headEntry : (headEntry['ชาย'] || headEntry['หญิง'] || '');
+      }
+      const dailyHeadName = dailyHeadId ? getTeacherName(dailyHeadId) : '';
 
       return `
         <div class="fade-in space-y-6">
@@ -2452,97 +2610,37 @@
               <h3 class="text-lg font-bold text-slate-900">เอกสารรายงานผลปฏิบัติงานเวรราชการ</h3>
               <p class="text-xs text-slate-500 mt-1">ใบรับรองรายงานตรวจเวรประจำวันเพื่อนำเสนอผู้อำนวยการโรงเรียน</p>
             </div>
-            <button onclick="window.print()" class="bg-brand-800 text-white text-xs px-3.5 py-2.5 rounded-lg hover:bg-brand-700 transition flex items-center gap-1 shadow font-bold">
-              <i data-lucide="printer" class="w-4 h-4"></i> พิมพ์เอกสารรายงาน
-            </button>
+            <div class="flex items-center gap-2">
+              <input type="date" value="${currentDocumentsDate}" onchange="onDocumentsDateChange(this.value)" class="border border-slate-300 rounded-lg px-3 py-2.5 text-xs focus:ring-2 focus:ring-brand-500 outline-none">
+              <button onclick="window.print()" class="bg-brand-800 text-white text-xs px-3.5 py-2.5 rounded-lg hover:bg-brand-700 transition flex items-center gap-1 shadow font-bold">
+                <i data-lucide="printer" class="w-4 h-4"></i> พิมพ์เอกสารรายงาน
+              </button>
+            </div>
           </div>
 
           <!-- Document Box -->
           <div class="bg-white border rounded-xl shadow-lg p-6 md:p-12 max-w-4xl mx-auto print-container text-black" style="font-family: 'Sarabun', sans-serif;">
-            
+
             <div class="text-center space-y-2 mb-8">
               <div class="w-16 h-16 mx-auto bg-brand-850 rounded-full flex items-center justify-center text-white font-bold text-base border-2 border-brand-900">
                 อซ
               </div>
               <h2 class="text-base font-bold">${settings.schoolName}</h2>
-              <p class="text-[11px] text-slate-600">รายงานผลการปฏิบัติหน้าที่เวรประจำวันครูเวรชาย</p>
-              <h3 class="text-xs font-bold text-slate-800">วันอังคาร</h3>
-              <p class="text-[10px] text-slate-400">วันที่ตรวจเวร: ${getTodayThaiFullDate()}</p>
+              <p class="text-[11px] text-slate-600">รายงานผลการปฏิบัติหน้าที่เวรประจำวัน</p>
+              <h3 class="text-xs font-bold text-slate-800">วัน${docDay}</h3>
+              <p class="text-[10px] text-slate-400">วันที่ตรวจเวร: ${getTodayThaiFullDate(currentDocumentsDate + 'T00:00:00')}</p>
             </div>
 
-            <!-- Table Document -->
-            <table class="w-full text-[10px] border-collapse border border-slate-400">
-              <thead>
-                <tr class="bg-slate-50">
-                  <th class="border border-slate-400 px-2 py-2 text-center font-bold" style="width: 8%">จุดที่</th>
-                  <th class="border border-slate-400 px-3 py-2 text-left font-bold" style="width: 25%">จุดปฏิบัติหน้าที่</th>
-                  <th class="border border-slate-400 px-2 py-2 text-center font-bold" style="width: 15%">ช่วงเวลา</th>
-                  <th class="border border-slate-400 px-3 py-2 text-left font-bold" style="width: 20%">ครูเวรผู้รับผิดชอบ</th>
-                  <th class="border border-slate-400 px-3 py-2 text-left font-bold" style="width: 32%">ผลการปฏิบัติหน้าที่และหลักฐานลงชื่อ</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${points.flatMap((p, idx) => {
-                  const assignedList = p.assignedTo || p.assigned_to || [];
-                  const todayDay = getTodayThaiDayName();
-                  const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
-
-                  if (todayAssigned.length === 0) return [];
-
-                  return todayAssigned.map((item, tIdx) => {
-                    const teacherId = item.includes(':') ? item.split(':')[1] : item;
-                    const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
-                    const teacher = db.getTeachers().find(t => t.id === teacherId);
-                    
-                    let resultText = '';
-                    let sigMarkup = '';
-
-                    if (rep) {
-                      if (rep.status === 'reported') {
-                        resultText = `✓ ${rep.result}`;
-                      } else if (rep.status === 'problem') {
-                        resultText = `⚠️ พบปัญหา: ${rep.problem} (แก้ไข: ${rep.solution})`;
-                      } else {
-                        resultText = 'รอยืนยัน';
-                      }
-
-                      const sigSrc = rep.signature || (teacher ? teacher.signature : null);
-                      if (sigSrc) {
-                        sigMarkup = `
-                          <div class="mt-1.5 text-center">
-                            <img src="${sigSrc}" class="max-h-7 mx-auto border rounded bg-white p-0.5" alt="Signature">
-                            <span class="text-[8px] text-slate-400 block mt-0.5">ลงชื่อแล้วเวลา ${rep.time} น.</span>
-                          </div>
-                        `;
-                      } else {
-                        sigMarkup = `<span class="text-green-700 font-bold block text-center mt-1">ยืนยันการรายงานแล้ว</span>`;
-                      }
-                    } else {
-                      resultText = '<span class="text-red-500 font-bold">ยังไม่ได้รับการส่งรายงาน</span>';
-                      sigMarkup = '<span class="text-slate-400 block text-center mt-1">-</span>';
-                    }
-
-                    return `
-                      <tr>
-                        ${tIdx === 0 ? `
-                          <td class="border border-slate-400 px-2 py-2 text-center font-bold" rowspan="${todayAssigned.length}">${p.id}</td>
-                          <td class="border border-slate-400 px-3 py-2 font-bold text-slate-800" rowspan="${todayAssigned.length}">${p.name}</td>
-                          <td class="border border-slate-400 px-2 py-2 text-center text-slate-700" rowspan="${todayAssigned.length}">${p.time} น.</td>
-                        ` : ''}
-                        <td class="border border-slate-400 px-3 py-2">${getTeacherName(teacherId)}</td>
-                        <td class="border border-slate-400 px-3 py-2">
-                          <p class="text-slate-700 leading-relaxed">${resultText}</p>
-                          ${sigMarkup}
-                        </td>
-                      </tr>
-                    `;
-                  });
-                }).join('')}
-              </tbody>
-            </table>
+            ${renderDutyReportTable('ครูชาย', malePoints, docDay, reports)}
+            ${renderDutyReportTable('ครูหญิง', femalePoints, docDay, reports)}
 
             <!-- Foot signatures -->
-            <div class="mt-12 grid grid-cols-2 gap-12 text-center text-[10px]">
+            <div class="mt-12 grid grid-cols-3 gap-8 text-center text-[10px]">
+              <div class="space-y-1">
+                <p>ลงชื่อ.......................................................... หัวหน้าเวรประจำวัน</p>
+                <p class="font-bold text-slate-800">${dailyHeadName ? `(${dailyHeadName})` : '(..........................................)'}</p>
+                <p class="text-slate-400">หัวหน้าเวรประจำวัน${docDay}</p>
+              </div>
               <div class="space-y-1">
                 <p>ลงชื่อ.......................................................... หัวหน้าเวร</p>
                 <p class="font-bold text-slate-800">(${settings.headName})</p>
@@ -2556,6 +2654,97 @@
             </div>
 
           </div>
+        </div>
+      `;
+    }
+
+    // เปลี่ยนวันที่ที่เลือกในหน้าเอกสารรายงานทางการ แล้ว re-render
+    function onDocumentsDateChange(value) {
+      currentDocumentsDate = value;
+      renderPage('documents');
+    }
+
+    // สร้างแถวตารางรายงานของจุดเวรกลุ่มที่กำหนด (ใช้เลขจุดแบบ per-group ผ่าน getDutyPointDisplayNumber)
+    function renderDutyReportRows(groupPoints, docDay, reports) {
+      return groupPoints.flatMap((p) => {
+        const assignedList = p.assignedTo || p.assigned_to || [];
+        const dayAssigned = assignedList.filter(item => isAssignedOnDay(item, docDay));
+
+        if (dayAssigned.length === 0) return [];
+
+        return dayAssigned.map((item, tIdx) => {
+          const teacherId = item.includes(':') ? item.split(':')[1] : item;
+          const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
+          const teacher = db.getTeachers().find(t => t.id === teacherId);
+
+          let resultText = '';
+          let sigMarkup = '';
+
+          if (rep) {
+            if (rep.status === 'reported') {
+              resultText = `✓ ${rep.result}`;
+            } else if (rep.status === 'problem') {
+              resultText = `⚠️ พบปัญหา: ${rep.problem} (แก้ไข: ${rep.solution})`;
+            } else {
+              resultText = 'รอยืนยัน';
+            }
+
+            const sigSrc = rep.signature || (teacher ? teacher.signature : null);
+            if (sigSrc) {
+              sigMarkup = `
+                <div class="mt-1.5 text-center">
+                  <img src="${sigSrc}" class="max-h-7 mx-auto border rounded bg-white p-0.5" alt="Signature">
+                  <span class="text-[8px] text-slate-400 block mt-0.5">ลงชื่อแล้วเวลา ${rep.time} น.</span>
+                </div>
+              `;
+            } else {
+              sigMarkup = `<span class="text-green-700 font-bold block text-center mt-1">ยืนยันการรายงานแล้ว</span>`;
+            }
+          } else {
+            resultText = '<span class="text-red-500 font-bold">ยังไม่ได้รับการส่งรายงาน</span>';
+            sigMarkup = '<span class="text-slate-400 block text-center mt-1">-</span>';
+          }
+
+          return `
+            <tr>
+              ${tIdx === 0 ? `
+                <td class="border border-slate-400 px-2 py-2 text-center font-bold" rowspan="${dayAssigned.length}">${getDutyPointDisplayNumber(p)}</td>
+                <td class="border border-slate-400 px-3 py-2 font-bold text-slate-800" rowspan="${dayAssigned.length}">${p.name}</td>
+                <td class="border border-slate-400 px-2 py-2 text-center text-slate-700" rowspan="${dayAssigned.length}">${p.time} น.</td>
+              ` : ''}
+              <td class="border border-slate-400 px-3 py-2">${getTeacherName(teacherId)}</td>
+              <td class="border border-slate-400 px-3 py-2">
+                <p class="text-slate-700 leading-relaxed">${resultText}</p>
+                ${sigMarkup}
+              </td>
+            </tr>
+          `;
+        });
+      });
+    }
+
+    // สร้างตารางรายงานเวรของกลุ่ม (เวรครูชาย/เวรครูหญิง) พร้อมหัวข้อ - คืนค่าว่างถ้าไม่มีจุดที่ต้องรายงานในวันนั้น
+    function renderDutyReportTable(groupLabel, groupPoints, docDay, reports) {
+      const rows = renderDutyReportRows(groupPoints, docDay, reports);
+      if (rows.length === 0) return '';
+
+      return `
+        <div class="mt-6">
+          <h4 class="text-xs font-bold text-slate-800 mb-2">เวร${groupLabel}</h4>
+          <table class="w-full text-[10px] border-collapse border border-slate-400">
+            <thead>
+              <tr class="bg-slate-50">
+                <th class="border border-slate-400 px-2 py-2 text-center font-bold" style="width: 8%">จุดที่</th>
+                <th class="border border-slate-400 px-3 py-2 text-left font-bold" style="width: 25%">จุดปฏิบัติหน้าที่</th>
+                <th class="border border-slate-400 px-2 py-2 text-center font-bold" style="width: 15%">ช่วงเวลา</th>
+                <th class="border border-slate-400 px-3 py-2 text-left font-bold" style="width: 20%">ครูเวรผู้รับผิดชอบ</th>
+                <th class="border border-slate-400 px-3 py-2 text-left font-bold" style="width: 32%">ผลการปฏิบัติหน้าที่และหลักฐานลงชื่อ</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.join('')}
+            </tbody>
+          </table>
         </div>
       `;
     }
@@ -2949,87 +3138,120 @@
 
     // H. MY DUTY VIEW (Teacher View)
     function renderMyDutyView() {
+      myDutyMaps = {}; // Reset mini-maps on re-render
       const todayDay = getTodayThaiDayName();
       const myPoints = getMyDutyPoints();
       const reports = db.getReports().filter(r => r.date === getTodayISODate() && r.teacherId === currentUser.id);
 
       return `
-        <div class="fade-in space-y-6 text-xs">
+        <div class="fade-in space-y-5 text-xs">
           <!-- Welcome Bar -->
-          <div class="bg-gradient-to-r from-brand-900 to-brand-800 text-white rounded-xl p-5 shadow flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <p class="text-brand-200">สวัสดีครับคุณครูผู้ปฏิบัติหน้าที่</p>
-              <h3 class="text-base font-bold mt-1">${currentUser.name} (รหัส: ${currentUser.id})</h3>
-              <p class="text-[10px] text-brand-100 mt-0.5">มีจุดตรวจดูแลความปลอดภัยที่ต้องลงบันทึก <b>${myPoints.length}</b> จุดเวรในวันนี้ (เวรวัน${todayDay})</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] text-brand-200">พิกัดปัจจุบัน:</span>
-              <span id="teacher-gps-status-badge" class="bg-white/10 px-2.5 py-1 rounded border border-white/20 font-bold">กำลังตรวจสอบสัญญาณดาวเทียม...</span>
+          <div class="bg-gradient-to-br from-brand-900 via-brand-800 to-brand-900 text-white rounded-2xl p-5 shadow-lg">
+            <div class="flex flex-col gap-3">
+              <div>
+                <p class="text-brand-200 text-[11px] font-medium">สวัสดีครับคุณครูผู้ปฏิบัติหน้าที่ 👋</p>
+                <h3 class="text-sm font-bold mt-1">${currentUser.name}</h3>
+                <p class="text-[10px] text-brand-100 mt-0.5">รหัส: ${currentUser.id} &nbsp;·&nbsp; วันนี้มี <b>${myPoints.length}</b> จุดเวร (เวรวัน${todayDay})</p>
+              </div>
+              <div class="bg-white/10 border border-white/20 rounded-lg px-3 py-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-brand-200 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <span id="teacher-gps-status-badge" class="font-bold text-[10px]">กำลังตรวจสอบสัญญาณดาวเทียม...</span>
+              </div>
             </div>
           </div>
 
           <!-- My Points List -->
           <div class="space-y-4">
             ${myPoints.length === 0 ? `
-              <div class="bg-white border rounded-xl p-6 text-center text-slate-500 font-medium">
-                ไม่มีข้อมูลตำแหน่งงานเวรแต่งตั้งสำหรับคุณในวันวันนี้
+              <div class="bg-white border rounded-2xl p-8 text-center text-slate-500 font-medium shadow-sm">
+                <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                ไม่มีข้อมูลตำแหน่งงานเวรแต่งตั้งสำหรับคุณในวันนี้
               </div>
             ` : myPoints.map(p => {
               const rep = reports.find(r => r.pointId === p.id);
-              const isDone = rep ? true : false;
+              const isDone = !!rep;
+              const hasProblem = isDone && rep.status === 'problem';
               
               const coTeachers = (p.assignedTo || p.assigned_to || [])
                 .filter(id => id !== currentUser.id)
                 .map(id => getTeacherName(id));
 
+              // Geo args for map toggle
+              const mapArgs = `${p.id},${p.lat},${p.lng},${p.radius},${p.lat2 ?? 'null'},${p.lng2 ?? 'null'},${p.radius2 ?? 'null'}`;
+
               return `
-                <div class="bg-white border rounded-xl p-4 shadow-sm hover:border-brand-500 transition">
-                  <div class="flex justify-between items-center gap-3">
-                    <div>
-                      <h4 class="font-bold text-slate-800 text-xs">จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name}</h4>
-                      <p class="text-slate-400 mt-0.5 font-medium">เวลาประจำจุดเวร: ${p.time} น.</p>
-                    </div>
-                    <div>
-                      ${isDone 
-                        ? (rep.status === 'problem' 
-                            ? '<span class="bg-red-100 text-red-800 px-3 py-1 rounded text-[10px] font-bold">แจ้งเหตุปัญหาน้ำท่วม/อุบัติเหตุ</span>'
-                            : '<span class="bg-green-100 text-green-800 px-3 py-1 rounded text-[10px] font-bold">ส่งรายงานแล้ว</span>')
-                        : '<span class="bg-amber-100 text-amber-800 px-3 py-1 rounded text-[10px] font-bold">ยังไม่บันทึกรายงาน</span>'}
+                <div class="bg-white border-2 ${isDone ? (hasProblem ? 'border-red-200' : 'border-green-200') : 'border-slate-100'} rounded-2xl shadow-sm overflow-hidden transition hover:shadow-md">
+                  
+                  <!-- Card Header -->
+                  <div class="flex items-start justify-between gap-3 p-4 pb-3">
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-brand-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">จุดที่ ${getDutyPointDisplayNumber(p)}</span>
+                        ${isDone
+                          ? hasProblem
+                            ? '<span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full">⚠️ แจ้งเหตุ</span>'
+                            : '<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">✅ ส่งแล้ว</span>'
+                          : '<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full">⏳ รอบันทึก</span>'}
+                      </div>
+                      <h4 class="font-bold text-slate-900 text-xs leading-snug">${p.name}</h4>
+                      <p class="text-slate-400 text-[10px] mt-0.5 font-medium flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        ${p.time} น.
+                      </p>
                     </div>
                   </div>
 
-                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 my-4 bg-slate-50 border rounded-lg p-3 text-slate-600 text-[10px]">
-                    <div>
-                      <strong class="text-slate-450 block font-normal">คณะครูร่วมจุด:</strong>
-                      <span class="font-semibold text-slate-800">${coTeachers.join(', ') || 'ไม่มี (ปฏิบัติเวรผู้เดียว)'}</span>
+                  <!-- Info Grid -->
+                  <div class="mx-4 mb-3 bg-slate-50 border border-slate-100 rounded-xl p-3 grid grid-cols-1 gap-2 text-[10px] text-slate-600">
+                    <div class="flex gap-1.5 items-start">
+                      <svg class="w-3.5 h-3.5 text-slate-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
+                      <div><span class="text-slate-400">ครูร่วมจุด: </span><span class="font-semibold text-slate-800">${coTeachers.join(', ') || 'ปฏิบัติเวรผู้เดียว'}</span></div>
                     </div>
-                    <div>
-                      <strong class="text-slate-450 block font-normal">เป้าหมาย Geofence:</strong>
-                      <span class="font-semibold text-slate-800">${p.lat2 != null ? 'บริเวณที่ 1: ' : ''}${p.lat.toFixed(6)}, ${p.lng.toFixed(6)} (รัศมี ${p.radius} ม.)</span>
-                      <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" class="text-brand-800 hover:text-brand-900 font-bold block mt-1 hover:underline inline-flex items-center gap-0.5">
-                        <i data-lucide="navigation" class="w-3 h-3 text-brand-850"></i> นำทางด้วย Google Maps
-                      </a>
+                    <div class="flex gap-1.5 items-start">
+                      <svg class="w-3.5 h-3.5 text-slate-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                      <div>
+                        <span class="text-slate-400">Geofence: </span>
+                        <span id="my-distance-check-${p.id}" class="font-bold text-brand-900">กำลังคำนวณ...</span>
+                      </div>
+                    </div>
+                    <div class="flex gap-1.5 items-center">
+                      <svg class="w-3.5 h-3.5 text-brand-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                      <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" class="text-brand-800 hover:text-brand-900 font-bold hover:underline">นำทาง Google Maps →</a>
                       ${p.lat2 != null ? `
-                        <span class="font-semibold text-slate-800 block mt-1.5">บริเวณที่ 2: ${p.lat2.toFixed(6)}, ${p.lng2.toFixed(6)} (รัศมี ${p.radius2 || p.radius} ม.)</span>
-                        <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat2},${p.lng2}" target="_blank" class="text-brand-800 hover:text-brand-900 font-bold block mt-1 hover:underline inline-flex items-center gap-0.5">
-                          <i data-lucide="navigation" class="w-3 h-3 text-brand-850"></i> นำทางด้วย Google Maps
-                        </a>
+                        <span class="text-slate-300">|</span>
+                        <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat2},${p.lng2}" target="_blank" class="text-purple-700 hover:text-purple-900 font-bold hover:underline">บริเวณที่ 2 →</a>
                       ` : ''}
                     </div>
-                    <div>
-                      <strong class="text-slate-450 block font-normal">ระยะพิกัดห่าง:</strong>
-                      <span class="font-bold text-brand-900" id="my-distance-check-${p.id}">กำลังคำนวณสัญญาณดาวเทียม...</span>
+                  </div>
+
+                  <!-- Mini Map (collapsible) -->
+                  <div id="my-duty-map-wrap-${p.id}" class="hidden mx-4 mb-3 duty-mini-map-wrap">
+                    <div id="my-duty-map-${p.id}" class="duty-mini-map"></div>
+                    <div class="flex items-center gap-3 mt-1.5 text-[10px] text-slate-400">
+                      <span class="flex items-center gap-1"><span style="width:10px;height:10px;background:#14532d;border-radius:50%;display:inline-block;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span> จุดเวร</span>
+                      ${p.lat2 != null ? `<span class="flex items-center gap-1"><span style="width:10px;height:10px;background:#7c3aed;border-radius:50%;display:inline-block;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span> บริเวณที่ 2</span>` : ''}
+                      <span class="flex items-center gap-1"><span style="width:10px;height:10px;background:#3b82f6;border-radius:50%;display:inline-block;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span> ตำแหน่งคุณ</span>
                     </div>
                   </div>
 
-                  <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                  <!-- Action Row -->
+                  <div class="px-4 pb-4 flex gap-2">
+                    <!-- Map toggle button -->
+                    <button id="my-duty-map-btn-${p.id}" onclick="toggleMyDutyMap(${mapArgs})" 
+                      class="flex-1 border border-slate-200 hover:border-brand-400 hover:bg-brand-50 text-slate-600 hover:text-brand-800 font-bold py-2.5 rounded-xl transition inline-flex items-center justify-center gap-1.5 text-[11px]">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                      ดูแผนที่จุดเวร
+                    </button>
                     ${isDone ? `
-                      <button onclick="viewReportDetails('${rep.id}')" class="border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg transition inline-flex items-center gap-1">
-                        <i data-lucide="eye" class="w-4 h-4"></i> ดูใบข้อมูล
+                      <button onclick="viewReportDetails('${rep.id}')" class="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-2.5 rounded-xl transition inline-flex items-center justify-center gap-1.5 text-[11px]">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        ดูรายงาน
                       </button>
                     ` : `
-                      <button id="btn-report-point-${p.id}" onclick="openReportForm(${p.id})" class="bg-brand-800 hover:bg-brand-700 text-white font-bold px-5 py-2.5 rounded-lg shadow transition flex items-center justify-center gap-1.5">
-                        <i data-lucide="clipboard-check" class="w-4 h-4"></i> เริ่มเขียนบันทึกรายงานเวร
+                      <button id="btn-report-point-${p.id}" onclick="openReportForm(${p.id})"
+                        class="flex-1 bg-brand-800 hover:bg-brand-700 active:scale-95 text-white font-bold py-2.5 rounded-xl shadow-md transition inline-flex items-center justify-center gap-1.5 text-[11px]">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                        รายงานจุดนี้
                       </button>
                     `}
                   </div>
@@ -3473,6 +3695,12 @@
     function getTodayThaiDayName() {
       const dayStr = new Date().toLocaleDateString('th-TH', { weekday: 'long' });
       return dayStr.replace(/^วัน/, '');
+    }
+
+    // คืนชื่อวันไทย (ไม่มี "วัน" นำหน้า) ของวันที่ที่กำหนด (รูปแบบ YYYY-MM-DD)
+    function getThaiDayNameForDate(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      return d.toLocaleDateString('th-TH', { weekday: 'long' }).replace(/^วัน/, '');
     }
 
     function getTeacherName(id) {
