@@ -154,7 +154,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.6.0</p>
+          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.6.1</p>
         </div>
         
         <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
@@ -162,7 +162,7 @@
             <label for="login-id" class="block text-sm font-medium text-slate-700 mb-1">รหัสครู / เบอร์โทรศัพท์</label>
             <div class="relative">
               <i data-lucide="user" class="absolute left-3 top-3 w-5 h-5 text-slate-400"></i>
-              <input id="login-id" type="text" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition" placeholder="กรอกรหัสครู (T001 - T006) หรือเบอร์โทร">
+              <input id="login-id" type="text" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition" placeholder="กรอกรหัสครู (เช่น 1001 หรือ 2001) หรือเบอร์โทร">
             </div>
           </div>
           <div>
@@ -235,7 +235,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.6.0</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.6.1</div>
           </div>
         </aside>
 
@@ -332,7 +332,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.6.0</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.6.1</div>
         </div>
       </aside>
     </div>
@@ -482,44 +482,1469 @@
 
     // Default Mock Data in case Supabase tables do not exist yet
     const defaultTeachers = [
-      { id: 'admin', name: 'แอดมินฝ่ายปกครอง',             role: 'admin',   phone: '0811111100', signature: null, password: '1234' },
-      { id: 'T001', name: 'นาย ศราวุธ เส้นสะนา',           role: 'teacher', phone: '0811111101', signature: null, password: '1234' },
-      { id: 'T002', name: 'นาย ตูวันอับดุลเลาะ ตูวันหะยี', role: 'teacher', phone: '0811111102', signature: null, password: '1234' },
-      { id: 'T003', name: 'นาย มูอัมหมัดเปาซี ลาเต็ะ',     role: 'teacher', phone: '0811111103', signature: null, password: '1234' },
-      { id: 'T004', name: 'นาย นัสรี บินรัตแก้ว',           role: 'teacher', phone: '0811111104', signature: null, password: '1234' },
-      { id: 'T005', name: 'นาย อาหามะ สือแม',               role: 'teacher', phone: '0811111105', signature: null, password: '1234' },
-      { id: 'T006', name: 'นาย ฮัมบาลี วาจิ',               role: 'head',    phone: '0811111106', signature: null, password: '1234' },
-      { id: 'T007', name: 'นาย นัทธีร์ หะยีเต็ะ',           role: 'teacher', phone: '0811111107', signature: null, password: '1234' },
-      { id: 'T008', name: 'นาย อับดุลราฟาร์ ตาเยะ',         role: 'teacher', phone: '0811111108', signature: null, password: '1234' },
-      { id: 'T009', name: 'นาย นิมิตร เจะยามา',             role: 'teacher', phone: '0811111109', signature: null, password: '1234' },
-      { id: 'T010', name: 'นาย นูรุดีน ดือราแม',            role: 'teacher', phone: '0811111110', signature: null, password: '1234' },
-      { id: 'T011', name: 'นาย สาฬูดี บือราเฮง',            role: 'teacher', phone: '0811111111', signature: null, password: '1234' },
-      { id: 'T012', name: 'นาย อดินัน สะอิด',               role: 'teacher', phone: '0811111112', signature: null, password: '1234' },
-      { id: 'T013', name: 'นาย อับดุลเราะมาน เส้นสะนา',    role: 'teacher', phone: '0811111113', signature: null, password: '1234' },
-      { id: 'T014', name: 'นาย บัสรี โนรัตแก้ว',            role: 'teacher', phone: '0811111114', signature: null, password: '1234' },
-    ];
+  {
+    "id": "admin",
+    "name": "แอดมินฝ่ายปกครอง",
+    "role": "admin",
+    "phone": "0811111100",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1087",
+    "name": "KruHambaleeWaji",
+    "role": "head",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2001",
+    "name": "MR.MHD ADAM IBRAHIM",
+    "role": "teacher",
+    "phone": "0802653414",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2002",
+    "name": "กาญจนา โต๊ะยะลา",
+    "role": "teacher",
+    "phone": "0614682981",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1003",
+    "name": "กาญจนา สาซู",
+    "role": "teacher",
+    "phone": "0928312878",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1007",
+    "name": "กูรัยนี นินาวา",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1012",
+    "name": "ซอฟียะห์ ดอเลาะ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2087",
+    "name": "นาง ปาสียะห์ สาและ",
+    "role": "teacher",
+    "phone": "0986970151",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1001",
+    "name": "นางกอมารีเยาะ เส็นสะนา",
+    "role": "teacher",
+    "phone": "0980615045",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1006",
+    "name": "นางกูดาเรีย อับดุลวาฮับ",
+    "role": "teacher",
+    "phone": "0892985362",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2004",
+    "name": "นางขอซีหน๊ะ ลาเต๊ะมูหะมะ",
+    "role": "teacher",
+    "phone": "0927721693",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1008",
+    "name": "นางคอลีเยาะห์ มอลอ",
+    "role": "teacher",
+    "phone": "0807105142",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1010",
+    "name": "นางจุฑารัตน์  ดอเลาะ",
+    "role": "teacher",
+    "phone": "0661571899",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1011",
+    "name": "นางซอบารียะห์ ปะจู",
+    "role": "teacher",
+    "phone": "0874326506",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1018",
+    "name": "นางซูรีนา เจ๊ะมิง",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2022",
+    "name": "นางนูซียะ มะลี",
+    "role": "teacher",
+    "phone": "0812778427",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1038",
+    "name": "นางนูรีมัน ยูโซะ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2027",
+    "name": "นางปาสียะห์ สาและ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1047",
+    "name": "นางมัซนี บือแน",
+    "role": "teacher",
+    "phone": "0611753312",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1050",
+    "name": "นางมารียานี แวนาแซ",
+    "role": "teacher",
+    "phone": "0831924035",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2036",
+    "name": "นางมีรีแย ยีหวัง",
+    "role": "teacher",
+    "phone": "0848563141",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1059",
+    "name": "นางโรหะนี  เลาะดีเยาะ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1061",
+    "name": "นางลาตีปะ เสะบิง",
+    "role": "teacher",
+    "phone": "0980265416",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1063",
+    "name": "นางลียานา  สะมะแอ",
+    "role": "teacher",
+    "phone": "0897323712",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2053",
+    "name": "นางแวอามีเนาะ   แวและ",
+    "role": "teacher",
+    "phone": "0899786430",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1067",
+    "name": "นางสารีปะห์  ยูโซะ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1109",
+    "name": "นางสาว ตัสนีม",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1110",
+    "name": "นางสาว ฮัสนี เจะสะมะ",
+    "role": "teacher",
+    "phone": "0873973189",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1002",
+    "name": "นางสาวกัสมา เด็นมูณี",
+    "role": "teacher",
+    "phone": "0898087933",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2003",
+    "name": "นางสาวกามารียะ มะแซ",
+    "role": "teacher",
+    "phone": "0829386919",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1004",
+    "name": "นางสาวกามารีเยาะ มะมิง",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1005",
+    "name": "นางสาวการีม๊ะ สาเหาะ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2005",
+    "name": "นางสาวคอดีเยาะ สาหลำ",
+    "role": "teacher",
+    "phone": "0937451487",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2006",
+    "name": "นางสาวเจะรอสียะห์ ปาโห๊ะ",
+    "role": "teacher",
+    "phone": "0887994776",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1086",
+    "name": "นางสาวชนิณี กาเดร์",
+    "role": "teacher",
+    "phone": "0989485174",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1013",
+    "name": "นางสาวซารีนา ยูโซะ",
+    "role": "teacher",
+    "phone": "0980477513",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1014",
+    "name": "นางสาวซารียะ บาเหม",
+    "role": "teacher",
+    "phone": "0862844859",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1015",
+    "name": "นางสาวซิครอ ยูโซ๊ะ",
+    "role": "teacher",
+    "phone": "0659132083",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2011",
+    "name": "นางสาวซีฮาม เจะยามา",
+    "role": "teacher",
+    "phone": "0850791345",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1017",
+    "name": "นางสาวซูรอหะนี แดบอ",
+    "role": "teacher",
+    "phone": "0937347820",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2012",
+    "name": "นางสาวไซด๊ะ ตาเละ",
+    "role": "teacher",
+    "phone": "0848623955",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1019",
+    "name": "นางสาวดาลีลาอ์  กรียอ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1022",
+    "name": "นางสาวต่วนโรสนียา ต่วนบือซา",
+    "role": "teacher",
+    "phone": "0924274792",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1023",
+    "name": "นางสาวตอฮีเราะห์ หะยีแวสะแลแม",
+    "role": "teacher",
+    "phone": "0847473781",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1025",
+    "name": "นางสาวตัสนีม กาลาแต",
+    "role": "teacher",
+    "phone": "0962262976",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1024",
+    "name": "นางสาวตัสนีม มะมิง",
+    "role": "teacher",
+    "phone": "0848606626",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2051",
+    "name": "นางสาวนาซูฮา สาและ",
+    "role": "teacher",
+    "phone": "0926856795",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1028",
+    "name": "นางสาวนาบีล๊ะ สาเมาะบาซา",
+    "role": "teacher",
+    "phone": "0872973446",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1030",
+    "name": "นางสาวนาวาล กะจิ",
+    "role": "teacher",
+    "phone": "0883947995",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2019",
+    "name": "นางสาวนาวาล เคดาร์",
+    "role": "teacher",
+    "phone": "0836542287",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1031",
+    "name": "นางสาวนาอีหม๊ะ เฮ็งปิยา",
+    "role": "teacher",
+    "phone": "0831852893",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1032",
+    "name": "นางสาวนิสรีน สาแลหมัน",
+    "role": "teacher",
+    "phone": "0804501893",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2021",
+    "name": "นางสาวนุรริย๊ะ ดอมะ",
+    "role": "teacher",
+    "phone": "0926280474",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2085",
+    "name": "นางสาวนูรมี หะนิมะ",
+    "role": "teacher",
+    "phone": "0981458750",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1034",
+    "name": "นางสาวนูรไอนี หะยีเลาะ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1035",
+    "name": "นางสาวนูรฮูดา หะยีเลาะ",
+    "role": "teacher",
+    "phone": "0958431240",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1036",
+    "name": "นางสาวนูรีซัน อีซอ",
+    "role": "teacher",
+    "phone": "0650681927",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1099",
+    "name": "นางสาวนูรีซา เจะแม",
+    "role": "teacher",
+    "phone": "0955246721",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1037",
+    "name": "นางสาวนูรีซา ดาหมิ",
+    "role": "teacher",
+    "phone": "0828295814",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1040",
+    "name": "นางสาวปาตีเมาะ สาเด๊ะ",
+    "role": "teacher",
+    "phone": "0862986878",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1041",
+    "name": "นางสาวฟาดีละห์ เหมาะจะโรจน์",
+    "role": "teacher",
+    "phone": "0623795161",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1043",
+    "name": "นางสาวฟาติน ดอเลาะ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2025",
+    "name": "นางสาวฟาตีเมาะ เจะเตะ",
+    "role": "teacher",
+    "phone": "0936726250",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1044",
+    "name": "นางสาวฟาตีฮะ วาจิ",
+    "role": "teacher",
+    "phone": "0611023061",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1045",
+    "name": "นางสาวฟิตรียา แวเด็ง",
+    "role": "teacher",
+    "phone": "0950265821",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1048",
+    "name": "นางสาวมัยมูนะห์ ตาเยะ",
+    "role": "teacher",
+    "phone": "0878995618",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1049",
+    "name": "นางสาวมัรกะ แวอาแซ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1051",
+    "name": "นางสาวมีรฟัต จูแซ",
+    "role": "teacher",
+    "phone": "0987438529",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1096",
+    "name": "นางสาวไมมูนะห์ สาและ",
+    "role": "teacher",
+    "phone": "0937712650",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2043",
+    "name": "นางสาวยาวาเฮร์ แวสามะ",
+    "role": "teacher",
+    "phone": "0926368700",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2047",
+    "name": "นางสาวรอวียะห์ อาเยาะแซ",
+    "role": "teacher",
+    "phone": "0808739341",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1092",
+    "name": "นางสาวรัชฎาภรณ์ ลายพรหม",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1057",
+    "name": "นางสาวรุสดา ดอเลาะเซาะ",
+    "role": "teacher",
+    "phone": "0987039943",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2050",
+    "name": "นางสาวรุสลีณีย์ ลาเตะ",
+    "role": "teacher",
+    "phone": "0971169370",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1058",
+    "name": "นางสาวรูไซนี ดือรามะ",
+    "role": "teacher",
+    "phone": "0937858482",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1062",
+    "name": "นางสาวลาตีฟะห์ วาเยะ",
+    "role": "teacher",
+    "phone": "0908815915",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2054",
+    "name": "นางสาวแวฮาซือนะ แวดาโอะ",
+    "role": "teacher",
+    "phone": "0643370453",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1066",
+    "name": "นางสาวสารีด๊ะ หะยีมาซอ",
+    "role": "teacher",
+    "phone": "0856704872",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1068",
+    "name": "นางสาวสารียา สาหลำ",
+    "role": "teacher",
+    "phone": "0808638360",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1071",
+    "name": "นางสาวสุไรยา มะมิง",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1073",
+    "name": "นางสาวสูไฮลา โตะวี",
+    "role": "teacher",
+    "phone": "0828345128",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1077",
+    "name": "นางสาวอัญญารัตน์ ชาจิตะ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1082",
+    "name": "นางสาวอัลฟาตีฮะห์ ฮะซา",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1084",
+    "name": "นางสาวอานีซ๊ะ ซูและ",
+    "role": "teacher",
+    "phone": "0806676621",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1085",
+    "name": "นางสาวอานีซะ นาแว",
+    "role": "teacher",
+    "phone": "0808408737",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1093",
+    "name": "นางสาวอาฟีฟะห์ ดอเลาะ",
+    "role": "teacher",
+    "phone": "0660126701",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2074",
+    "name": "นางสาวอาอีดะห์ กาเจ",
+    "role": "teacher",
+    "phone": "0807170789",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1088",
+    "name": "นางสาวฮัสนี เจะสะมะ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2068",
+    "name": "นางสาวฮาซียะ มะลี",
+    "role": "teacher",
+    "phone": "0892284260",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1089",
+    "name": "นางสาวฮาซือนะห์  สะมะแอ",
+    "role": "teacher",
+    "phone": "0843977787",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1090",
+    "name": "นางสาวฮายาตี อาแว",
+    "role": "teacher",
+    "phone": "0895961613",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1091",
+    "name": "นางสาวฮาริซา เคดาร์",
+    "role": "teacher",
+    "phone": "0980139557",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1069",
+    "name": "นางสุดารัตน์ เลขานุกิจ",
+    "role": "teacher",
+    "phone": "0654088827",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1070",
+    "name": "นางสุริยา ศรีสุภาสิตานนท์",
+    "role": "teacher",
+    "phone": "0894623352",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1072",
+    "name": "นางสุวิมล กุลชมภู",
+    "role": "teacher",
+    "phone": "0807101608",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1076",
+    "name": "นางอนุสรา ขุนริทธ์",
+    "role": "teacher",
+    "phone": "0892365446",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1083",
+    "name": "นางอัสลีนา สะอิด",
+    "role": "teacher",
+    "phone": "0822657617",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2073",
+    "name": "นางอาอีซ๊ะ แวกีจิ",
+    "role": "teacher",
+    "phone": "0966917307",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2080",
+    "name": "นางฮายาตี ดือราแม",
+    "role": "teacher",
+    "phone": "0653924201",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1102",
+    "name": "นาย Demo",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2086",
+    "name": "นายกมูฮัมหมัดอารีเฟ็น เปาะโน",
+    "role": "teacher",
+    "phone": "0831312897",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1095",
+    "name": "นายครูสอนดี รักเด็ก",
+    "role": "teacher",
+    "phone": "0987654321",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1009",
+    "name": "นายโฆษิทร์ บิลละโสย",
+    "role": "teacher",
+    "phone": "0819782466",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2007",
+    "name": "นายเจะสู เจะหะ",
+    "role": "teacher",
+    "phone": "0807073484",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2008",
+    "name": "นายเจ๊ะฮาเซ็น เจะปอ",
+    "role": "teacher",
+    "phone": "0654184407",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2009",
+    "name": "นายซอบรี จานะ",
+    "role": "teacher",
+    "phone": "0814784059",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1016",
+    "name": "นายซุห์ดี สาและ",
+    "role": "teacher",
+    "phone": "0817679216",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2013",
+    "name": "นายไซดิง  เจ๊ะเลง",
+    "role": "teacher",
+    "phone": "0897364065",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2014",
+    "name": "นายดนรอศักดิ์ จะโรจน์หวัง",
+    "role": "teacher",
+    "phone": "0928741778",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2015",
+    "name": "นายดานิยา แวเด็ง",
+    "role": "teacher",
+    "phone": "0950303652",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1020",
+    "name": "นายดาเล็ง สาหลำ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1021",
+    "name": "นายดีนัร สาฮะ",
+    "role": "teacher",
+    "phone": "0611643545",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2016",
+    "name": "นายโดรอแม เจะเหมาะ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2017",
+    "name": "นายตาร์มิซี เมาตี",
+    "role": "teacher",
+    "phone": "0862864789",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1026",
+    "name": "นายตูวันอับดุลเลาะห์ ตุวันหะยี",
+    "role": "teacher",
+    "phone": "0931757970",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2018",
+    "name": "นายนัทธีร์ หะยีเต๊ะ",
+    "role": "teacher",
+    "phone": "0934491503",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1027",
+    "name": "นายนัสรี บินรัตแก้ว",
+    "role": "teacher",
+    "phone": "0869616456",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2061",
+    "name": "นายนิมิตร เจะยามา",
+    "role": "teacher",
+    "phone": "0945354344",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1033",
+    "name": "นายนูรดีน เสนสะนา",
+    "role": "teacher",
+    "phone": "0612160171",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2023",
+    "name": "นายนูรุดิง ดือราแม",
+    "role": "teacher",
+    "phone": "0980296573",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1039",
+    "name": "นายปาดิล เจะเลง",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2026",
+    "name": "นายเปาซี แมเราะ",
+    "role": "teacher",
+    "phone": "0862919171",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1042",
+    "name": "นายฟาเดล อับดุลวาฮับ",
+    "role": "teacher",
+    "phone": "0898708010",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2028",
+    "name": "นายมะแซ ดอเลาะ",
+    "role": "teacher",
+    "phone": "0876331136",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2029",
+    "name": "นายมะนาเซ แยนา",
+    "role": "teacher",
+    "phone": "0860463077",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2030",
+    "name": "นายมะนาเซ สาและ",
+    "role": "teacher",
+    "phone": "0929317573",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2031",
+    "name": "นายมะมือลี หะยีมะมิง",
+    "role": "teacher",
+    "phone": "0869619865",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2032",
+    "name": "นายมะรอนิง มอลอ",
+    "role": "teacher",
+    "phone": "0872961282",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2033",
+    "name": "นายมะสารี อาลีมามะ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1046",
+    "name": "นายมะหามะสะปูดิง อาแว",
+    "role": "teacher",
+    "phone": "0844075660",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2034",
+    "name": "นายมังโซ หะยีบากา",
+    "role": "teacher",
+    "phone": "0659633178",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1052",
+    "name": "นายมุกตาร์ เจ๊ะมูเก็ง",
+    "role": "teacher",
+    "phone": "0810952985",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2037",
+    "name": "นายมูหมัด เจะและ",
+    "role": "teacher",
+    "phone": "0642980507",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1053",
+    "name": "นายมูฮัมมัดกาแมล สาแลหมัน",
+    "role": "teacher",
+    "phone": "0937264202",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2040",
+    "name": "นายมูฮัมมัดเปาซี ลาเต๊ะมูหะมะ",
+    "role": "teacher",
+    "phone": "0869622823",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2041",
+    "name": "นายมูฮัมหมัดอิกบัล แวเด็ง",
+    "role": "teacher",
+    "phone": "0643401891",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2042",
+    "name": "นายมูฮำมมัดเปาซี แวซู",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2044",
+    "name": "นายยูโซะ จารง",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2045",
+    "name": "นายยูโซะ ใบหมัด",
+    "role": "teacher",
+    "phone": "0980455881",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2046",
+    "name": "นายรอย๊ะ หวันโส๊ะ",
+    "role": "teacher",
+    "phone": "0896549496",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2048",
+    "name": "นายรอสดี จานะ",
+    "role": "teacher",
+    "phone": "0869568984",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2049",
+    "name": "นายรุสลี มะยะอิง",
+    "role": "teacher",
+    "phone": "0656476342",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1060",
+    "name": "นายฤทธิเกียรติ หะยีวามิส",
+    "role": "teacher",
+    "phone": "0635940689",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1064",
+    "name": "นายวินัย บินสือนิ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2052",
+    "name": "นายแวอับดุลรอเฮม เจะหะมะ",
+    "role": "teacher",
+    "phone": "0876321126",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1065",
+    "name": "นายศราวุธ เส็นสะนา",
+    "role": "teacher",
+    "phone": "0612289885",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2055",
+    "name": "นายสาปียัน มะเสาะ",
+    "role": "teacher",
+    "phone": "0961320156",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2056",
+    "name": "นายสาฮูดี บือราเฮง",
+    "role": "teacher",
+    "phone": "0992105390",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2058",
+    "name": "นายหัซมาน มอลอ",
+    "role": "teacher",
+    "phone": "0846912951",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2059",
+    "name": "นายหามะ สือแม",
+    "role": "teacher",
+    "phone": "0984963001",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1074",
+    "name": "นายอดินันท์  สะอิด",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1075",
+    "name": "นายอดิศักดิ์ ตาเยะ",
+    "role": "teacher",
+    "phone": "0871394027",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2060",
+    "name": "นายอะห์มัด มูฮำหมัด",
+    "role": "teacher",
+    "phone": "0815183756",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1080",
+    "name": "นายอับดลอารีด เดชอรัญ",
+    "role": "teacher",
+    "phone": "0813889706",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1078",
+    "name": "นายอับดุลการีม สาหลำ",
+    "role": "teacher",
+    "phone": "0894683530",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2063",
+    "name": "นายอับดุลมุตอเละ โตะมิง",
+    "role": "teacher",
+    "phone": "0656580331",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2064",
+    "name": "นายอับดุลยาเลล หมะอุเส็น",
+    "role": "teacher",
+    "phone": "0819699712",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2065",
+    "name": "นายอับดุลรอเซด โตะมิง",
+    "role": "teacher",
+    "phone": "0806131207",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2083",
+    "name": "นายอับดุลรอฟาร์ ตาเยะ",
+    "role": "teacher",
+    "phone": "0993456784",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1079",
+    "name": "นายอับดุลรอมัน เส็นสะนา",
+    "role": "teacher",
+    "phone": "0898799392",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2066",
+    "name": "นายอับดุลเลาะ เจะเฮาะ",
+    "role": "teacher",
+    "phone": "0827788684",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1081",
+    "name": "นายอัมราม บอสู",
+    "role": "teacher",
+    "phone": "0862885962",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2067",
+    "name": "นายอัศมาน มูซอ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2069",
+    "name": "นายอามัน สะตาปอ",
+    "role": "teacher",
+    "phone": "0981172232",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2070",
+    "name": "นายอามาน เจ๊ะหะมะ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2071",
+    "name": "นายอามีนูลเลาะห์ อาลี",
+    "role": "teacher",
+    "phone": "0892890155",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2072",
+    "name": "นายอาหามะ เจ๊ะอะ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2075",
+    "name": "นายอิบรอฮิม อาดำ",
+    "role": "teacher",
+    "phone": "0803468066",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2077",
+    "name": "นายอิสมาแอ มาหะ",
+    "role": "teacher",
+    "phone": "0817039366",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2076",
+    "name": "นายอีลฮัม ลาแซ",
+    "role": "teacher",
+    "phone": "0936906052",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2078",
+    "name": "นายอุสมาน แวนาแว",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2081",
+    "name": "นายฮาลูมิง มะเสาะ",
+    "role": "teacher",
+    "phone": "0810996457",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1029",
+    "name": "นารมา ณะมะลายู",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2024",
+    "name": "ปาอีซ๊ะ ดือราแม",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2035",
+    "name": "มานาล ศรีริกานนท์",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2039",
+    "name": "มาหามะลุตพี เมซา",
+    "role": "teacher",
+    "phone": "0800357646",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "1056",
+    "name": "รีฮาม อับดุลวาฮับ",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2010",
+    "name": "สีตีมาเรียม เมซา",
+    "role": "teacher",
+    "phone": "0833996635",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2057",
+    "name": "สุไมยะห์ บินรัตแก้ว",
+    "role": "teacher",
+    "phone": "0930313729",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "2062",
+    "name": "อัดสนะ เจ๊ะแต",
+    "role": "teacher",
+    "phone": "0800000000",
+    "signature": null,
+    "password": "1234"
+  }
+]
 
     const defaultDutyPoints = [
-      { id: 1,  name: 'ประจำประตูกับอาแซ',                                                          time: '08:00-09:00', lat: 6.787680, lng: 101.408120, radius: 50, assignedTo: ['T001'] },
-      { id: 2,  name: 'ประจำโตะปิงปอง',                                                             time: '08:00-09:15', lat: 6.787800, lng: 101.408200, radius: 40, assignedTo: ['T002', 'T003'] },
-      { id: 3,  name: 'ลงแถวจัดระเบียบแถว ตรวจเครื่องแบบ (ปวช/สามัญ)',                            time: '07:50-08:20', lat: 6.787500, lng: 101.408050, radius: 50, assignedTo: ['T004', 'T005', 'T006', 'T007', 'T008'] },
-      { id: 4,  name: 'อาคาร 5-6 และปิดประตู เร่งนักเรียนเข้าแถว',                                time: '07:55-08:20', lat: 6.787600, lng: 101.408300, radius: 40, assignedTo: ['T009'] },
-      { id: 5,  name: 'อาคาร 5 เร่งนักเรียนเข้าแถว',                                               time: '07:50-08:20', lat: 6.787700, lng: 101.408400, radius: 40, assignedTo: ['T010'] },
-      { id: 6,  name: 'คาบแรกอาคาร 5 เร่งนักเรียนเข้าเรียน',                                      time: '08:20-08:40', lat: 6.787700, lng: 101.408400, radius: 40, assignedTo: ['T008', 'T007'] },
-      { id: 7,  name: 'ลาดตระเวน คาบ 3',                                                           time: '10:00-10:45', lat: 6.788000, lng: 101.408600, radius: 60, assignedTo: ['T011', 'T012'] },
-      { id: 8,  name: 'ลาดตระเวน คาบ 4',                                                           time: '10:45-11:30', lat: 6.788000, lng: 101.408600, radius: 60, assignedTo: ['T005', 'T002'] },
-      { id: 9,  name: 'ก่อนหมดคาบ 5 ตรวจตรานักเรียนหนีลงเขาโรงอาหาร',                           time: '11:50-12:15', lat: 6.787900, lng: 101.408500, radius: 50, assignedTo: ['T007', 'T012'] },
-      { id: 10, name: 'บริเวณโตะปิงปองถึงประตูใหญ่ ตรวจตรานักเรียนหนีกลับบ้าน (คาบ 5)',          time: '11:45-12:10', lat: 6.787800, lng: 101.408200, radius: 50, assignedTo: ['T013'] },
-      { id: 11, name: 'บริเวณโตะปิงปองถึงประตูใหญ่ ตรวจตรานักเรียนหนีกลับบ้าน (คาบ 6)',          time: '12:15-13:00', lat: 6.787800, lng: 101.408200, radius: 50, assignedTo: ['T001'] },
-      { id: 12, name: 'ประจำมูซอลลา/มัสยิด เป็นอีม่ามและจัดระเบียบการละหมาดของนักเรียน',         time: '12:15-13:10', lat: 6.788200, lng: 101.408800, radius: 60, assignedTo: ['T009', 'T005', 'T006', 'T011', 'T010', 'T004'] },
-      { id: 13, name: 'ลาดตระเวณคาบ 7 (เน้นหน้าห้องน้ำโรงยิมและห้องน้ำใกล้มูซอลลา/มัสยิด)',     time: '13:55-14:40', lat: 6.788100, lng: 101.408700, radius: 60, assignedTo: ['T013', 'T002'] },
-      { id: 14, name: 'ลาดตระเวณคาบ 8',                                                            time: '14:40-15:40', lat: 6.788000, lng: 101.408600, radius: 60, assignedTo: [] },
-      { id: 15, name: 'ช่องแตเบาแลกเอกสาร ตรวจตรานักเรียนหนีกลับบ้านก่อนหมดคาบ 9',              time: '15:40-16:10', lat: 6.787650, lng: 101.408150, radius: 50, assignedTo: ['T003'] },
-      { id: 16, name: 'บริเวณทิจอตรถมอเตอร์ไซด์ชาย',                                              time: '15:40-16:10', lat: 6.787400, lng: 101.407900, radius: 50, assignedTo: ['T014'] },
-      { id: 17, name: 'บริเวณหน้าห้องพักอุสตาสหน้าโรงยิม ตรวจตรานักเรียนหนีกลับบ้านก่อนหมดคาบ 9', time: '15:40-16:10', lat: 6.788300, lng: 101.409000, radius: 50, assignedTo: ['T006'] },
-      { id: 18, name: 'บริเวณส่วนก สวนเกษตรทางลงนักเรียนหนีกลับบ้านก่อนหมดคาบ',                  time: '15:40-16:10', lat: 6.787200, lng: 101.407800, radius: 50, assignedTo: ['T010'] },
-      { id: 19, name: 'หัวมุมอาคาร 3 และห้องน้ำหญิง',                                             time: '15:40-16:10', lat: 6.787550, lng: 101.408250, radius: 40, assignedTo: ['T008'] },
-      { id: 20, name: 'หน้าอาคาร 5 ตรวจตรานักเรียนหนีลงก่อนหมดคาบ',                             time: '15:40-16:10', lat: 6.787700, lng: 101.408400, radius: 50, assignedTo: ['T011', 'T009'] },
+      { id: 1,  name: 'ประจำประตูกับอาแซ', time: '08:00-09:00', lat: 6.78768, lng: 101.40812, radius: 50, assignedTo: ['1065'] },
+      { id: 2,  name: 'ประจำโตะปิงปอง', time: '08:00-09:15', lat: 6.7878, lng: 101.4082, radius: 40, assignedTo: ['1026', '2040'] },
+      { id: 3,  name: 'ลงแถวจัดระเบียบแถว ตรวจเครื่องแบบ (ปวช/สามัญ)', time: '07:50-08:20', lat: 6.7875, lng: 101.40805, radius: 50, assignedTo: ['1027', '2059', '1087', '2018', '2083'] },
+      { id: 4,  name: 'อาคาร 5-6 และปิดประตู เร่งนักเรียนเข้าแถว', time: '07:55-08:20', lat: 6.7876, lng: 101.4083, radius: 40, assignedTo: ['2061'] },
+      { id: 5,  name: 'อาคาร 5 เร่งนักเรียนเข้าแถว', time: '07:50-08:20', lat: 6.7877, lng: 101.4084, radius: 40, assignedTo: ['2023'] },
+      { id: 6,  name: 'คาบแรกอาคาร 5 เร่งนักเรียนเข้าเรียน', time: '08:20-08:40', lat: 6.7877, lng: 101.4084, radius: 40, assignedTo: ['2083', '2018'] },
+      { id: 7,  name: 'ลาดตระเวน คาบ 3', time: '10:00-10:45', lat: 6.788, lng: 101.4086, radius: 60, assignedTo: ['2056', '1074'] },
+      { id: 8,  name: 'ลาดตระเวน คาบ 4', time: '10:45-11:30', lat: 6.788, lng: 101.4086, radius: 60, assignedTo: ['2059', '1026'] },
+      { id: 9,  name: 'ก่อนหมดคาบ 5 ตรวจตรานักเรียนหนีลงเขาโรงอาหาร', time: '11:50-12:15', lat: 6.7879, lng: 101.4085, radius: 50, assignedTo: ['2018', '1074'] },
+      { id: 10,  name: 'บริเวณโตะปิงปองถึงประตูใหญ่ ตรวจตรานักเรียนหนีกลับบ้าน (คาบ 5)', time: '11:45-12:10', lat: 6.7878, lng: 101.4082, radius: 50, assignedTo: ['1079'] },
+      { id: 11,  name: 'บริเวณโตะปิงปองถึงประตูใหญ่ ตรวจตรานักเรียนหนีกลับบ้าน (คาบ 6)', time: '12:15-13:00', lat: 6.7878, lng: 101.4082, radius: 50, assignedTo: ['1065'] },
+      { id: 12,  name: 'ประจำมูซอลลา/มัสยิด เป็นอีม่ามและจัดระเบียบการละหมาดของนักเรียน', time: '12:15-13:10', lat: 6.7882, lng: 101.4088, radius: 60, assignedTo: ['2061', '2059', '1087', '2056', '2023', '1027'] },
+      { id: 13,  name: 'ลาดตระเวณคาบ 7 (เน้นหน้าห้องน้ำโรงยิมและห้องน้ำใกล้มูซอลลา/มัสยิด)', time: '13:55-14:40', lat: 6.7881, lng: 101.4087, radius: 60, assignedTo: ['1079', '1026'] },
+      { id: 14,  name: 'ลาดตระเวณคาบ 8', time: '14:40-15:40', lat: 6.788, lng: 101.4086, radius: 60, assignedTo: [] },
+      { id: 15,  name: 'ช่องแตเบาแลกเอกสาร ตรวจตรานักเรียนหนีกลับบ้านก่อนหมดคาบ 9', time: '15:40-16:10', lat: 6.78765, lng: 101.40815, radius: 50, assignedTo: ['2040'] },
+      { id: 16,  name: 'บริเวณทิจอตรถมอเตอร์ไซด์ชาย', time: '15:40-16:10', lat: 6.7874, lng: 101.4079, radius: 50, assignedTo: ['1102'] },
+      { id: 17,  name: 'บริเวณหน้าห้องพักอุสตาสหน้าโรงยิม ตรวจตรานักเรียนหนีกลับบ้านก่อนหมดคาบ 9', time: '15:40-16:10', lat: 6.7883, lng: 101.409, radius: 50, assignedTo: ['1087'] },
+      { id: 18,  name: 'บริเวณส่วนก สวนเกษตรทางลงนักเรียนหนีกลับบ้านก่อนหมดคาบ', time: '15:40-16:10', lat: 6.7872, lng: 101.4078, radius: 50, assignedTo: ['2023'] },
+      { id: 19,  name: 'หัวมุมอาคาร 3 และห้องน้ำหญิง', time: '15:40-16:10', lat: 6.78755, lng: 101.40825, radius: 40, assignedTo: ['2083'] },
+      { id: 20,  name: 'หน้าอาคาร 5 ตรวจตรานักเรียนหนีลงก่อนหมดคาบ', time: '15:40-16:10', lat: 6.7877, lng: 101.4084, radius: 50, assignedTo: ['2056', '2061'] }
     ];
 
     const defaultReports = [];
@@ -619,44 +2044,209 @@ DELETE FROM teachers;
 ALTER TABLE teachers ADD COLUMN IF NOT EXISTS password TEXT NOT NULL DEFAULT '1234';
 
 INSERT INTO teachers (id, name, role, phone, signature, password) VALUES
-('admin', 'แอดมินฝ่ายปกครอง',             'admin',   '0811111100', NULL, '1234'),
-('T001', 'นาย ศราวุธ เส้นสะนา',           'teacher', '0811111101', NULL, '1234'),
-('T002', 'นาย ตูวันอับดุลเลาะ ตูวันหะยี', 'teacher', '0811111102', NULL, '1234'),
-('T003', 'นาย มูอัมหมัดเปาซี ลาเต็ะ',     'teacher', '0811111103', NULL, '1234'),
-('T004', 'นาย นัสรี บินรัตแก้ว',           'teacher', '0811111104', NULL, '1234'),
-('T005', 'นาย อาหามะ สือแม',               'teacher', '0811111105', NULL, '1234'),
-('T006', 'นาย ฮัมบาลี วาจิ',               'head',    '0811111106', NULL, '1234'),
-('T007', 'นาย นัทธีร์ หะยีเต็ะ',           'teacher', '0811111107', NULL, '1234'),
-('T008', 'นาย อับดุลราฟาร์ ตาเยะ',         'teacher', '0811111108', NULL, '1234'),
-('T009', 'นาย นิมิตร เจะยามา',             'teacher', '0811111109', NULL, '1234'),
-('T010', 'นาย นูรุดีน ดือราแม',            'teacher', '0811111110', NULL, '1234'),
-('T011', 'นาย สาฬูดี บือราเฮง',            'teacher', '0811111111', NULL, '1234'),
-('T012', 'นาย อดินัน สะอิด',               'teacher', '0811111112', NULL, '1234'),
-('T013', 'นาย อับดุลเราะมาน เส้นสะนา',    'teacher', '0811111113', NULL, '1234'),
-('T014', 'นาย บัสรี โนรัตแก้ว',            'teacher', '0811111114', NULL, '1234')
+('admin', 'แอดมินฝ่ายปกครอง', 'admin', '0811111100', NULL, '1234'),
+('1087', 'KruHambaleeWaji', 'head', '0800000000', NULL, '1234'),
+('2001', 'MR.MHD ADAM IBRAHIM', 'teacher', '0802653414', NULL, '1234'),
+('2002', 'กาญจนา โต๊ะยะลา', 'teacher', '0614682981', NULL, '1234'),
+('1003', 'กาญจนา สาซู', 'teacher', '0928312878', NULL, '1234'),
+('1007', 'กูรัยนี นินาวา', 'teacher', '0800000000', NULL, '1234'),
+('1012', 'ซอฟียะห์ ดอเลาะ', 'teacher', '0800000000', NULL, '1234'),
+('2087', 'นาง ปาสียะห์ สาและ', 'teacher', '0986970151', NULL, '1234'),
+('1001', 'นางกอมารีเยาะ เส็นสะนา', 'teacher', '0980615045', NULL, '1234'),
+('1006', 'นางกูดาเรีย อับดุลวาฮับ', 'teacher', '0892985362', NULL, '1234'),
+('2004', 'นางขอซีหน๊ะ ลาเต๊ะมูหะมะ', 'teacher', '0927721693', NULL, '1234'),
+('1008', 'นางคอลีเยาะห์ มอลอ', 'teacher', '0807105142', NULL, '1234'),
+('1010', 'นางจุฑารัตน์  ดอเลาะ', 'teacher', '0661571899', NULL, '1234'),
+('1011', 'นางซอบารียะห์ ปะจู', 'teacher', '0874326506', NULL, '1234'),
+('1018', 'นางซูรีนา เจ๊ะมิง', 'teacher', '0800000000', NULL, '1234'),
+('2022', 'นางนูซียะ มะลี', 'teacher', '0812778427', NULL, '1234'),
+('1038', 'นางนูรีมัน ยูโซะ', 'teacher', '0800000000', NULL, '1234'),
+('2027', 'นางปาสียะห์ สาและ', 'teacher', '0800000000', NULL, '1234'),
+('1047', 'นางมัซนี บือแน', 'teacher', '0611753312', NULL, '1234'),
+('1050', 'นางมารียานี แวนาแซ', 'teacher', '0831924035', NULL, '1234'),
+('2036', 'นางมีรีแย ยีหวัง', 'teacher', '0848563141', NULL, '1234'),
+('1059', 'นางโรหะนี  เลาะดีเยาะ', 'teacher', '0800000000', NULL, '1234'),
+('1061', 'นางลาตีปะ เสะบิง', 'teacher', '0980265416', NULL, '1234'),
+('1063', 'นางลียานา  สะมะแอ', 'teacher', '0897323712', NULL, '1234'),
+('2053', 'นางแวอามีเนาะ   แวและ', 'teacher', '0899786430', NULL, '1234'),
+('1067', 'นางสารีปะห์  ยูโซะ', 'teacher', '0800000000', NULL, '1234'),
+('1109', 'นางสาว ตัสนีม', 'teacher', '0800000000', NULL, '1234'),
+('1110', 'นางสาว ฮัสนี เจะสะมะ', 'teacher', '0873973189', NULL, '1234'),
+('1002', 'นางสาวกัสมา เด็นมูณี', 'teacher', '0898087933', NULL, '1234'),
+('2003', 'นางสาวกามารียะ มะแซ', 'teacher', '0829386919', NULL, '1234'),
+('1004', 'นางสาวกามารีเยาะ มะมิง', 'teacher', '0800000000', NULL, '1234'),
+('1005', 'นางสาวการีม๊ะ สาเหาะ', 'teacher', '0800000000', NULL, '1234'),
+('2005', 'นางสาวคอดีเยาะ สาหลำ', 'teacher', '0937451487', NULL, '1234'),
+('2006', 'นางสาวเจะรอสียะห์ ปาโห๊ะ', 'teacher', '0887994776', NULL, '1234'),
+('1086', 'นางสาวชนิณี กาเดร์', 'teacher', '0989485174', NULL, '1234'),
+('1013', 'นางสาวซารีนา ยูโซะ', 'teacher', '0980477513', NULL, '1234'),
+('1014', 'นางสาวซารียะ บาเหม', 'teacher', '0862844859', NULL, '1234'),
+('1015', 'นางสาวซิครอ ยูโซ๊ะ', 'teacher', '0659132083', NULL, '1234'),
+('2011', 'นางสาวซีฮาม เจะยามา', 'teacher', '0850791345', NULL, '1234'),
+('1017', 'นางสาวซูรอหะนี แดบอ', 'teacher', '0937347820', NULL, '1234'),
+('2012', 'นางสาวไซด๊ะ ตาเละ', 'teacher', '0848623955', NULL, '1234'),
+('1019', 'นางสาวดาลีลาอ์  กรียอ', 'teacher', '0800000000', NULL, '1234'),
+('1022', 'นางสาวต่วนโรสนียา ต่วนบือซา', 'teacher', '0924274792', NULL, '1234'),
+('1023', 'นางสาวตอฮีเราะห์ หะยีแวสะแลแม', 'teacher', '0847473781', NULL, '1234'),
+('1025', 'นางสาวตัสนีม กาลาแต', 'teacher', '0962262976', NULL, '1234'),
+('1024', 'นางสาวตัสนีม มะมิง', 'teacher', '0848606626', NULL, '1234'),
+('2051', 'นางสาวนาซูฮา สาและ', 'teacher', '0926856795', NULL, '1234'),
+('1028', 'นางสาวนาบีล๊ะ สาเมาะบาซา', 'teacher', '0872973446', NULL, '1234'),
+('1030', 'นางสาวนาวาล กะจิ', 'teacher', '0883947995', NULL, '1234'),
+('2019', 'นางสาวนาวาล เคดาร์', 'teacher', '0836542287', NULL, '1234'),
+('1031', 'นางสาวนาอีหม๊ะ เฮ็งปิยา', 'teacher', '0831852893', NULL, '1234'),
+('1032', 'นางสาวนิสรีน สาแลหมัน', 'teacher', '0804501893', NULL, '1234'),
+('2021', 'นางสาวนุรริย๊ะ ดอมะ', 'teacher', '0926280474', NULL, '1234'),
+('2085', 'นางสาวนูรมี หะนิมะ', 'teacher', '0981458750', NULL, '1234'),
+('1034', 'นางสาวนูรไอนี หะยีเลาะ', 'teacher', '0800000000', NULL, '1234'),
+('1035', 'นางสาวนูรฮูดา หะยีเลาะ', 'teacher', '0958431240', NULL, '1234'),
+('1036', 'นางสาวนูรีซัน อีซอ', 'teacher', '0650681927', NULL, '1234'),
+('1099', 'นางสาวนูรีซา เจะแม', 'teacher', '0955246721', NULL, '1234'),
+('1037', 'นางสาวนูรีซา ดาหมิ', 'teacher', '0828295814', NULL, '1234'),
+('1040', 'นางสาวปาตีเมาะ สาเด๊ะ', 'teacher', '0862986878', NULL, '1234'),
+('1041', 'นางสาวฟาดีละห์ เหมาะจะโรจน์', 'teacher', '0623795161', NULL, '1234'),
+('1043', 'นางสาวฟาติน ดอเลาะ', 'teacher', '0800000000', NULL, '1234'),
+('2025', 'นางสาวฟาตีเมาะ เจะเตะ', 'teacher', '0936726250', NULL, '1234'),
+('1044', 'นางสาวฟาตีฮะ วาจิ', 'teacher', '0611023061', NULL, '1234'),
+('1045', 'นางสาวฟิตรียา แวเด็ง', 'teacher', '0950265821', NULL, '1234'),
+('1048', 'นางสาวมัยมูนะห์ ตาเยะ', 'teacher', '0878995618', NULL, '1234'),
+('1049', 'นางสาวมัรกะ แวอาแซ', 'teacher', '0800000000', NULL, '1234'),
+('1051', 'นางสาวมีรฟัต จูแซ', 'teacher', '0987438529', NULL, '1234'),
+('1096', 'นางสาวไมมูนะห์ สาและ', 'teacher', '0937712650', NULL, '1234'),
+('2043', 'นางสาวยาวาเฮร์ แวสามะ', 'teacher', '0926368700', NULL, '1234'),
+('2047', 'นางสาวรอวียะห์ อาเยาะแซ', 'teacher', '0808739341', NULL, '1234'),
+('1092', 'นางสาวรัชฎาภรณ์ ลายพรหม', 'teacher', '0800000000', NULL, '1234'),
+('1057', 'นางสาวรุสดา ดอเลาะเซาะ', 'teacher', '0987039943', NULL, '1234'),
+('2050', 'นางสาวรุสลีณีย์ ลาเตะ', 'teacher', '0971169370', NULL, '1234'),
+('1058', 'นางสาวรูไซนี ดือรามะ', 'teacher', '0937858482', NULL, '1234'),
+('1062', 'นางสาวลาตีฟะห์ วาเยะ', 'teacher', '0908815915', NULL, '1234'),
+('2054', 'นางสาวแวฮาซือนะ แวดาโอะ', 'teacher', '0643370453', NULL, '1234'),
+('1066', 'นางสาวสารีด๊ะ หะยีมาซอ', 'teacher', '0856704872', NULL, '1234'),
+('1068', 'นางสาวสารียา สาหลำ', 'teacher', '0808638360', NULL, '1234'),
+('1071', 'นางสาวสุไรยา มะมิง', 'teacher', '0800000000', NULL, '1234'),
+('1073', 'นางสาวสูไฮลา โตะวี', 'teacher', '0828345128', NULL, '1234'),
+('1077', 'นางสาวอัญญารัตน์ ชาจิตะ', 'teacher', '0800000000', NULL, '1234'),
+('1082', 'นางสาวอัลฟาตีฮะห์ ฮะซา', 'teacher', '0800000000', NULL, '1234'),
+('1084', 'นางสาวอานีซ๊ะ ซูและ', 'teacher', '0806676621', NULL, '1234'),
+('1085', 'นางสาวอานีซะ นาแว', 'teacher', '0808408737', NULL, '1234'),
+('1093', 'นางสาวอาฟีฟะห์ ดอเลาะ', 'teacher', '0660126701', NULL, '1234'),
+('2074', 'นางสาวอาอีดะห์ กาเจ', 'teacher', '0807170789', NULL, '1234'),
+('1088', 'นางสาวฮัสนี เจะสะมะ', 'teacher', '0800000000', NULL, '1234'),
+('2068', 'นางสาวฮาซียะ มะลี', 'teacher', '0892284260', NULL, '1234'),
+('1089', 'นางสาวฮาซือนะห์  สะมะแอ', 'teacher', '0843977787', NULL, '1234'),
+('1090', 'นางสาวฮายาตี อาแว', 'teacher', '0895961613', NULL, '1234'),
+('1091', 'นางสาวฮาริซา เคดาร์', 'teacher', '0980139557', NULL, '1234'),
+('1069', 'นางสุดารัตน์ เลขานุกิจ', 'teacher', '0654088827', NULL, '1234'),
+('1070', 'นางสุริยา ศรีสุภาสิตานนท์', 'teacher', '0894623352', NULL, '1234'),
+('1072', 'นางสุวิมล กุลชมภู', 'teacher', '0807101608', NULL, '1234'),
+('1076', 'นางอนุสรา ขุนริทธ์', 'teacher', '0892365446', NULL, '1234'),
+('1083', 'นางอัสลีนา สะอิด', 'teacher', '0822657617', NULL, '1234'),
+('2073', 'นางอาอีซ๊ะ แวกีจิ', 'teacher', '0966917307', NULL, '1234'),
+('2080', 'นางฮายาตี ดือราแม', 'teacher', '0653924201', NULL, '1234'),
+('1102', 'นาย Demo', 'teacher', '0800000000', NULL, '1234'),
+('2086', 'นายกมูฮัมหมัดอารีเฟ็น เปาะโน', 'teacher', '0831312897', NULL, '1234'),
+('1095', 'นายครูสอนดี รักเด็ก', 'teacher', '0987654321', NULL, '1234'),
+('1009', 'นายโฆษิทร์ บิลละโสย', 'teacher', '0819782466', NULL, '1234'),
+('2007', 'นายเจะสู เจะหะ', 'teacher', '0807073484', NULL, '1234'),
+('2008', 'นายเจ๊ะฮาเซ็น เจะปอ', 'teacher', '0654184407', NULL, '1234'),
+('2009', 'นายซอบรี จานะ', 'teacher', '0814784059', NULL, '1234'),
+('1016', 'นายซุห์ดี สาและ', 'teacher', '0817679216', NULL, '1234'),
+('2013', 'นายไซดิง  เจ๊ะเลง', 'teacher', '0897364065', NULL, '1234'),
+('2014', 'นายดนรอศักดิ์ จะโรจน์หวัง', 'teacher', '0928741778', NULL, '1234'),
+('2015', 'นายดานิยา แวเด็ง', 'teacher', '0950303652', NULL, '1234'),
+('1020', 'นายดาเล็ง สาหลำ', 'teacher', '0800000000', NULL, '1234'),
+('1021', 'นายดีนัร สาฮะ', 'teacher', '0611643545', NULL, '1234'),
+('2016', 'นายโดรอแม เจะเหมาะ', 'teacher', '0800000000', NULL, '1234'),
+('2017', 'นายตาร์มิซี เมาตี', 'teacher', '0862864789', NULL, '1234'),
+('1026', 'นายตูวันอับดุลเลาะห์ ตุวันหะยี', 'teacher', '0931757970', NULL, '1234'),
+('2018', 'นายนัทธีร์ หะยีเต๊ะ', 'teacher', '0934491503', NULL, '1234'),
+('1027', 'นายนัสรี บินรัตแก้ว', 'teacher', '0869616456', NULL, '1234'),
+('2061', 'นายนิมิตร เจะยามา', 'teacher', '0945354344', NULL, '1234'),
+('1033', 'นายนูรดีน เสนสะนา', 'teacher', '0612160171', NULL, '1234'),
+('2023', 'นายนูรุดิง ดือราแม', 'teacher', '0980296573', NULL, '1234'),
+('1039', 'นายปาดิล เจะเลง', 'teacher', '0800000000', NULL, '1234'),
+('2026', 'นายเปาซี แมเราะ', 'teacher', '0862919171', NULL, '1234'),
+('1042', 'นายฟาเดล อับดุลวาฮับ', 'teacher', '0898708010', NULL, '1234'),
+('2028', 'นายมะแซ ดอเลาะ', 'teacher', '0876331136', NULL, '1234'),
+('2029', 'นายมะนาเซ แยนา', 'teacher', '0860463077', NULL, '1234'),
+('2030', 'นายมะนาเซ สาและ', 'teacher', '0929317573', NULL, '1234'),
+('2031', 'นายมะมือลี หะยีมะมิง', 'teacher', '0869619865', NULL, '1234'),
+('2032', 'นายมะรอนิง มอลอ', 'teacher', '0872961282', NULL, '1234'),
+('2033', 'นายมะสารี อาลีมามะ', 'teacher', '0800000000', NULL, '1234'),
+('1046', 'นายมะหามะสะปูดิง อาแว', 'teacher', '0844075660', NULL, '1234'),
+('2034', 'นายมังโซ หะยีบากา', 'teacher', '0659633178', NULL, '1234'),
+('1052', 'นายมุกตาร์ เจ๊ะมูเก็ง', 'teacher', '0810952985', NULL, '1234'),
+('2037', 'นายมูหมัด เจะและ', 'teacher', '0642980507', NULL, '1234'),
+('1053', 'นายมูฮัมมัดกาแมล สาแลหมัน', 'teacher', '0937264202', NULL, '1234'),
+('2040', 'นายมูฮัมมัดเปาซี ลาเต๊ะมูหะมะ', 'teacher', '0869622823', NULL, '1234'),
+('2041', 'นายมูฮัมหมัดอิกบัล แวเด็ง', 'teacher', '0643401891', NULL, '1234'),
+('2042', 'นายมูฮำมมัดเปาซี แวซู', 'teacher', '0800000000', NULL, '1234'),
+('2044', 'นายยูโซะ จารง', 'teacher', '0800000000', NULL, '1234'),
+('2045', 'นายยูโซะ ใบหมัด', 'teacher', '0980455881', NULL, '1234'),
+('2046', 'นายรอย๊ะ หวันโส๊ะ', 'teacher', '0896549496', NULL, '1234'),
+('2048', 'นายรอสดี จานะ', 'teacher', '0869568984', NULL, '1234'),
+('2049', 'นายรุสลี มะยะอิง', 'teacher', '0656476342', NULL, '1234'),
+('1060', 'นายฤทธิเกียรติ หะยีวามิส', 'teacher', '0635940689', NULL, '1234'),
+('1064', 'นายวินัย บินสือนิ', 'teacher', '0800000000', NULL, '1234'),
+('2052', 'นายแวอับดุลรอเฮม เจะหะมะ', 'teacher', '0876321126', NULL, '1234'),
+('1065', 'นายศราวุธ เส็นสะนา', 'teacher', '0612289885', NULL, '1234'),
+('2055', 'นายสาปียัน มะเสาะ', 'teacher', '0961320156', NULL, '1234'),
+('2056', 'นายสาฮูดี บือราเฮง', 'teacher', '0992105390', NULL, '1234'),
+('2058', 'นายหัซมาน มอลอ', 'teacher', '0846912951', NULL, '1234'),
+('2059', 'นายหามะ สือแม', 'teacher', '0984963001', NULL, '1234'),
+('1074', 'นายอดินันท์  สะอิด', 'teacher', '0800000000', NULL, '1234'),
+('1075', 'นายอดิศักดิ์ ตาเยะ', 'teacher', '0871394027', NULL, '1234'),
+('2060', 'นายอะห์มัด มูฮำหมัด', 'teacher', '0815183756', NULL, '1234'),
+('1080', 'นายอับดลอารีด เดชอรัญ', 'teacher', '0813889706', NULL, '1234'),
+('1078', 'นายอับดุลการีม สาหลำ', 'teacher', '0894683530', NULL, '1234'),
+('2063', 'นายอับดุลมุตอเละ โตะมิง', 'teacher', '0656580331', NULL, '1234'),
+('2064', 'นายอับดุลยาเลล หมะอุเส็น', 'teacher', '0819699712', NULL, '1234'),
+('2065', 'นายอับดุลรอเซด โตะมิง', 'teacher', '0806131207', NULL, '1234'),
+('2083', 'นายอับดุลรอฟาร์ ตาเยะ', 'teacher', '0993456784', NULL, '1234'),
+('1079', 'นายอับดุลรอมัน เส็นสะนา', 'teacher', '0898799392', NULL, '1234'),
+('2066', 'นายอับดุลเลาะ เจะเฮาะ', 'teacher', '0827788684', NULL, '1234'),
+('1081', 'นายอัมราม บอสู', 'teacher', '0862885962', NULL, '1234'),
+('2067', 'นายอัศมาน มูซอ', 'teacher', '0800000000', NULL, '1234'),
+('2069', 'นายอามัน สะตาปอ', 'teacher', '0981172232', NULL, '1234'),
+('2070', 'นายอามาน เจ๊ะหะมะ', 'teacher', '0800000000', NULL, '1234'),
+('2071', 'นายอามีนูลเลาะห์ อาลี', 'teacher', '0892890155', NULL, '1234'),
+('2072', 'นายอาหามะ เจ๊ะอะ', 'teacher', '0800000000', NULL, '1234'),
+('2075', 'นายอิบรอฮิม อาดำ', 'teacher', '0803468066', NULL, '1234'),
+('2077', 'นายอิสมาแอ มาหะ', 'teacher', '0817039366', NULL, '1234'),
+('2076', 'นายอีลฮัม ลาแซ', 'teacher', '0936906052', NULL, '1234'),
+('2078', 'นายอุสมาน แวนาแว', 'teacher', '0800000000', NULL, '1234'),
+('2081', 'นายฮาลูมิง มะเสาะ', 'teacher', '0810996457', NULL, '1234'),
+('1029', 'นารมา ณะมะลายู', 'teacher', '0800000000', NULL, '1234'),
+('2024', 'ปาอีซ๊ะ ดือราแม', 'teacher', '0800000000', NULL, '1234'),
+('2035', 'มานาล ศรีริกานนท์', 'teacher', '0800000000', NULL, '1234'),
+('2039', 'มาหามะลุตพี เมซา', 'teacher', '0800357646', NULL, '1234'),
+('1056', 'รีฮาม อับดุลวาฮับ', 'teacher', '0800000000', NULL, '1234'),
+('2010', 'สีตีมาเรียม เมซา', 'teacher', '0833996635', NULL, '1234'),
+('2057', 'สุไมยะห์ บินรัตแก้ว', 'teacher', '0930313729', NULL, '1234'),
+('2062', 'อัดสนะ เจ๊ะแต', 'teacher', '0800000000', NULL, '1234')
 ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, role=EXCLUDED.role, phone=EXCLUDED.phone, password=EXCLUDED.password;
 
 INSERT INTO duty_points (id, name, time, lat, lng, radius, assigned_to) VALUES
-(1,  'ประจำประตูกับอาแซ',                                                             '08:00-09:00', 6.787680, 101.408120, 50, ARRAY['T001']),
-(2,  'ประจำโตะปิงปอง',                                                                '08:00-09:15', 6.787800, 101.408200, 40, ARRAY['T002','T003']),
-(3,  'ลงแถวจัดระเบียบแถว ตรวจเครื่องแบบ (ปวช/สามัญ)',                               '07:50-08:20', 6.787500, 101.408050, 50, ARRAY['T004','T005','T006','T007','T008']),
-(4,  'อาคาร 5-6 และปิดประตู เร่งนักเรียนเข้าแถว',                                   '07:55-08:20', 6.787600, 101.408300, 40, ARRAY['T009']),
-(5,  'อาคาร 5 เร่งนักเรียนเข้าแถว',                                                  '07:50-08:20', 6.787700, 101.408400, 40, ARRAY['T010']),
-(6,  'คาบแรกอาคาร 5 เร่งนักเรียนเข้าเรียน',                                         '08:20-08:40', 6.787700, 101.408400, 40, ARRAY['T008','T007']),
-(7,  'ลาดตระเวน คาบ 3',                                                              '10:00-10:45', 6.788000, 101.408600, 60, ARRAY['T011','T012']),
-(8,  'ลาดตระเวน คาบ 4',                                                              '10:45-11:30', 6.788000, 101.408600, 60, ARRAY['T005','T002']),
-(9,  'ก่อนหมดคาบ 5 ตรวจตรานักเรียนหนีลงเขาโรงอาหาร',                              '11:50-12:15', 6.787900, 101.408500, 50, ARRAY['T007','T012']),
-(10, 'บริเวณโตะปิงปองถึงประตูใหญ่ ตรวจตรานักเรียนหนีกลับบ้าน (คาบ 5)',             '11:45-12:10', 6.787800, 101.408200, 50, ARRAY['T013']),
-(11, 'บริเวณโตะปิงปองถึงประตูใหญ่ ตรวจตรานักเรียนหนีกลับบ้าน (คาบ 6)',             '12:15-13:00', 6.787800, 101.408200, 50, ARRAY['T001']),
-(12, 'ประจำมูซอลลา/มัสยิด เป็นอีม่ามและจัดระเบียบการละหมาดของนักเรียน',            '12:15-13:10', 6.788200, 101.408800, 60, ARRAY['T009','T005','T006','T011','T010','T004']),
-(13, 'ลาดตระเวณคาบ 7 (เน้นหน้าห้องน้ำโรงยิมและห้องน้ำใกล้มูซอลลา/มัสยิด)',        '13:55-14:40', 6.788100, 101.408700, 60, ARRAY['T013','T002']),
-(14, 'ลาดตระเวณคาบ 8',                                                               '14:40-15:40', 6.788000, 101.408600, 60, ARRAY[]::text[]),
-(15, 'ช่องแตเบาแลกเอกสาร ตรวจตรานักเรียนหนีกลับบ้านก่อนหมดคาบ 9',               '15:40-16:10', 6.787650, 101.408150, 50, ARRAY['T003']),
-(16, 'บริเวณทิจอตรถมอเตอร์ไซด์ชาย',                                                 '15:40-16:10', 6.787400, 101.407900, 50, ARRAY['T014']),
-(17, 'บริเวณหน้าห้องพักอุสตาสหน้าโรงยิม ตรวจตรานักเรียนหนีกลับบ้านก่อนหมดคาบ 9', '15:40-16:10', 6.788300, 101.409000, 50, ARRAY['T006']),
-(18, 'บริเวณส่วนก สวนเกษตรทางลงนักเรียนหนีกลับบ้านก่อนหมดคาบ',                   '15:40-16:10', 6.787200, 101.407800, 50, ARRAY['T010']),
-(19, 'หัวมุมอาคาร 3 และห้องน้ำหญิง',                                                '15:40-16:10', 6.787550, 101.408250, 40, ARRAY['T008']),
-(20, 'หน้าอาคาร 5 ตรวจตรานักเรียนหนีลงก่อนหมดคาบ',                               '15:40-16:10', 6.787700, 101.408400, 50, ARRAY['T011','T009'])
+(1,  'ประจำประตูกับอาแซ', '08:00-09:00', 6.78768, 101.40812, 50, ARRAY['1065']),
+(2,  'ประจำโตะปิงปอง', '08:00-09:15', 6.7878, 101.4082, 40, ARRAY['1026','2040']),
+(3,  'ลงแถวจัดระเบียบแถว ตรวจเครื่องแบบ (ปวช/สามัญ)', '07:50-08:20', 6.7875, 101.40805, 50, ARRAY['1027','2059','1087','2018','2083']),
+(4,  'อาคาร 5-6 และปิดประตู เร่งนักเรียนเข้าแถว', '07:55-08:20', 6.7876, 101.4083, 40, ARRAY['2061']),
+(5,  'อาคาร 5 เร่งนักเรียนเข้าแถว', '07:50-08:20', 6.7877, 101.4084, 40, ARRAY['2023']),
+(6,  'คาบแรกอาคาร 5 เร่งนักเรียนเข้าเรียน', '08:20-08:40', 6.7877, 101.4084, 40, ARRAY['2083','2018']),
+(7,  'ลาดตระเวน คาบ 3', '10:00-10:45', 6.788, 101.4086, 60, ARRAY['2056','1074']),
+(8,  'ลาดตระเวน คาบ 4', '10:45-11:30', 6.788, 101.4086, 60, ARRAY['2059','1026']),
+(9,  'ก่อนหมดคาบ 5 ตรวจตรานักเรียนหนีลงเขาโรงอาหาร', '11:50-12:15', 6.7879, 101.4085, 50, ARRAY['2018','1074']),
+(10,  'บริเวณโตะปิงปองถึงประตูใหญ่ ตรวจตรานักเรียนหนีกลับบ้าน (คาบ 5)', '11:45-12:10', 6.7878, 101.4082, 50, ARRAY['1079']),
+(11,  'บริเวณโตะปิงปองถึงประตูใหญ่ ตรวจตรานักเรียนหนีกลับบ้าน (คาบ 6)', '12:15-13:00', 6.7878, 101.4082, 50, ARRAY['1065']),
+(12,  'ประจำมูซอลลา/มัสยิด เป็นอีม่ามและจัดระเบียบการละหมาดของนักเรียน', '12:15-13:10', 6.7882, 101.4088, 60, ARRAY['2061','2059','1087','2056','2023','1027']),
+(13,  'ลาดตระเวณคาบ 7 (เน้นหน้าห้องน้ำโรงยิมและห้องน้ำใกล้มูซอลลา/มัสยิด)', '13:55-14:40', 6.7881, 101.4087, 60, ARRAY['1079','1026']),
+(14,  'ลาดตระเวณคาบ 8', '14:40-15:40', 6.788, 101.4086, 60, ARRAY[]::text[]),
+(15,  'ช่องแตเบาแลกเอกสาร ตรวจตรานักเรียนหนีกลับบ้านก่อนหมดคาบ 9', '15:40-16:10', 6.78765, 101.40815, 50, ARRAY['2040']),
+(16,  'บริเวณทิจอตรถมอเตอร์ไซด์ชาย', '15:40-16:10', 6.7874, 101.4079, 50, ARRAY['1102']),
+(17,  'บริเวณหน้าห้องพักอุสตาสหน้าโรงยิม ตรวจตรานักเรียนหนีกลับบ้านก่อนหมดคาบ 9', '15:40-16:10', 6.7883, 101.409, 50, ARRAY['1087']),
+(18,  'บริเวณส่วนก สวนเกษตรทางลงนักเรียนหนีกลับบ้านก่อนหมดคาบ', '15:40-16:10', 6.7872, 101.4078, 50, ARRAY['2023']),
+(19,  'หัวมุมอาคาร 3 และห้องน้ำหญิง', '15:40-16:10', 6.78755, 101.40825, 40, ARRAY['2083']),
+(20,  'หน้าอาคาร 5 ตรวจตรานักเรียนหนีลงก่อนหมดคาบ', '15:40-16:10', 6.7877, 101.4084, 50, ARRAY['2056','2061'])
 ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, time=EXCLUDED.time, lat=EXCLUDED.lat, lng=EXCLUDED.lng, radius=EXCLUDED.radius, assigned_to=EXCLUDED.assigned_to;
 
 -- 6.5 [สำคัญ!] เพิ่มคอลัมน์ใหม่ในตาราง settings ก่อน INSERT (รันได้ปลอดภัยหากมีคอลัมน์แล้ว)
@@ -702,7 +2292,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.6.0';
+    const APP_VERSION = '1.6.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -887,11 +2477,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     function loginAs(role) {
       const teachers = db.getTeachers();
       if (role === 'admin') {
-        currentUser = teachers.find(t => t.id === 'admin') || { id: 'admin', name: 'แอดมินฝ่ายปกครอง', role: 'admin', password: '1234' };
-      } else if (role === 'head') {
-        currentUser = teachers.find(t => t.role === 'head') || { id: 'T006', name: 'นาย ฮัมบาลี วาจิ', role: 'head', password: '1234' };
-      } else {
-        currentUser = teachers.find(t => t.id === 'T001') || teachers[0];
+        currentUser = teachers.find(t => t.id === '2001') || teachers[0];
       }
       
       localStorage.setItem('wen_saved_account', JSON.stringify({
@@ -951,7 +2537,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
           showToast('รหัสผ่านแอดมินไม่ถูกต้อง', 'error');
         }
       } else {
-        showToast('ไม่พบข้อมูลผู้ใช้นี้ในระบบ กรุณาใช้ T001-T014, admin หรือ "admin" เพื่อจำลองระบบ', 'error');
+        showToast('ไม่พบข้อมูลผู้ใช้นี้ในระบบ กรุณาใช้รหัสครูจริง หรือ admin เพื่อจำลองระบบ', 'error');
       }
     }
 
@@ -1643,7 +3229,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
               <input type="hidden" id="teacher-form-id-flag">
               <div>
                 <label class="block text-slate-500 mb-1 font-bold">รหัสประจำตัวครู (ห้ามซ้ำ):</label>
-                <input type="text" id="teacher-form-id" required placeholder="เช่น T007" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+                <input type="text" id="teacher-form-id" required placeholder="เช่น 1001" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
               </div>
               <div>
                 <label class="block text-slate-500 mb-1 font-bold">ชื่อ-นามสกุลจริง:</label>
