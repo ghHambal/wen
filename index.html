@@ -98,7 +98,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.7.2</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.7.5</p>
         </div>
         
         <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
@@ -179,7 +179,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.7.2</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.7.5</div>
           </div>
         </aside>
 
@@ -276,7 +276,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.7.2</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.7.5</div>
         </div>
       </aside>
     </div>
@@ -459,7 +459,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.7.4';
+    const APP_VERSION = '1.7.5';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -1110,7 +1110,7 @@
                               </button>
                             ` : `
                               <button onclick="triggerSimulatedTeacherReport('${p.id}', '${teacherId}')" class="text-blue-650 hover:text-blue-850 font-bold inline-flex items-center gap-0.5" title="จำลองการลงทะเบียนเวร">
-                                <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                               </button>
                             `}
                           </td>
@@ -1160,7 +1160,7 @@
                           </button>
                         ` : `
                           <button onclick="triggerSimulatedTeacherReport('${p.id}', '${teacherId}')" class="text-blue-650 font-bold flex items-center gap-0.5">
-                            <i data-lucide="edit-2" class="w-3.5 h-3.5"></i> จำลอง
+                            <i data-lucide="pencil" class="w-3.5 h-3.5"></i> จำลอง
                           </button>
                         `}
                       </div>
@@ -2097,7 +2097,7 @@
 
                   <div class="flex gap-2 pt-1 border-t border-slate-150 no-print">
                     <button onclick="openTeacherFormModal('${t.id}')" class="flex-1 border border-slate-200 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50 font-semibold rounded-lg transition flex items-center justify-center gap-1">
-                      <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> แก้ไข
+                      <i data-lucide="pencil" class="w-3.5 h-3.5"></i> แก้ไข
                     </button>
                     <button onclick="deleteTeacher('${t.id}')" class="flex-1 border border-red-150 text-red-650 py-1.5 text-[11px] hover:bg-red-50 font-semibold rounded-lg transition flex items-center justify-center gap-1">
                       <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> ลบออก
@@ -2164,7 +2164,7 @@
                         <td class="p-3 text-center no-print">
                           <div class="flex gap-1.5 justify-center">
                             <button onclick="openTeacherFormModal('${t.id}')" class="border border-slate-200 hover:bg-slate-100 text-slate-700 px-2 py-1 rounded font-bold transition flex items-center gap-0.5">
-                              <i data-lucide="edit-3" class="w-3 h-3"></i> แก้ไข
+                              <i data-lucide="pencil" class="w-3 h-3"></i> แก้ไข
                             </button>
                             <button onclick="deleteTeacher('${t.id}')" class="border border-red-150 hover:bg-red-50 text-red-650 px-2 py-1 rounded font-bold transition flex items-center gap-0.5">
                               <i data-lucide="trash-2" class="w-3 h-3"></i> ลบ
@@ -2280,7 +2280,7 @@
 
                   <div class="flex gap-2 pt-2 border-t mt-3 border-slate-100">
                     <button onclick="event.stopPropagation(); openDutyPointModal(${p.id})" class="flex-1 bg-white border text-slate-700 py-1 hover:bg-slate-50 text-[10px] font-bold rounded transition flex items-center justify-center gap-0.5">
-                      <i data-lucide="edit" class="w-3.5 h-3.5"></i> แก้ไขข้อมูล
+                      <i data-lucide="pencil" class="w-3.5 h-3.5"></i> แก้ไขข้อมูล
                     </button>
                     <button onclick="event.stopPropagation(); deleteDutyPoint(${p.id})" class="flex-1 bg-white border border-red-100 text-red-650 py-1 hover:bg-red-50 text-[10px] font-bold rounded transition flex items-center justify-center gap-0.5">
                       <i data-lucide="trash" class="w-3.5 h-3.5"></i> ลบพอยท์
@@ -4784,6 +4784,13 @@
       if (mobileSidebarSchool) {
         mobileSidebarSchool.textContent = settings.schoolName || 'ร.ร.มูลนิธิอาซิซสถาน';
       }
+
+      // App version footers (login page + sidebars)
+      const versionText = `เวอร์ชัน ${APP_VERSION}`;
+      ['login-version', 'sidebar-version', 'mobile-sidebar-version'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = versionText;
+      });
     }
 
     function focusPickerMapOnCurrentLocation() {
