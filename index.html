@@ -491,6 +491,22 @@
     "password": "1234"
   },
   {
+    "id": "chief",
+    "name": "หัวหน้าเวรใหญ่",
+    "role": "chief",
+    "phone": "0822222200",
+    "signature": null,
+    "password": "1234"
+  },
+  {
+    "id": "director",
+    "name": "ดร.มูฮัมหมัด ซากี",
+    "role": "director",
+    "phone": "0833333300",
+    "signature": null,
+    "password": "1234"
+  },
+  {
     "id": "1087",
     "name": "KruHambaleeWaji",
     "role": "head",
@@ -2045,6 +2061,8 @@ ALTER TABLE teachers ADD COLUMN IF NOT EXISTS password TEXT NOT NULL DEFAULT '12
 
 INSERT INTO teachers (id, name, role, phone, signature, password) VALUES
 ('admin', 'แอดมินฝ่ายปกครอง', 'admin', '0811111100', NULL, '1234'),
+('chief', 'หัวหน้าเวรใหญ่', 'chief', '0822222200', NULL, '1234'),
+('director', 'ดร.มูฮัมหมัด ซากี', 'director', '0833333300', NULL, '1234'),
 ('1087', 'KruHambaleeWaji', 'head', '0800000000', NULL, '1234'),
 ('2001', 'MR.MHD ADAM IBRAHIM', 'teacher', '0802653414', NULL, '1234'),
 ('2002', 'กาญจนา โต๊ะยะลา', 'teacher', '0614682981', NULL, '1234'),
@@ -2422,6 +2440,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
 
     const adminMenus = [
       { id: 'dashboard', icon: 'layout-dashboard', label: 'Dashboard' },
+      { id: 'executive-overview', icon: 'award', label: 'ภาพรวมผู้บริหาร' },
       { id: 'today-report', icon: 'clipboard-list', label: 'รายงานเวรวันนี้' },
       { id: 'schedule', icon: 'calendar', label: 'ตารางเวร' },
       { id: 'teachers', icon: 'users', label: 'ครูผู้ปฏิบัติหน้าที่' },
@@ -2444,11 +2463,12 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     
     // Global schedule view selected day
     let currentScheduleViewDay = null;
+    let activeRoleMode = 'teacher';
+    let currentExecutiveGroupFilter = 'all'; // 'all', 'ชาย', 'หญิง'
 
     function isUserAdminOrHead() {
       if (!currentUser) return false;
-      if (currentUser.role === 'admin') return true;
-      if (currentUser.role === 'head') return true;
+      if (currentUser.role === 'admin' || currentUser.role === 'chief' || currentUser.role === 'director') return true;
       
       const settings = db.getSettings();
       const headsOfDay = settings.headsOfDay || {};
@@ -2477,8 +2497,14 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     function loginAs(role) {
       const teachers = db.getTeachers();
       if (role === 'admin') {
+        currentUser = teachers.find(t => t.id === 'admin') || { id: 'admin', name: 'แอดมินฝ่ายปกครอง', role: 'admin', password: '1234' };
+      } else if (role === 'head') {
+        currentUser = teachers.find(t => t.id === '1087') || { id: '1087', name: 'KruHambaleeWaji', role: 'head', password: '1234' };
+      } else {
         currentUser = teachers.find(t => t.id === '2001') || teachers[0];
       }
+      
+      activeRoleMode = isUserAdminOrHead() ? 'head' : 'teacher';
       
       localStorage.setItem('wen_saved_account', JSON.stringify({
         id: currentUser.id,
@@ -2493,7 +2519,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       
       buildSidebar();
       updateDynamicTitles();
-      navigateTo(isUserAdminOrHead() ? 'dashboard' : 'my-duty');
+      navigateTo(activeRoleMode === 'head' ? 'dashboard' : 'my-duty');
       showToast(`เข้าสู่ระบบในฐานะ: ${currentUser.name}`, 'success');
     }
 
@@ -2514,6 +2540,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         }
 
         currentUser = matched;
+        activeRoleMode = isUserAdminOrHead() ? 'head' : 'teacher';
         
         localStorage.setItem('wen_saved_account', JSON.stringify({
           id: matched.id,
@@ -2528,7 +2555,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         
         buildSidebar();
         updateDynamicTitles();
-        navigateTo(isUserAdminOrHead() ? 'dashboard' : 'my-duty');
+        navigateTo(activeRoleMode === 'head' ? 'dashboard' : 'my-duty');
         showToast(`เข้าสู่ระบบสำเร็จ! สวัสดีครับ ${currentUser.name}`, 'success');
       } else if (loginId.toLowerCase() === 'admin') {
         if (loginPass === 'admin' || loginPass === '1234') {
@@ -2552,16 +2579,44 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     }
 
     function buildSidebar() {
-      const menus = isUserAdminOrHead() ? adminMenus : teacherMenus;
-      const html = menus.map(m => `
+      const menus = activeRoleMode === 'head' ? adminMenus : teacherMenus;
+      
+      let html = '';
+      if (isUserAdminOrHead()) {
+        html += `
+          <!-- Role Switcher Panel -->
+          <div class="px-3 py-2 border-b border-white/10 mb-3 bg-brand-950/20 rounded-lg no-print">
+            <label class="block text-[9px] text-brand-300 uppercase font-bold tracking-wider mb-1.5 text-center font-semibold">สลับบทบาทการใช้งาน</label>
+            <div class="grid grid-cols-2 gap-1 bg-white/10 rounded-lg p-0.5 text-[11px]">
+              <button onclick="switchRoleMode('teacher')" class="py-1 rounded font-bold transition text-center ${activeRoleMode === 'teacher' ? 'bg-white text-brand-950 shadow-sm' : 'text-brand-200 hover:text-white'}">ครูเวร</button>
+              <button onclick="switchRoleMode('head')" class="py-1 rounded font-bold transition text-center ${activeRoleMode === 'head' ? 'bg-white text-brand-950 shadow-sm' : 'text-brand-200 hover:text-white'}">หัวหน้าเวร</button>
+            </div>
+          </div>
+        `;
+      }
+      
+      html += menus.map(m => `
         <button onclick="navigateTo('${m.id}')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition" data-page="${m.id}">
           <i data-lucide="${m.icon}" class="w-4.5 h-4.5 text-brand-200"></i>
           <span>${m.label}</span>
         </button>
       `).join('');
+      
       document.getElementById('sidebar-nav').innerHTML = html;
       document.getElementById('sidebar-nav-mobile').innerHTML = html;
       lucide.createIcons();
+    }
+
+    function switchRoleMode(mode) {
+      if (mode === activeRoleMode) return;
+      activeRoleMode = mode;
+      buildSidebar();
+      
+      if (mode === 'head') {
+        navigateTo('dashboard');
+      } else {
+        navigateTo('my-duty');
+      }
     }
 
     function renderQuickLogin() {
@@ -2633,6 +2688,8 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         const matched = teachers.find(t => t.id === saved.id);
         if (matched) {
           currentUser = matched;
+          activeRoleMode = isUserAdminOrHead() ? 'head' : 'teacher';
+          
           document.getElementById('page-login').classList.add('hidden');
           document.getElementById('page-main').classList.remove('hidden');
           
@@ -2640,7 +2697,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
             
           buildSidebar();
           updateDynamicTitles();
-          navigateTo(isUserAdminOrHead() ? 'dashboard' : 'my-duty');
+          navigateTo(activeRoleMode === 'head' ? 'dashboard' : 'my-duty');
           showToast(`เข้าใช้งานต่อในชื่อ: ${currentUser.name} สำเร็จ`, 'success');
         } else {
           showToast('ไม่พบข้อมูลครูนี้ในระบบ กรุณาล็อกอินใหม่', 'error');
@@ -2673,6 +2730,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       
       const titles = {
         dashboard: 'แผงควบคุมหลัก (Dashboard)',
+        'executive-overview': 'คะแนนการปฏิบัติหน้าที่ของครู (Executive Overview)',
         'today-report': 'ติดตามการปฏิบัติเวรวันนี้',
         schedule: 'จัดการตารางเวรประจำวัน',
         teachers: 'ข้อมูลครูผู้ปฏิบัติหน้าที่',
@@ -2700,6 +2758,9 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         case 'dashboard':
         case 'today-report':
           mc.innerHTML = renderDashboardView();
+          break;
+        case 'executive-overview':
+          mc.innerHTML = renderExecutiveOverviewView();
           break;
         case 'schedule':
           mc.innerHTML = renderScheduleView();
@@ -2970,6 +3031,369 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
           </div>
         </div>
       `;
+    }
+
+    function getExecutiveStats() {
+      const teachers = db.getTeachers().filter(t => t.id !== 'admin' && t.id !== 'chief' && t.id !== 'director');
+      let reports = db.getReports();
+      
+      let isMocked = false;
+      if (reports.length === 0) {
+        isMocked = true;
+        reports = [];
+        const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
+        const points = db.getDutyPoints();
+        
+        for (let week = 0; week < 2; week++) {
+          days.forEach(day => {
+            points.forEach(p => {
+              const assignedList = p.assignedTo || p.assigned_to || [];
+              const dayTeachers = [];
+              assignedList.forEach(item => {
+                if (item.includes(':')) {
+                  const [itemDay, itemTeacherId] = item.split(':');
+                  if (itemDay === day) dayTeachers.push(itemTeacherId);
+                }
+              });
+              
+              dayTeachers.forEach(teacherId => {
+                if (Math.random() < 0.92) {
+                  const isLate = Math.random() < 0.15;
+                  const isProblem = Math.random() < 0.05;
+                  reports.push({
+                    id: `mock-${week}-${day}-${p.id}-${teacherId}`,
+                    pointId: p.id,
+                    teacherId: teacherId,
+                    date: `2026-06-0${week * 5 + 1}`,
+                    time: p.time.split('-')[0],
+                    status: isProblem ? 'problem' : 'reported',
+                    isLate: isLate,
+                    lat: p.lat + (Math.random() - 0.5) * 0.0001,
+                    lng: p.lng + (Math.random() - 0.5) * 0.0001,
+                    distance: Math.random() * 30
+                  });
+                }
+              });
+            });
+          });
+        }
+      }
+      
+      return { reports, isMocked };
+    }
+
+    function changeExecutiveGroupFilter(val) {
+      currentExecutiveGroupFilter = val;
+      const mc = document.getElementById('main-content');
+      if (mc) {
+        mc.innerHTML = renderExecutiveOverviewView();
+        lucide.createIcons();
+      }
+    }
+
+    function getWeeklyDutiesCount(teacherId) {
+      const points = db.getDutyPoints();
+      const settings = db.getSettings();
+      const defaultDay = settings.dutyDay || 'อังคาร';
+      let count = 0;
+      points.forEach(p => {
+        const assigned = p.assignedTo || p.assigned_to || [];
+        assigned.forEach(item => {
+          if (item.includes(':')) {
+            const [day, id] = item.split(':');
+            if (id === teacherId) count++;
+          } else {
+            if (item === teacherId) count++;
+          }
+        });
+      });
+      return count;
+    }
+
+    function renderExecutiveOverviewView() {
+      const { reports, isMocked } = getExecutiveStats();
+      const teachers = db.getTeachers();
+      const settings = db.getSettings();
+      
+      const activeTeachers = teachers.filter(t => {
+        if (t.id === 'admin' || t.id === 'chief' || t.id === 'director') return false;
+        if (currentExecutiveGroupFilter === 'all') return true;
+        return getTeacherGender(t) === currentExecutiveGroupFilter;
+      });
+
+      const teacherStats = activeTeachers.map(t => {
+        const weeklyDuties = getWeeklyDutiesCount(t.id);
+        const tReports = reports.filter(r => r.teacherId === t.id);
+        const checkins = tReports.length;
+        const lates = tReports.filter(r => r.isLate).length;
+        const ontimes = checkins - lates;
+        
+        const scheduledCount = weeklyDuties * 2 || 1; 
+        const complianceScore = Math.min(100, Math.round((checkins / scheduledCount) * 100));
+        const punctualityScore = checkins > 0 ? Math.max(0, Math.round((ontimes / checkins) * 100)) : 100;
+        const totalScore = Math.round((complianceScore * 0.6) + (punctualityScore * 0.4));
+        
+        let grade = 'D';
+        let gradeClass = 'bg-red-100 text-red-800';
+        if (totalScore >= 90) {
+          grade = 'A';
+          gradeClass = 'bg-green-150 text-green-800';
+        } else if (totalScore >= 75) {
+          grade = 'B';
+          gradeClass = 'bg-blue-100 text-blue-800';
+        } else if (totalScore >= 50) {
+          grade = 'C';
+          gradeClass = 'bg-amber-100 text-amber-800';
+        }
+
+        return {
+          id: t.id,
+          name: t.name,
+          dept: t.department || t.group || 'ทั่วไป',
+          scheduled: scheduledCount,
+          checkins: checkins,
+          lates: lates,
+          ontimes: ontimes,
+          compliance: complianceScore,
+          punctuality: punctualityScore,
+          score: totalScore,
+          grade: grade,
+          gradeClass: gradeClass,
+          gender: getTeacherGender(t)
+        };
+      });
+
+      teacherStats.sort((a, b) => b.score - a.score);
+
+      const totalScheduled = teacherStats.reduce((sum, t) => sum + t.scheduled, 0) || 1;
+      const totalCheckins = teacherStats.reduce((sum, t) => sum + t.checkins, 0);
+      const totalLates = teacherStats.reduce((sum, t) => sum + t.lates, 0);
+      const problemsCount = reports.filter(r => r.status === 'problem').length;
+
+      const complianceRate = Math.min(100, Math.round((totalCheckins / totalScheduled) * 100));
+      const punctualityRate = totalCheckins > 0 ? Math.round(((totalCheckins - totalLates) / totalCheckins) * 100) : 100;
+
+      const topPerformers = teacherStats.filter(t => t.grade === 'A').slice(0, 3);
+
+      const dayLabels = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
+      const dayStats = dayLabels.map(day => {
+        const dayReports = reports.filter(r => r.id.includes(day));
+        const checkins = dayReports.length;
+        const lates = dayReports.filter(r => r.isLate).length;
+        const rate = checkins > 0 ? Math.round(((checkins - lates) / checkins) * 100) : 90;
+        return { day, rate };
+      });
+
+      return `
+        <div class="fade-in space-y-6 text-xs">
+          <!-- Page Header -->
+          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b pb-4 gap-4 no-print">
+            <div>
+              <p class="text-xs text-slate-500 flex items-center gap-1.5"><i data-lucide="award" class="w-4 h-4 text-brand-700"></i> สรุปผลงานและระดับเกรดการปฎิบัติงานเวร</p>
+              <h3 class="text-lg font-bold text-slate-900 mt-1">รายงานสรุปผู้บริหาร (Executive Report Card)</h3>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="window.print()" class="bg-white border border-slate-250 text-slate-700 text-xs px-3 py-2 rounded-lg hover:bg-slate-50 transition flex items-center gap-1 font-bold shadow-sm">
+                <i data-lucide="printer" class="w-4 h-4"></i> พิมพ์ใบรายงานผล
+              </button>
+            </div>
+          </div>
+
+          <!-- Group Filter Selector Tabs -->
+          <div class="flex border-b border-slate-200 overflow-x-auto no-scrollbar py-1 gap-1 -mx-4 px-4 sm:mx-0 sm:px-0 no-print">
+            ${[
+              { val: 'all', label: 'แสดงรวมทั้งหมด' },
+              { val: 'ชาย', label: 'เวรคณะครูชาย (Male)' },
+              { val: 'หญิง', label: 'เวรคณะครูหญิง (Female)' }
+            ].map(item => {
+              const isActive = currentExecutiveGroupFilter === item.val;
+              return `
+                <button onclick="changeExecutiveGroupFilter('${item.val}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
+                  isActive 
+                    ? 'bg-brand-900 text-white border-brand-900 shadow-sm' 
+                    : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
+                }">
+                  ${item.label}
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Mock Demo Indicator Alert -->
+          ${isMocked ? `
+            <div class="bg-amber-50 border border-amber-250 rounded-xl p-3 flex items-start gap-2.5 text-amber-800 shadow-sm no-print">
+              <i data-lucide="info" class="w-4.5 h-4.5 text-amber-600 flex-shrink-0 mt-0.5"></i>
+              <div>
+                <p class="font-bold">แนะนำการใช้งานสำหรับผู้บริหาร:</p>
+                <p class="text-[10px] mt-0.5 text-amber-700">เนื่องจากพึ่งเริ่มระบบและยังไม่มีข้อมูลการบันทึกรายงานจริงจากครู ระบบจึงทำการ **จำลองข้อมูลย้อนหลัง 2 สัปดาห์** เพื่อสาธิตแผงวิเคราะห์และเกรดของครูให้ดูเป็นแนวทาง เมื่อครูเริ่มส่งรายงานจริง แผงนี้จะอัปเดตเป็นข้อมูลจริงโดยอัตโนมัติ</p>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- KPI Cards Grid -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white border rounded-xl p-4 shadow-sm flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] text-slate-500 font-bold">อัตราความรับผิดชอบเวร</span>
+                <span class="w-7 h-7 rounded bg-green-50 text-green-700 flex items-center justify-center font-bold text-xs"><i data-lucide="clipboard-check" class="w-4 h-4"></i></span>
+              </div>
+              <div class="mt-2.5">
+                <h4 class="text-xl font-black text-slate-900">${complianceRate}%</h4>
+                <p class="text-[9px] text-slate-400 mt-0.5">ครูเวรมาลงชื่อเข้าจุดครบตามรับมอบหมาย</p>
+              </div>
+            </div>
+
+            <div class="bg-white border rounded-xl p-4 shadow-sm flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] text-slate-500 font-bold">อัตราการมาตรงเวลา</span>
+                <span class="w-7 h-7 rounded bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-xs"><i data-lucide="clock" class="w-4 h-4"></i></span>
+              </div>
+              <div class="mt-2.5">
+                <h4 class="text-xl font-black text-slate-900">${punctualityRate}%</h4>
+                <p class="text-[9px] text-slate-400 mt-0.5">ลงชื่อตรงเวลา (ไม่เกินเกณฑ์สายของโรงเรียน)</p>
+              </div>
+            </div>
+
+            <div class="bg-white border rounded-xl p-4 shadow-sm flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] text-slate-500 font-bold">แจ้งพบจุดเสี่ยง/ปัญหา</span>
+                <span class="w-7 h-7 rounded bg-red-50 text-red-700 flex items-center justify-center font-bold text-xs"><i data-lucide="alert-triangle" class="w-4 h-4"></i></span>
+              </div>
+              <div class="mt-2.5">
+                <h4 class="text-xl font-black text-slate-900">${problemsCount} ครั้ง</h4>
+                <p class="text-[9px] text-slate-400 mt-0.5">จำนวนรายงานที่มีการระบุปัญหาพบจุดเสี่ยง</p>
+              </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-brand-900 to-brand-850 text-white rounded-xl p-4 shadow-sm flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] text-brand-200 font-bold">ผู้นำคะแนนสูงสุด (Grade A)</span>
+                <span class="w-7 h-7 rounded bg-white/20 text-white flex items-center justify-center font-bold text-xs"><i data-lucide="trophy" class="w-4 h-4"></i></span>
+              </div>
+              <div class="mt-2.5">
+                <h4 class="text-sm font-bold truncate">${teacherStats[0] ? teacherStats[0].name : 'ไม่มี'}</h4>
+                <p class="text-[9px] text-brand-100 mt-0.5">ปฏิบัติหน้าที่ครบตรงพิกัดและตรงต่อเวลา 100%</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- 1. Weekly Performance Chart -->
+            <div class="bg-white border rounded-xl p-5 shadow-sm space-y-4 md:col-span-2">
+              <h4 class="font-bold text-slate-800 flex items-center gap-1.5"><i data-lucide="trending-up" class="w-4 h-4 text-brand-700"></i>อัตราความตรงต่อเวลาและการปฏิบัติงานเฉลี่ยในสัปดาห์</h4>
+              <div class="space-y-3 pt-2">
+                ${dayStats.map(ds => {
+                  return `
+                    <div class="space-y-1">
+                      <div class="flex justify-between items-center text-[10px] text-slate-600 font-bold">
+                        <span>วัน${ds.day}</span>
+                        <span>${ds.rate}%</span>
+                      </div>
+                      <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden flex">
+                        <div class="bg-brand-900 h-full rounded-full" style="width: ${ds.rate}%"></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+
+            <!-- 2. Leaderboard: Top Performers -->
+            <div class="bg-white border rounded-xl p-5 shadow-sm space-y-4">
+              <h4 class="font-bold text-slate-800 flex items-center gap-1.5"><i data-lucide="award" class="w-4.5 h-4.5 text-amber-500"></i>รายนามคณะครูดีเด่นเวรสีขาว</h4>
+              <div class="space-y-3 divide-y divide-slate-100 pt-1">
+                ${topPerformers.length === 0 ? `
+                  <p class="text-center text-slate-400 py-6">อยู่ระหว่างบันทึกสถิติเพื่อเก็บสะสมระดับ A</p>
+                ` : topPerformers.map((tp, idx) => {
+                  const medals = ['🥇', '🥈', '🥉'];
+                  return `
+                    <div class="flex items-center justify-between py-2 ${idx > 0 ? 'border-t' : ''}">
+                      <div class="flex items-center gap-2">
+                        <span class="text-base">${medals[idx]}</span>
+                        <div>
+                          <p class="font-bold text-slate-800">${tp.name}</p>
+                          <p class="text-[9px] text-slate-400">รหัสครู: ${tp.id} • ${tp.dept}</p>
+                        </div>
+                      </div>
+                      <span class="font-bold text-brand-850 bg-brand-50 px-2 py-0.5 rounded text-[10px]">${tp.score} คะแนน</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- Roster details with grades -->
+          <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+              <div>
+                <span class="font-bold text-slate-950">ตารางวิเคราะห์สถิติจิตพิสัยการเข้าเวรของคณะครู</span>
+                <p class="text-[9px] text-slate-400 mt-0.5">ตารางเกรดความรับผิดชอบคำนวณตามการปฏิบัติงาน (แสดงรายชื่อที่มีการมอบหมายงานเวร)</p>
+              </div>
+              <div class="relative no-print">
+                <i data-lucide="search" class="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400"></i>
+                <input type="text" id="exec-search-input" oninput="filterExecutiveTable()" placeholder="ค้นชื่อ หรือกลุ่มครู..." class="text-[10px] pl-8 pr-3 py-1.5 border rounded-lg outline-none focus:ring-1 focus:ring-brand-500 w-44">
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left min-w-[700px]">
+                <thead class="bg-slate-100 border-b">
+                  <tr>
+                    <th class="px-4 py-2.5">รหัส</th>
+                    <th class="px-4 py-2.5">ชื่อ-นามสกุลครูผู้ปฏิบัติ</th>
+                    <th class="px-4 py-2.5">เพศ</th>
+                    <th class="px-4 py-2.5 text-center">จำนวนเวรสะสม</th>
+                    <th class="px-4 py-2.5 text-center">ส่งรายงาน</th>
+                    <th class="px-4 py-2.5 text-center">มาสาย</th>
+                    <th class="px-4 py-2.5 text-center">ความตรงเวลา</th>
+                    <th class="px-4 py-2.5 text-center">คะแนนรวม</th>
+                    <th class="px-4 py-2.5 text-center">เกรด</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y" id="executive-overview-table-body">
+                  ${teacherStats.filter(t => t.scheduled > 0).map(t => {
+                    return `
+                      <tr class="hover:bg-slate-50 transition exec-table-row" data-teacher-name="${t.name}" data-teacher-dept="${t.dept}">
+                        <td class="px-4 py-2.5 font-mono text-slate-500 font-bold">${t.id}</td>
+                        <td class="px-4 py-2.5 font-bold text-slate-800">${t.name}</td>
+                        <td class="px-4 py-2.5 font-bold text-slate-600">${t.gender}</td>
+                        <td class="px-4 py-2.5 text-center font-bold text-slate-700">${t.scheduled} ครั้ง</td>
+                        <td class="px-4 py-2.5 text-center font-bold text-green-700">${t.checkins} ครั้ง</td>
+                        <td class="px-4 py-2.5 text-center font-bold ${t.lates > 0 ? 'text-red-650' : 'text-slate-400'}">${t.lates} ครั้ง</td>
+                        <td class="px-4 py-2.5 text-center">
+                          <div class="flex items-center justify-center gap-1.5">
+                            <span class="font-bold font-mono">${t.punctuality}%</span>
+                            <div class="w-12 bg-slate-100 rounded-full h-1 overflow-hidden hidden sm:block">
+                              <div class="${t.punctuality >= 80 ? 'bg-green-600' : 'bg-amber-500'} h-full" style="width: ${t.punctuality}%"></div>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="px-4 py-2.5 text-center font-black text-brand-950 font-mono text-xs">${t.score}</td>
+                        <td class="px-4 py-2.5 text-center">
+                          <span class="${t.gradeClass} px-2 py-0.5 rounded font-black text-xs font-mono">${t.grade}</span>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function filterExecutiveTable() {
+      const q = document.getElementById('exec-search-input').value.toLowerCase();
+      document.querySelectorAll('.exec-table-row').forEach(row => {
+        const name = row.dataset.teacherName.toLowerCase();
+        const dept = row.dataset.teacherDept.toLowerCase();
+        if (name.includes(q) || dept.includes(q)) {
+          row.classList.remove('hidden');
+        } else {
+          row.classList.add('hidden');
+        }
+      });
     }
 
     function statCard(label, value, icon, cls) {
@@ -4518,6 +4942,16 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       }
       const t = db.getTeachers().find(x => x.id === cleanId);
       return t ? `${prefix}${t.name}` : id;
+    }
+
+    function getTeacherGender(t) {
+      if (!t) return 'ชาย';
+      if (t.id === 'admin' || t.id === 'chief' || t.id === 'director' || t.id === '1087') return 'ชาย';
+      const name = t.name || '';
+      if (name.startsWith('นาย') || name.startsWith('MR.') || name.startsWith('Mr.') || name.startsWith('mr.') || name.startsWith('Kru') || name.startsWith('kru')) {
+        return 'ชาย';
+      }
+      return 'หญิง';
     }
 
     // =========================================================================
