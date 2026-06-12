@@ -112,7 +112,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.5.0</p>
+          <p class="text-[10px] text-slate-400 mt-1">เวอร์ชัน 1.5.1</p>
         </div>
         
         <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
@@ -215,7 +215,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.0</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.1</div>
           </div>
         </aside>
 
@@ -250,8 +250,8 @@
               <div class="border-l pl-4 flex items-center gap-2">
                 <span class="text-[11px] text-slate-500 font-semibold">📍 สภาพตำแหน่ง:</span>
                 <select id="gps-simulator" onchange="changeGPSSimulation()" class="text-xs bg-slate-100 border rounded-lg px-2.5 py-1.5 text-slate-700 outline-none">
-                  <option value="real">🛰️ ใช้ GPS จริงผ่านโทรศัพท์</option>
-                  <option value="point1" selected>📍 จำลองเวรจุดที่ 1 (ในขอบเขต)</option>
+                  <option value="real" selected>🛰️ ใช้ GPS จริงผ่านโทรศัพท์</option>
+                  <option value="point1">📍 จำลองเวรจุดที่ 1 (ในขอบเขต)</option>
                   <option value="point2">📍 จำลองเวรจุดที่ 2 (ในขอบเขต)</option>
                   <option value="far">❌ จำลองอยู่นอกพื้นที่เวร</option>
                 </select>
@@ -273,8 +273,8 @@
           <div class="bg-brand-50 border-b px-4 py-2 flex lg:hidden items-center justify-between no-print flex-shrink-0 text-[10px]">
             <span class="text-slate-600 font-medium">📍 พิกัดปฏิบัติงาน:</span>
             <select id="gps-simulator-mobile" onchange="syncGPSSimulationMobile(this)" class="bg-white border rounded px-1.5 py-1 text-slate-700 outline-none">
-              <option value="real">🛰️ ใช้ GPS จริงผ่านโทรศัพท์</option>
-              <option value="point1" selected>📍 จำลองเวรจุดที่ 1</option>
+              <option value="real" selected>🛰️ ใช้ GPS จริงผ่านโทรศัพท์</option>
+              <option value="point1">📍 จำลองเวรจุดที่ 1</option>
               <option value="point2">📍 จำลองเวรจุดที่ 2</option>
               <option value="far">❌ จำลองอยู่นอกพื้นที่</option>
             </select>
@@ -312,7 +312,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.0</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60">เวอร์ชัน 1.5.1</div>
         </div>
       </aside>
     </div>
@@ -631,7 +631,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.5.0';
+    const APP_VERSION = '1.5.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -748,6 +748,7 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
     let sidebarOpen = false;
     let mockLatitude = 6.787680;  // Default simulation coordinates
     let mockLongitude = 101.408120;
+    let gpsWatcherId = null;       // Geolocation watcher ID
     let signatureCanvas = null;
     let signatureCtx = null;
     let signatureDrawing = false;
@@ -2493,6 +2494,9 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       updateDynamicTitles();
       lucide.createIcons();
       updateNotificationLogsUI();
+
+      // Initialize GPS/Simulation coordinates & trigger permission request
+      changeGPSSimulation();
     });
 
     // Handle touch coordinate actions in Canvas signature drawing modal
@@ -2656,44 +2660,64 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
       const baseLat = settings.centerLat || 6.787680;
       const baseLng = settings.centerLng || 101.408120;
 
+      // Clear any existing watch
+      if (gpsWatcherId !== null) {
+        navigator.geolocation.clearWatch(gpsWatcherId);
+        gpsWatcherId = null;
+      }
+
       if (val === 'real') {
         if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
+          ind.textContent = "กำลังคำนวณสัญญาณดาวเทียม...";
+          ind.className = "font-bold text-amber-500";
+          
+          gpsWatcherId = navigator.geolocation.watchPosition(
             (pos) => {
               mockLatitude = pos.coords.latitude;
               mockLongitude = pos.coords.longitude;
               ind.textContent = "ใช้ GPS จริง";
               ind.className = "font-bold text-blue-400";
-              showToast("เชื่อมโยงสัญญาณ GPS ของโทรศัพท์คุณเรียบร้อยแล้ว", "success");
-              if (currentPage === 'my-duty') updateTeacherLocationStatus();
+              
+              if (currentPage === 'my-duty') {
+                updateTeacherLocationStatus();
+              }
             },
             (err) => {
+              console.warn("Geolocation watchPosition error:", err);
               showToast("ไม่สามารถเรียกดูพิกัดของโทรศัพท์ได้ เปลี่ยนกลับไปใช้โหมดจำลอง", "error");
               document.getElementById('gps-simulator').value = 'point1';
+              if (mobSelect) mobSelect.value = 'point1';
               changeGPSSimulation();
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0
             }
           );
         } else {
           showToast("อุปกรณ์ไม่รองรับการทำงาน GPS", "error");
         }
-      } else if (val === 'point1') {
-        mockLatitude = baseLat;
-        mockLongitude = baseLng;
-        ind.textContent = "จำลองจุดเวรที่ 1";
-        ind.className = "font-bold text-green-400";
-        if (currentPage === 'my-duty') updateTeacherLocationStatus();
-      } else if (val === 'point2') {
-        mockLatitude = baseLat + 0.000420;
-        mockLongitude = baseLng + 0.000380;
-        ind.textContent = "จำลองจุดเวรที่ 2";
-        ind.className = "font-bold text-green-400";
-        if (currentPage === 'my-duty') updateTeacherLocationStatus();
       } else {
-        mockLatitude = baseLat + 0.500000;
-        mockLongitude = baseLng + 0.500000;
-        ind.textContent = "นอกรัศมีควบคุม";
-        ind.className = "font-bold text-red-500";
-        if (currentPage === 'my-duty') updateTeacherLocationStatus();
+        if (val === 'point1') {
+          mockLatitude = baseLat;
+          mockLongitude = baseLng;
+          ind.textContent = "จำลองจุดเวรที่ 1";
+          ind.className = "font-bold text-green-400";
+        } else if (val === 'point2') {
+          mockLatitude = baseLat + 0.000420;
+          mockLongitude = baseLng + 0.000380;
+          ind.textContent = "จำลองจุดเวรที่ 2";
+          ind.className = "font-bold text-green-400";
+        } else {
+          mockLatitude = baseLat + 0.500000;
+          mockLongitude = baseLng + 0.500000;
+          ind.textContent = "นอกรัศมีควบคุม";
+          ind.className = "font-bold text-red-500";
+        }
+        if (currentPage === 'my-duty') {
+          updateTeacherLocationStatus();
+        }
       }
     }
 
@@ -3305,6 +3329,160 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
         renderPage('duty-points');
         showToast('ลบจุดเวรสำเร็จแล้ว', 'success');
       }
+    }
+
+    // =========================================================================
+    // GPS & REPORT MODAL HELPERS
+    // =========================================================================
+    function checkTeacherDistanceToPoint(lat1, lon1, lat2, lon2) {
+      const R = 6371e3; // metres
+      const φ1 = lat1 * Math.PI/180;
+      const φ2 = lat2 * Math.PI/180;
+      const Δφ = (lat2-lat1) * Math.PI/180;
+      const Δλ = (lon2-lon1) * Math.PI/180;
+
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+      return R * c; // in metres
+    }
+
+    function updateTeacherLocationStatus() {
+      const statusBadge = document.getElementById('teacher-gps-status-badge');
+      if (statusBadge) {
+        const gpsVal = document.getElementById('gps-simulator').value;
+        if (gpsVal === 'real') {
+          statusBadge.textContent = `🛰️ GPS จริง: ${mockLatitude.toFixed(6)}, ${mockLongitude.toFixed(6)}`;
+          statusBadge.className = "bg-blue-900/40 text-blue-200 px-2.5 py-1 rounded border border-blue-500/30 font-bold";
+        } else {
+          statusBadge.textContent = `📍 จำลอง: ${mockLatitude.toFixed(6)}, ${mockLongitude.toFixed(6)}`;
+          statusBadge.className = "bg-amber-900/40 text-amber-200 px-2.5 py-1 rounded border border-amber-500/30 font-bold";
+        }
+      }
+
+      const points = db.getDutyPoints();
+      const myPoints = points.filter(p => (p.assignedTo || p.assigned_to || []).includes(currentUser.id));
+
+      myPoints.forEach(p => {
+        const spanDist = document.getElementById(`my-distance-check-${p.id}`);
+        if (spanDist) {
+          const dist = checkTeacherDistanceToPoint(mockLatitude, mockLongitude, p.lat, p.lng);
+          const inRadius = dist <= p.radius;
+          
+          if (inRadius) {
+            spanDist.innerHTML = `✅ อยู่ในรัศมี (${dist.toFixed(1)} เมตร)`;
+            spanDist.className = "font-semibold text-green-600";
+          } else {
+            spanDist.innerHTML = `❌ อยู่นอกรัศมี (${dist.toFixed(1)} เมตร / เป้าหมาย ${p.radius} ม.)`;
+            spanDist.className = "font-semibold text-red-650";
+          }
+        }
+      });
+
+      if (reportModalActivePointId !== null) {
+        const activePt = points.find(p => p.id === reportModalActivePointId);
+        const distAlert = document.getElementById('modal-distance-alert');
+        if (activePt && distAlert) {
+          const dist = checkTeacherDistanceToPoint(mockLatitude, mockLongitude, activePt.lat, activePt.lng);
+          const inRadius = dist <= activePt.radius;
+          
+          if (inRadius) {
+            distAlert.className = "p-3 rounded-lg border font-bold flex items-center gap-2 bg-green-50 text-green-800 border-green-200";
+            distAlert.innerHTML = `
+              <i data-lucide="check-circle" class="w-4 h-4 text-green-650"></i>
+              <span>อยู่ในระยะลงชื่อปฏิบัติงาน (ห่างจากจุด ${dist.toFixed(1)} เมตร)</span>
+            `;
+          } else {
+            distAlert.className = "p-3 rounded-lg border font-bold flex items-center gap-2 bg-red-50 text-red-800 border-red-200";
+            distAlert.innerHTML = `
+              <i data-lucide="alert-triangle" class="w-4 h-4 text-red-650"></i>
+              <span>อยู่นอกระยะปฏิบัติงาน (ห่างจากจุด ${dist.toFixed(1)} เมตร, รัศมีสูงสุด ${activePt.radius} เมตร)</span>
+            `;
+          }
+          lucide.createIcons();
+        }
+      }
+    }
+
+    function openReportForm(pointId) {
+      reportModalActivePointId = pointId;
+      uploadedReportPhotoBase64 = null;
+      
+      const previewBox = document.getElementById('rep-photo-preview-box');
+      if (previewBox) {
+        previewBox.classList.add('hidden');
+        previewBox.classList.remove('flex');
+      }
+      const previewImg = document.getElementById('rep-photo-preview');
+      if (previewImg) previewImg.src = '';
+      
+      const fileLabel = document.getElementById('rep-photo-filename');
+      if (fileLabel) fileLabel.textContent = 'ยังไม่ได้ส่งรูปหลักฐาน';
+      
+      const photoInput = document.getElementById('rep-photo-input');
+      if (photoInput) photoInput.value = '';
+      
+      document.getElementById('rep-result-text').value = '';
+      document.getElementById('rep-problem-text').value = '';
+      document.getElementById('rep-solution-text').value = '';
+      
+      const selectStatus = document.getElementById('rep-status-select');
+      selectStatus.value = 'reported';
+      toggleReportProblemsInput();
+
+      const points = db.getDutyPoints();
+      const pt = points.find(p => p.id === pointId);
+      if (pt) {
+        document.getElementById('form-modal-title').textContent = `รายงานผลการปฏิบัติหน้าที่ - จุดที่ ${pt.id}: ${pt.name}`;
+      }
+
+      loadTeacherSignatureStatus();
+      document.getElementById('report-form-modal').classList.remove('hidden');
+      updateTeacherLocationStatus();
+      lucide.createIcons();
+    }
+
+    function closeReportForm() {
+      document.getElementById('report-form-modal').classList.add('hidden');
+      reportModalActivePointId = null;
+    }
+
+    function toggleReportProblemsInput() {
+      const selectStatus = document.getElementById('rep-status-select').value;
+      const problemFields = document.getElementById('rep-problem-fields');
+      const resultText = document.getElementById('rep-result-text');
+      
+      if (selectStatus === 'problem') {
+        problemFields.classList.remove('hidden');
+        document.getElementById('rep-problem-text').setAttribute('required', 'true');
+        document.getElementById('rep-solution-text').setAttribute('required', 'true');
+        resultText.removeAttribute('required');
+      } else {
+        problemFields.classList.add('hidden');
+        document.getElementById('rep-problem-text').removeAttribute('required');
+        document.getElementById('rep-solution-text').removeAttribute('required');
+        resultText.setAttribute('required', 'true');
+      }
+    }
+
+    function previewReportPhoto(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      document.getElementById('rep-photo-filename').textContent = file.name;
+      
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        uploadedReportPhotoBase64 = evt.target.result;
+        const preview = document.getElementById('rep-photo-preview');
+        preview.src = evt.target.result;
+        const previewBox = document.getElementById('rep-photo-preview-box');
+        previewBox.classList.remove('hidden');
+        previewBox.classList.add('flex');
+      };
+      reader.readAsDataURL(file);
     }
 
     function viewReportDetails(reportId) {
