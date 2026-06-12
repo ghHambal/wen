@@ -1885,7 +1885,6 @@ ON CONFLICT (id) DO UPDATE SET school_name=EXCLUDED.school_name, head_name=EXCLU
 
       const unReports = [];
       const todayDay = getTodayThaiDayName();
-      const settings = db.getSettings();
       const defaultDay = settings.dutyDay || 'อังคาร';
 
       points.forEach(p => {
