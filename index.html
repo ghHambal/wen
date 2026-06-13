@@ -513,7 +513,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.16.1';
+    const APP_VERSION = '1.17.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -733,6 +733,41 @@
         }
       }
       return days;
+    }
+
+    // คืน "ครูชาย"/"ครูหญิง" (รูปแบบเดียวกับ dutyGroup/currentScheduleGroupTab) ถ้าครูคนนี้เป็นหัวหน้าเวรของวันที่ระบุ, null ถ้าไม่ใช่หัวหน้าเวรวันนั้น
+    function getHeadAssignedDutyGroup(teacherId, day) {
+      const settings = db.getSettings();
+      const val = (settings.headsOfDay || {})[day];
+      if (!val || typeof val !== 'object') return null;
+      if (val["ชาย"] === teacherId) return 'ครูชาย';
+      if (val["หญิง"] === teacherId) return 'ครูหญิง';
+      return null;
+    }
+
+    // คืนรายการ "ครูชาย"/"ครูหญิง" ทั้งหมดที่ครูคนนี้เป็นหัวหน้าเวร (รวมทุกวันที่ได้รับแต่งตั้ง) - ใช้กับหน้าที่ไม่มีมิติวัน เช่น จุดเวรและพิกัด
+    function getHeadAssignedDutyGroups(teacherId) {
+      const groups = new Set();
+      getHeadAssignedDays(teacherId).forEach(day => {
+        const g = getHeadAssignedDutyGroup(teacherId, day);
+        if (g) groups.add(g);
+      });
+      return Array.from(groups);
+    }
+
+    // คืนรายการเพศ ("ชาย"/"หญิง" - ตรงกับ key ใน headsOfDay และ currentExecutiveGroupFilter) ที่ครูคนนี้เป็นหัวหน้าเวร (รวมทุกวัน)
+    function getHeadAssignedGenders(teacherId) {
+      const settings = db.getSettings();
+      const headsOfDay = settings.headsOfDay || {};
+      const genders = new Set();
+      for (const day in headsOfDay) {
+        const val = headsOfDay[day];
+        if (val && typeof val === 'object') {
+          if (val["ชาย"] === teacherId) genders.add('ชาย');
+          if (val["หญิง"] === teacherId) genders.add('หญิง');
+        }
+      }
+      return Array.from(genders);
     }
 
     // รายการเมนู (id ใน adminMenus) ที่หัวหน้าเวร (ไม่ใช่แอดมิน) ได้รับอนุญาตให้เข้าถึง
@@ -1284,9 +1319,28 @@
 
     // A. DASHBOARD VIEW (Admin / Head of Duty)
     function renderDashboardView() {
-      const points = db.getDutyPoints();
-      const reports = db.getReports().filter(r => r.date === getTodayISODate());
-      
+      let points = db.getDutyPoints();
+      let reports = db.getReports().filter(r => r.date === getTodayISODate());
+
+      // หน้า "รายงานเวรวันนี้" (ไม่ใช่ดัชบอร์ด): หัวหน้าเวร (ที่ไม่ใช่แอดมิน) ถูกล็อกให้เห็นเฉพาะจุดเวรของคณะที่ตนเองได้รับแต่งตั้งเป็นหัวหน้าในวันนี้
+      let headTodayGroup = null;
+      let headNotOnDutyToday = false;
+      if (currentPage === 'today-report' && activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
+        const headDays = getHeadAssignedDays(currentUser.id);
+        if (headDays.length > 0) {
+          headTodayGroup = getHeadAssignedDutyGroup(currentUser.id, getTodayThaiDayName());
+          if (headTodayGroup) {
+            points = points.filter(p => (p.dutyGroup || 'ครูชาย') === headTodayGroup);
+            const pointIds = new Set(points.map(p => p.id));
+            reports = reports.filter(r => pointIds.has(r.pointId));
+          } else {
+            headNotOnDutyToday = true;
+            points = [];
+            reports = [];
+          }
+        }
+      }
+
       const totalPoints = points.length;
       const reportedCount = reports.filter(r => r.status === 'reported').length;
       const problemCount = reports.filter(r => r.status === 'problem').length;
@@ -1308,6 +1362,18 @@
               <span>เรียลไทม์ซิงค์ Supabase</span>
             </div>
           </div>
+
+          ${headNotOnDutyToday ? `
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800 flex items-center gap-2">
+              <i data-lucide="info" class="w-4 h-4 text-amber-600"></i>
+              วันนี้ไม่ใช่วันที่ท่านได้รับมอบหมายเป็นหัวหน้าเวร จึงไม่มีจุดเวรให้รายงานในวันนี้
+            </div>
+          ` : headTodayGroup ? `
+            <div class="bg-brand-50/50 border border-brand-200/60 rounded-xl p-3 text-[11px] text-brand-800 flex items-center gap-2">
+              <i data-lucide="shield-check" class="w-4 h-4 text-brand-700"></i>
+              กำลังแสดงจุดเวรของคณะ${headTodayGroup}เท่านั้น (ตามสิทธิ์หัวหน้าเวรของท่าน)
+            </div>
+          ` : ''}
 
           <!-- Stats Grid -->
           <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
@@ -1571,7 +1637,21 @@
       const { reports, isMocked } = getExecutiveStats();
       const teachers = db.getTeachers();
       const settings = db.getSettings();
-      
+
+      // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) ถูกล็อกให้เห็นเฉพาะภาพรวมของคณะ (ชาย/หญิง) และวันที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
+      let lockedExecGenders = null;
+      let lockedExecDay = null;
+      if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
+        const headDays = getHeadAssignedDays(currentUser.id);
+        if (headDays.length > 0) {
+          lockedExecGenders = getHeadAssignedGenders(currentUser.id);
+          if (lockedExecGenders.length > 0 && !lockedExecGenders.includes(currentExecutiveGroupFilter)) {
+            currentExecutiveGroupFilter = lockedExecGenders[0];
+          }
+          lockedExecDay = headDays[0];
+        }
+      }
+
       const activeTeachers = teachers.filter(t => {
         if (t.id === 'admin' || t.id === 'chief' || t.id === 'director') return false;
         if (currentExecutiveGroupFilter === 'all') return true;
@@ -1632,7 +1712,7 @@
 
       const topPerformers = teacherStats.filter(t => t.grade === 'A').slice(0, 3);
 
-      const dayLabels = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
+      const dayLabels = (lockedExecDay ? [lockedExecDay] : ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์']).filter(d => ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'].includes(d));
       const dayStats = dayLabels.map(day => {
         const dayReports = reports.filter(r => r.id.includes(day));
         const checkins = dayReports.length;
@@ -1658,11 +1738,14 @@
 
           <!-- Group Filter Selector Tabs -->
           <div class="flex border-b border-slate-200 overflow-x-auto no-scrollbar py-1 gap-1 -mx-4 px-4 sm:mx-0 sm:px-0 no-print">
-            ${[
-              { val: 'all', label: 'แสดงรวมทั้งหมด' },
-              { val: 'ชาย', label: 'เวรคณะครูชาย (Male)' },
-              { val: 'หญิง', label: 'เวรคณะครูหญิง (Female)' }
-            ].map(item => {
+            ${(lockedExecGenders
+              ? lockedExecGenders.map(g => ({ val: g, label: g === 'หญิง' ? 'เวรคณะครูหญิง (Female)' : 'เวรคณะครูชาย (Male)' }))
+              : [
+                { val: 'all', label: 'แสดงรวมทั้งหมด' },
+                { val: 'ชาย', label: 'เวรคณะครูชาย (Male)' },
+                { val: 'หญิง', label: 'เวรคณะครูหญิง (Female)' }
+              ]
+            ).map(item => {
               const isActive = currentExecutiveGroupFilter === item.val;
               return `
                 <button onclick="changeExecutiveGroupFilter('${item.val}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
@@ -1880,7 +1963,6 @@
     // B. SCHEDULE VIEW (Admin View)
     function renderScheduleView() {
       const settings = db.getSettings();
-      const points = db.getDutyPoints().filter(p => (p.dutyGroup || 'ครูชาย') === currentScheduleGroupTab);
       const teachers = db.getTeachers();
 
       if (!currentScheduleViewDay) {
@@ -1889,6 +1971,7 @@
 
       // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) เห็นเฉพาะแท็บวันที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
       let scheduleViewDays = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+      let lockedScheduleGroup = null;
       if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
         const headDays = getHeadAssignedDays(currentUser.id);
         if (headDays.length > 0) {
@@ -1896,8 +1979,15 @@
           if (!scheduleViewDays.includes(currentScheduleViewDay)) {
             currentScheduleViewDay = scheduleViewDays[0];
           }
+          // หัวหน้าเวรถูกล็อกให้เห็นเฉพาะคณะ (ชาย/หญิง) ที่ตนเองได้รับแต่งตั้งของวันนี้
+          lockedScheduleGroup = getHeadAssignedDutyGroup(currentUser.id, currentScheduleViewDay);
+          if (lockedScheduleGroup) {
+            currentScheduleGroupTab = lockedScheduleGroup;
+          }
         }
       }
+
+      const points = db.getDutyPoints().filter(p => (p.dutyGroup || 'ครูชาย') === currentScheduleGroupTab);
 
       return `
         <div class="fade-in space-y-6">
@@ -1915,7 +2005,7 @@
 
           <!-- Duty Group Tab Switcher -->
           <div class="flex border-b border-slate-200 gap-1">
-            ${['ครูชาย', 'ครูหญิง'].map(group => {
+            ${(lockedScheduleGroup ? [lockedScheduleGroup] : ['ครูชาย', 'ครูหญิง']).map(group => {
               const isActive = currentScheduleGroupTab === group;
               return `
                 <button onclick="onScheduleGroupTabChange('${group}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
@@ -2252,6 +2342,16 @@
 
     // C. TEACHERS VIEW (Admin View)
     function renderTeachersView() {
+      // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) ถูกล็อกให้เห็นเฉพาะกลุ่มเวร (ชาย/หญิง) ที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
+      let lockedTeacherGenders = null;
+      if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
+        const headDays = getHeadAssignedDays(currentUser.id);
+        if (headDays.length > 0) {
+          const genders = getHeadAssignedGenders(currentUser.id);
+          if (genders.length > 0) lockedTeacherGenders = genders;
+        }
+      }
+
       return `
         <div class="fade-in space-y-6">
           <div class="flex justify-between items-center border-b pb-4">
@@ -2283,11 +2383,17 @@
               </select>
 
               <!-- Gender Filter -->
-              <select onchange="handleTeachersFilter('gender', this.value)" class="border rounded-lg p-2.5 bg-white outline-none focus:ring-1 focus:ring-brand-500 text-xs font-semibold">
-                <option value="all" ${teachersFilterGender === 'all' ? 'selected' : ''}>ทุกกลุ่มเวร (ชาย/หญิง)</option>
-                <option value="ชาย" ${teachersFilterGender === 'ชาย' ? 'selected' : ''}>กลุ่มเวรครูชาย</option>
-                <option value="หญิง" ${teachersFilterGender === 'หญิง' ? 'selected' : ''}>กลุ่มเวรครูหญิง</option>
-              </select>
+              ${lockedTeacherGenders ? `
+                <span class="border rounded-lg p-2.5 bg-slate-50 text-slate-600 text-xs font-semibold inline-flex items-center gap-1">
+                  <i data-lucide="lock" class="w-3.5 h-3.5"></i> กลุ่มเวร${lockedTeacherGenders.map(g => 'ครู' + g).join('/')}
+                </span>
+              ` : `
+                <select onchange="handleTeachersFilter('gender', this.value)" class="border rounded-lg p-2.5 bg-white outline-none focus:ring-1 focus:ring-brand-500 text-xs font-semibold">
+                  <option value="all" ${teachersFilterGender === 'all' ? 'selected' : ''}>ทุกกลุ่มเวร (ชาย/หญิง)</option>
+                  <option value="ชาย" ${teachersFilterGender === 'ชาย' ? 'selected' : ''}>กลุ่มเวรครูชาย</option>
+                  <option value="หญิง" ${teachersFilterGender === 'หญิง' ? 'selected' : ''}>กลุ่มเวรครูหญิง</option>
+                </select>
+              `}
 
               <!-- Signature Filter -->
               <select onchange="handleTeachersFilter('signature', this.value)" class="border rounded-lg p-2.5 bg-white outline-none focus:ring-1 focus:ring-brand-500 text-xs font-semibold">
@@ -2362,6 +2468,17 @@
 
     function renderTeachersListContainer() {
       let filtered = db.getTeachers();
+
+      // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) เห็นเฉพาะครูในกลุ่ม (ชาย/หญิง) ที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
+      if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
+        const headDays = getHeadAssignedDays(currentUser.id);
+        if (headDays.length > 0) {
+          const lockedGenders = getHeadAssignedGenders(currentUser.id);
+          if (lockedGenders.length > 0) {
+            filtered = filtered.filter(t => lockedGenders.includes(getTeacherGender(t)));
+          }
+        }
+      }
 
       // Search Query
       if (teachersSearchQuery.trim() !== '') {
@@ -2566,6 +2683,18 @@
 
     // D. DUTY POINTS VIEW (Admin View)
     function renderDutyPointsView() {
+      // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) ถูกล็อกให้เห็นเฉพาะคณะ (ชาย/หญิง) ที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
+      let dutyPointsGroupTabs = ['ครูชาย', 'ครูหญิง'];
+      if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
+        const headGroups = getHeadAssignedDutyGroups(currentUser.id);
+        if (headGroups.length > 0) {
+          dutyPointsGroupTabs = headGroups;
+          if (!dutyPointsGroupTabs.includes(currentDutyPointsGroupTab)) {
+            currentDutyPointsGroupTab = dutyPointsGroupTabs[0];
+          }
+        }
+      }
+
       const points = db.getDutyPoints().filter(p => (p.dutyGroup || 'ครูชาย') === currentDutyPointsGroupTab);
 
       return `
@@ -2582,7 +2711,7 @@
 
           <!-- Duty Group Tab Switcher -->
           <div class="flex border-b border-slate-200 gap-1">
-            ${['ครูชาย', 'ครูหญิง'].map(group => {
+            ${dutyPointsGroupTabs.map(group => {
               const isActive = currentDutyPointsGroupTab === group;
               return `
                 <button onclick="onDutyPointsGroupTabChange('${group}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
@@ -2782,6 +2911,26 @@
       const settings = db.getSettings();
       const points = db.getDutyPoints();
       if (!currentDocumentsDate) currentDocumentsDate = getTodayISODate();
+
+      // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) ถูกล็อกให้ดูเฉพาะวัน+คณะที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
+      let lockedDocsGroup = null;
+      if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
+        const headDays = getHeadAssignedDays(currentUser.id);
+        if (headDays.length > 0) {
+          const dayNames = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+          if (!headDays.includes(getThaiDayNameForDate(currentDocumentsDate))) {
+            const targetIdx = dayNames.indexOf(headDays[0]);
+            const cur = new Date(currentDocumentsDate + 'T00:00:00');
+            cur.setDate(cur.getDate() + (targetIdx - cur.getDay()));
+            const yyyy = cur.getFullYear();
+            const mm = String(cur.getMonth() + 1).padStart(2, '0');
+            const dd = String(cur.getDate()).padStart(2, '0');
+            currentDocumentsDate = `${yyyy}-${mm}-${dd}`;
+          }
+          lockedDocsGroup = getHeadAssignedDutyGroup(currentUser.id, getThaiDayNameForDate(currentDocumentsDate));
+        }
+      }
+
       const docDay = getThaiDayNameForDate(currentDocumentsDate);
       const docDateThai = getTodayThaiFullDate(currentDocumentsDate + 'T00:00:00');
       const weekNum = getWeekNumber(currentDocumentsDate, settings);
@@ -2812,8 +2961,12 @@
             </div>
           </div>
 
-          ${renderDutyReportPage('ครูชาย', malePoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName)}
-          ${renderDutyReportPage('ครูหญิง', femalePoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName)}
+          ${lockedDocsGroup === 'ครูหญิง'
+            ? renderDutyReportPage('ครูหญิง', femalePoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName)
+            : lockedDocsGroup === 'ครูชาย'
+              ? renderDutyReportPage('ครูชาย', malePoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName)
+              : `${renderDutyReportPage('ครูชาย', malePoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName)}
+                 ${renderDutyReportPage('ครูหญิง', femalePoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName)}`}
         </div>
       `;
     }
