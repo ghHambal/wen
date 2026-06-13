@@ -494,7 +494,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.15.1';
+    const APP_VERSION = '1.15.2';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -3849,7 +3849,7 @@
                         ดูรายงาน
                       </button>
                     ` : `
-                      <button id="btn-report-point-${p.id}" onclick="triggerRipple(event, false); openReportForm(${p.id})"
+                      <button id="btn-report-point-${p.id}" onclick="triggerRipple(event, false); confirmReportPoint(${p.id})"
                         class="ripple-btn scale-spring-active flex-1 bg-brand-800 hover:bg-brand-700 text-white font-bold py-2.5 rounded-xl shadow-md transition inline-flex items-center justify-center gap-1.5 text-[11px]">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                         รายงานจุดนี้
@@ -3960,6 +3960,28 @@
                   📂 อัปโหลดรูปภาพลายเซ็นที่มีอยู่แล้ว
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Avatar Reminder Modal -->
+        <div id="avatar-reminder-modal" class="fixed inset-0 bg-black/60 z-[110] hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border text-center">
+            <div class="bg-gradient-to-br from-brand-900 via-brand-800 to-brand-900 p-6 flex justify-center">
+              <div id="avatar-reminder-preview" class="profile-glossy-frame w-24 h-24">
+                ${getTeacherAvatar(currentUser, "w-full h-full object-cover")}
+              </div>
+            </div>
+            <div class="p-5 space-y-3">
+              <h4 class="font-bold text-slate-900 text-sm">ยังไม่มีรูปโปรไฟล์ของคุณ</h4>
+              <p class="text-slate-500 text-[11px]">เพิ่มรูปโปรไฟล์ของคุณ เพื่อให้เพื่อนครูและฝ่ายบริหารระบุตัวคุณได้ง่ายขึ้นในระบบเวร (ระบบจะบีบอัด/ปรับขนาดรูปให้อัตโนมัติ)</p>
+              <input type="file" id="avatar-reminder-upload" accept="image/*" onchange="uploadAvatarFromReminder(event)" class="hidden">
+              <button type="button" onclick="document.getElementById('avatar-reminder-upload').click()" class="w-full bg-brand-850 hover:bg-brand-700 text-white font-bold py-2.5 rounded-lg shadow transition flex items-center justify-center gap-1.5">
+                <i data-lucide="upload" class="w-4 h-4"></i> อัปโหลดรูปโปรไฟล์เลย
+              </button>
+              <button type="button" onclick="skipAvatarReminder()" class="w-full border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold py-2.5 rounded-lg transition">
+                ข้ามไปก่อน ไปกรอกรายงานเวร
+              </button>
             </div>
           </div>
         </div>
@@ -6151,6 +6173,47 @@
       }
     }
 
+    let pendingReportPointId = null;
+
+    // เช็คว่าครูมีรูปโปรไฟล์หรือยังก่อนเปิดฟอร์มรายงานเวร ถ้ายังไม่มีให้เด้งเตือนอัปโหลดก่อน
+    function confirmReportPoint(pointId) {
+      if (activeRoleMode === 'teacher' && currentUser.id !== 'admin' && !currentUser.avatar) {
+        pendingReportPointId = pointId;
+        const preview = document.getElementById('avatar-reminder-preview');
+        if (preview) preview.innerHTML = getTeacherAvatar(currentUser, "w-full h-full object-cover");
+        document.getElementById('avatar-reminder-modal').classList.remove('hidden');
+        lucide.createIcons();
+        return;
+      }
+      openReportForm(pointId);
+    }
+
+    function skipAvatarReminder() {
+      document.getElementById('avatar-reminder-modal').classList.add('hidden');
+      if (pendingReportPointId !== null) {
+        openReportForm(pendingReportPointId);
+        pendingReportPointId = null;
+      }
+    }
+
+    function uploadAvatarFromReminder(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      compressImageFile(file, 400, 400, 0.85, async (compressedBase64) => {
+        await saveTeacherAvatar(compressedBase64);
+        showToast('บันทึกรูปโปรไฟล์ใหม่ของคุณเรียบร้อยแล้ว', 'success');
+        document.getElementById('avatar-reminder-modal').classList.add('hidden');
+
+        if (pendingReportPointId !== null) {
+          const pointId = pendingReportPointId;
+          pendingReportPointId = null;
+          navigateTo('my-duty');
+          openReportForm(pointId);
+        }
+      });
+    }
+
     function openReportForm(pointId) {
       reportModalActivePointId = pointId;
       uploadedReportPhotoBase64 = null;
@@ -6496,7 +6559,7 @@
       });
     }
 
-    async function updateProfileAvatar(base64Data) {
+    async function saveTeacherAvatar(base64Data) {
       const teachers = db.getTeachers();
       const tIndex = teachers.findIndex(t => t.id === currentUser.id);
 
@@ -6512,7 +6575,10 @@
       } else if (currentUser.role === 'admin') {
         currentUser.avatar = base64Data;
       }
+    }
 
+    async function updateProfileAvatar(base64Data) {
+      await saveTeacherAvatar(base64Data);
       showToast('บันทึกรูปโปรไฟล์ใหม่ของคุณเรียบร้อยแล้ว', 'success');
       refreshProfileSettingsView();
     }
