@@ -540,7 +540,34 @@
         const points = await supabaseClient.from('duty_points').select('*').order('id');
         if (points.data && points.data.length > 0) {
           const mappedPoints = points.data.map(mapDutyPointFromDB);
+          
+          // One-time automatic migration for female duty group assignments to Monday:
+          let hasChanges = false;
+          mappedPoints.forEach(p => {
+            if ((p.dutyGroup || 'ครูชาย') === 'ครูหญิง') {
+              const list = p.assignedTo || [];
+              const updatedList = list.map(item => {
+                if (!item.includes(':')) {
+                  hasChanges = true;
+                  return `จันทร์:${item}`;
+                }
+                return item;
+              });
+              p.assignedTo = updatedList;
+            }
+          });
+
           db.saveDutyPoints(mappedPoints);
+
+          if (hasChanges) {
+            const dbPoints = mappedPoints.map(mapDutyPointToDB);
+            const { error } = await supabaseClient.from('duty_points').upsert(dbPoints);
+            if (error) {
+              console.error("Failed to migrate female duty points online:", error);
+            } else {
+              console.log("Successfully migrated female duty points to Monday online.");
+            }
+          }
         }
 
         const reports = await supabaseClient.from('reports').select('*');
