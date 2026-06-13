@@ -49,6 +49,10 @@
     @media print {
       .no-print { display: none !important; }
       body { background-color: white !important; color: black !important; }
+      #page-main, #page-main > div, #page-main > div > div, #main-content {
+        overflow: visible !important;
+        height: auto !important;
+      }
       .print-container { padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
       .doc-page { page-break-after: always; }
       .doc-page:last-of-type { page-break-after: auto; }
