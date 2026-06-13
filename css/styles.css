@@ -369,6 +369,8 @@
       width: 80px;
       height: 80px;
       object-fit: contain;
+      border-radius: 50%;
+      border: 1px solid #000;
     }
     .official-memo-title {
       font-size: 26px;
