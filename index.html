@@ -494,7 +494,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.14.3';
+    const APP_VERSION = '1.15.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -6246,6 +6246,31 @@
             <p class="text-slate-500 mt-1">จัดการข้อมูลบัญชีผู้ใช้ ลายเซ็นดิจิทัล และรหัสผ่านของคุณ</p>
           </div>
 
+          <!-- Top: Profile Photo -->
+          <div class="bg-white border rounded-xl shadow-sm p-5">
+            <h4 class="font-bold text-slate-800 text-xs border-b pb-2 mb-4 flex items-center gap-1">
+              <i data-lucide="image" class="w-4 h-4 text-brand-700"></i> รูปโปรไฟล์
+            </h4>
+            <div class="flex items-center gap-4">
+              <div id="prof-avatar-preview" class="profile-glossy-frame w-24 h-24 flex-shrink-0">
+                ${getTeacherAvatar(teacher, "w-full h-full object-cover")}
+              </div>
+              <div class="flex-1 space-y-2">
+                <p class="text-slate-500">อัปโหลดรูปถ่ายของคุณเพื่อแสดงในระบบ ระบบจะบีบอัดและปรับขนาดรูปให้เหมาะสมโดยอัตโนมัติ</p>
+                <input type="file" id="prof-avatar-upload" accept="image/*" onchange="uploadProfileAvatarImage(event)" class="hidden">
+                <div class="flex gap-2">
+                  <button type="button" onclick="document.getElementById('prof-avatar-upload').click()" class="border border-dashed border-brand-300 hover:border-brand-500 text-brand-850 hover:bg-brand-50/50 py-2 px-4 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="upload" class="w-4 h-4"></i> อัปโหลดรูปโปรไฟล์
+                  </button>
+                  ${teacher.avatar ? `
+                  <button type="button" onclick="removeProfileAvatar()" class="border border-red-200 hover:bg-red-50 text-red-650 py-2 px-3 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i> ลบรูป
+                  </button>` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Left: Profile Info -->
             <div class="bg-white border rounded-xl shadow-sm p-5 space-y-4">
@@ -6457,6 +6482,64 @@
         }
         clearProfileSignatureCanvas();
       }
+    }
+
+    function uploadProfileAvatarImage(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      compressImageFile(file, 400, 400, 0.85, (compressedBase64) => {
+        updateProfileAvatar(compressedBase64);
+      });
+    }
+
+    async function updateProfileAvatar(base64Data) {
+      const teachers = db.getTeachers();
+      const tIndex = teachers.findIndex(t => t.id === currentUser.id);
+
+      if (tIndex !== -1) {
+        teachers[tIndex].avatar = base64Data;
+        db.saveTeachers(teachers);
+        currentUser.avatar = base64Data;
+
+        if (useSupabase) {
+          const { error } = await supabaseClient.from('teachers').upsert(teachers[tIndex]);
+          if (error) console.error("Cloud save profile avatar error:", error);
+        }
+      } else if (currentUser.role === 'admin') {
+        currentUser.avatar = base64Data;
+      }
+
+      showToast('บันทึกรูปโปรไฟล์ใหม่ของคุณเรียบร้อยแล้ว', 'success');
+      refreshProfileSettingsView();
+    }
+
+    async function removeProfileAvatar() {
+      const teachers = db.getTeachers();
+      const tIndex = teachers.findIndex(t => t.id === currentUser.id);
+
+      if (tIndex !== -1) {
+        teachers[tIndex].avatar = null;
+        db.saveTeachers(teachers);
+        currentUser.avatar = null;
+
+        if (useSupabase) {
+          const { error } = await supabaseClient.from('teachers').update({ avatar: null }).eq('id', currentUser.id);
+          if (error) console.error("Cloud remove profile avatar error:", error);
+        }
+      } else if (currentUser.role === 'admin') {
+        currentUser.avatar = null;
+      }
+
+      showToast('ลบรูปโปรไฟล์เรียบร้อยแล้ว ใช้อวาตาร์เริ่มต้น', 'success');
+      refreshProfileSettingsView();
+    }
+
+    function refreshProfileSettingsView() {
+      const mc = document.getElementById('main-content');
+      mc.innerHTML = renderProfileSettingsView();
+      initProfileSignatureCanvas();
+      lucide.createIcons();
     }
 
     async function saveProfileInfo(e) {
