@@ -1597,8 +1597,9 @@ ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
 
 -- 6. นำเข้าข้อมูลเริ่มต้นที่จำเป็นลงในตาราง (เฉพาะข้อมูลที่ยังไม่มี - จะไม่เขียนทับของเดิม)
 
--- อัปเกรดฐานข้อมูลเดิมเพิ่มคอลัมน์รหัสผ่านในตาราง (ปลอดภัยกรณีตารางมีอยู่แล้ว)
+-- อัปเกรดฐานข้อมูลเดิมเพิ่มคอลัมน์รหัสผ่านและรูปโปรไฟล์ในตาราง (ปลอดภัยกรณีตารางมีอยู่แล้ว)
 ALTER TABLE teachers ADD COLUMN IF NOT EXISTS password TEXT NOT NULL DEFAULT '1234';
+ALTER TABLE teachers ADD COLUMN IF NOT EXISTS avatar TEXT;
 
 -- อัปเกรดฐานข้อมูลเดิมเพิ่มคอลัมน์กลุ่มเวรและพิกัดบริเวณที่ 2 ในตาราง duty_points (ปลอดภัยกรณีตารางมีอยู่แล้ว)
 ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS duty_group TEXT NOT NULL DEFAULT 'ครูชาย';
