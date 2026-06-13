@@ -494,7 +494,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.15.0';
+    const APP_VERSION = '1.15.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -1028,6 +1028,11 @@
           badgeBg = 'bg-amber-500';
         }
 
+        const matchedTeacher = db.getTeachers().find(t => t.id === saved.id);
+        const avatarHtml = matchedTeacher
+          ? getTeacherAvatar(matchedTeacher, "w-8 h-8 rounded-full object-cover flex-shrink-0")
+          : `<div class="w-8 h-8 rounded-full ${badgeBg} text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm flex-shrink-0">${roleBadge}</div>`;
+
         container.innerHTML = `
           <div class="relative my-6">
             <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -1040,9 +1045,7 @@
           <div class="flex items-center gap-2">
             <button type="button" onclick="loginAsSavedAccount()" class="flex-1 bg-brand-50 hover:bg-brand-100 text-brand-900 border border-brand-200 py-3 px-4 rounded-lg font-bold flex items-center justify-between transition shadow-sm group">
               <div class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-full ${badgeBg} text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm">
-                  ${roleBadge}
-                </div>
+                ${avatarHtml}
                 <div class="text-left">
                   <p class="text-[10px] text-slate-500 font-normal">เข้าใช้งานต่อในชื่อ:</p>
                   <p class="text-xs font-bold text-brand-900">${saved.name} (${roleName})</p>
