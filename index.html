@@ -513,7 +513,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.17.5';
+    const APP_VERSION = '1.17.6';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -3081,7 +3081,7 @@
           <table class="w-full text-[11px] border-collapse border border-slate-400 doc-table">
             <thead>
               <tr>
-                <th colspan="5" class="border border-slate-400 px-2 py-2 text-center font-normal bg-white">
+                <th colspan="5" class="border border-slate-400 px-2 py-2 text-center font-normal bg-white doc-header-cell">
                   <div class="flex flex-col items-center gap-1">
                     <div class="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center text-white font-bold text-sm border border-black/15 bg-brand-850">
                       ${settings.schoolLogo ? `<img src="${settings.schoolLogo}" class="w-full h-full object-cover">` : 'อซ'}
