@@ -513,7 +513,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.17.0';
+    const APP_VERSION = '1.17.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -768,6 +768,17 @@
         }
       }
       return Array.from(genders);
+    }
+
+    // คืน Set ของรหัสครูที่ถูกมอบหมาย (assignedTo) ในจุดเวรที่มี dutyGroup ตรงกับ dutyGroups ที่ระบุ (ไม่จำกัดวัน)
+    function getTeacherIdsInDutyGroups(dutyGroups) {
+      const ids = new Set();
+      db.getDutyPoints().filter(p => dutyGroups.includes(p.dutyGroup || 'ครูชาย')).forEach(p => {
+        (p.assignedTo || p.assigned_to || []).forEach(item => {
+          ids.add(item.includes(':') ? item.split(':')[1] : item);
+        });
+      });
+      return ids;
     }
 
     // รายการเมนู (id ใน adminMenus) ที่หัวหน้าเวร (ไม่ใช่แอดมิน) ได้รับอนุญาตให้เข้าถึง
@@ -2342,13 +2353,13 @@
 
     // C. TEACHERS VIEW (Admin View)
     function renderTeachersView() {
-      // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) ถูกล็อกให้เห็นเฉพาะกลุ่มเวร (ชาย/หญิง) ที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
-      let lockedTeacherGenders = null;
+      // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) ถูกล็อกให้เห็นเฉพาะครูที่ถูกมอบหมายในจุดเวรของกลุ่ม (ครูชาย/ครูหญิง) ที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
+      let lockedTeacherGroups = null;
       if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
         const headDays = getHeadAssignedDays(currentUser.id);
         if (headDays.length > 0) {
-          const genders = getHeadAssignedGenders(currentUser.id);
-          if (genders.length > 0) lockedTeacherGenders = genders;
+          const groups = getHeadAssignedDutyGroups(currentUser.id);
+          if (groups.length > 0) lockedTeacherGroups = groups;
         }
       }
 
@@ -2383,9 +2394,9 @@
               </select>
 
               <!-- Gender Filter -->
-              ${lockedTeacherGenders ? `
+              ${lockedTeacherGroups ? `
                 <span class="border rounded-lg p-2.5 bg-slate-50 text-slate-600 text-xs font-semibold inline-flex items-center gap-1">
-                  <i data-lucide="lock" class="w-3.5 h-3.5"></i> กลุ่มเวร${lockedTeacherGenders.map(g => 'ครู' + g).join('/')}
+                  <i data-lucide="lock" class="w-3.5 h-3.5"></i> สมาชิกกลุ่มเวร${lockedTeacherGroups.join('/')}
                 </span>
               ` : `
                 <select onchange="handleTeachersFilter('gender', this.value)" class="border rounded-lg p-2.5 bg-white outline-none focus:ring-1 focus:ring-brand-500 text-xs font-semibold">
@@ -2469,13 +2480,14 @@
     function renderTeachersListContainer() {
       let filtered = db.getTeachers();
 
-      // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) เห็นเฉพาะครูในกลุ่ม (ชาย/หญิง) ที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
+      // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) เห็นเฉพาะครูที่ถูกมอบหมายในจุดเวรของกลุ่ม (ครูชาย/ครูหญิง) ที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
       if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
         const headDays = getHeadAssignedDays(currentUser.id);
         if (headDays.length > 0) {
-          const lockedGenders = getHeadAssignedGenders(currentUser.id);
-          if (lockedGenders.length > 0) {
-            filtered = filtered.filter(t => lockedGenders.includes(getTeacherGender(t)));
+          const lockedDutyGroups = getHeadAssignedDutyGroups(currentUser.id);
+          if (lockedDutyGroups.length > 0) {
+            const allowedIds = getTeacherIdsInDutyGroups(lockedDutyGroups);
+            filtered = filtered.filter(t => allowedIds.has(t.id));
           }
         }
       }
