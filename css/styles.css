@@ -49,7 +49,7 @@
     @media print {
       .no-print { display: none !important; }
       body { background-color: white !important; color: black !important; }
-      #page-main, #page-main > div, #page-main > div > div, #main-content {
+      html, body, #page-main, #page-main > div, #page-main > div > div, #main-content {
         overflow: visible !important;
         height: auto !important;
       }
