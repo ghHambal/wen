@@ -1533,6 +1533,7 @@ CREATE TABLE IF NOT EXISTS teachers (
   role TEXT NOT NULL DEFAULT 'teacher',
   phone TEXT,
   signature TEXT,
+  avatar TEXT,
   password TEXT NOT NULL DEFAULT '1234'
 );
 
