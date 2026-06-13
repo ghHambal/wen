@@ -490,7 +490,7 @@
     /* glossy reflection profile image frame */
     .profile-glossy-frame {
       position: relative;
-      border-radius: 12px 12px 0 0;
+      border-radius: 16px;
       overflow: hidden;
       box-shadow:
         0 10px 25px -5px rgba(0, 0, 0, 0.35),
