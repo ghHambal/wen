@@ -494,7 +494,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.15.2';
+    const APP_VERSION = '1.15.3';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -5853,11 +5853,20 @@
       document.getElementById('point-form-modal').classList.add('hidden');
       const container = document.getElementById('modal-map-picker-container');
       if (container) container.classList.add('hidden');
-      
+
       const resultsDiv = document.getElementById('modal-map-search-results');
       if (resultsDiv) resultsDiv.classList.add('hidden');
       const searchInput = document.getElementById('modal-map-search-input');
       if (searchInput) searchInput.value = '';
+
+      // ทำลายแผนที่เดิมทิ้ง เพราะหลัง renderPage('duty-points') #modal-picker-map จะถูกสร้างใหม่
+      // ถ้าไม่ remove() ตัวแปร modalMapInstance จะค้างอ้างอิง element เก่าที่หลุดจาก DOM แล้ว ทำให้แผนที่ไม่ขึ้นในครั้งถัดไป
+      if (modalMapInstance) {
+        modalMapInstance.remove();
+        modalMapInstance = null;
+        modalMapMarker = null;
+        modalMapMarker2 = null;
+      }
     }
 
     let settingsMapInstance = null;
