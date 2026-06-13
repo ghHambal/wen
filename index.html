@@ -494,7 +494,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.13.0';
+    const APP_VERSION = '1.13.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -1104,6 +1104,10 @@
       sidebarOpen = !sidebarOpen;
       document.getElementById('sidebar-overlay').classList.toggle('hidden', !sidebarOpen);
       document.getElementById('sidebar-mobile').classList.toggle('-translate-x-full', !sidebarOpen);
+
+      // ซ่อน mobile bottom nav ตอน sidebar drawer เปิด ไม่ให้ทับปุ่ม "ออกจากระบบ" (z-index ของ bottom nav สูงกว่า drawer)
+      const bnav = document.getElementById('mobile-bottom-nav');
+      if (bnav) bnav.style.display = sidebarOpen ? 'none' : '';
     }
 
     function navigateTo(page) {
