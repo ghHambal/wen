@@ -513,7 +513,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.16.0';
+    const APP_VERSION = '1.16.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -762,9 +762,15 @@
     function updateUserRoleBadge() {
       if (!currentUser) return;
       const isHead = isUserAdminOrHead();
-      const badgeText = currentUser.role === 'admin' ? 'ผู้ดูแลระบบ' : (currentUser.role === 'head' || isHead) ? 'หัวหน้าเวร' : 'ครูเวร';
-      const badgeClass = "text-[9px] px-2 py-0.5 rounded-full font-bold " + 
-        (currentUser.role === 'admin' ? 'bg-red-100 text-red-800' : (currentUser.role === 'head' || isHead) ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800');
+      const badgeText = currentUser.role === 'admin' ? 'ผู้ดูแลระบบ'
+        : currentUser.role === 'director' ? 'ผู้บริหาร'
+        : currentUser.role === 'chief' ? 'หัวหน้างานเวร'
+        : (currentUser.role === 'head' || isHead) ? 'หัวหน้าเวร' : 'ครูเวร';
+      const badgeClass = "text-[9px] px-2 py-0.5 rounded-full font-bold " +
+        (currentUser.role === 'admin' ? 'bg-red-100 text-red-800'
+          : currentUser.role === 'director' ? 'bg-indigo-100 text-indigo-800'
+          : currentUser.role === 'chief' ? 'bg-purple-100 text-purple-800'
+          : (currentUser.role === 'head' || isHead) ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800');
       
       const roleBadgeEl = document.getElementById('user-role-badge');
       if (roleBadgeEl) {
@@ -1075,6 +1081,14 @@
           roleName = 'ผู้ดูแลระบบ';
           roleBadge = 'แอด';
           badgeBg = 'bg-red-650';
+        } else if (saved.role === 'director') {
+          roleName = 'ผู้บริหาร';
+          roleBadge = 'บห';
+          badgeBg = 'bg-indigo-600';
+        } else if (saved.role === 'chief') {
+          roleName = 'หัวหน้างานเวร';
+          roleBadge = 'หง';
+          badgeBg = 'bg-purple-600';
         } else if (saved.role === 'head') {
           roleName = 'หัวหน้าเวร';
           roleBadge = 'หน';
@@ -2263,6 +2277,8 @@
                 <option value="all" ${teachersFilterRole === 'all' ? 'selected' : ''}>ทุกบทบาท</option>
                 <option value="teacher" ${teachersFilterRole === 'teacher' ? 'selected' : ''}>ครูเวรทั่วไป</option>
                 <option value="head" ${teachersFilterRole === 'head' ? 'selected' : ''}>หัวหน้าเวร</option>
+                <option value="chief" ${teachersFilterRole === 'chief' ? 'selected' : ''}>หัวหน้างานเวร</option>
+                <option value="director" ${teachersFilterRole === 'director' ? 'selected' : ''}>ผู้บริหาร</option>
                 <option value="admin" ${teachersFilterRole === 'admin' ? 'selected' : ''}>ผู้ดูแลระบบ</option>
               </select>
 
@@ -2324,6 +2340,8 @@
                 <select id="teacher-form-role" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
                   <option value="teacher">ครูเวรทั่วไป</option>
                   <option value="head">หัวหน้าเวร</option>
+                  <option value="chief">หัวหน้างานเวร</option>
+                  <option value="director">ผู้บริหาร</option>
                   <option value="admin">ผู้ดูแลระบบ</option>
                 </select>
               </div>
@@ -2379,11 +2397,15 @@
             ${filtered.length === 0 ? `
               <div class="col-span-full bg-white border rounded-xl p-8 text-center text-slate-400 font-medium">ไม่พบข้อมูลตามเงื่อนไขที่ค้นหา</div>
             ` : filtered.map(t => {
-              const roleBadge = t.role === 'head' 
+              const roleBadge = t.role === 'head'
                 ? '<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">หัวหน้าเวร</span>'
-                : t.role === 'admin'
-                  ? '<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">ผู้ดูแลระบบ</span>'
-                  : '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">ครูเวรทั่วไป</span>';
+                : t.role === 'chief'
+                  ? '<span class="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-200">หัวหน้างานเวร</span>'
+                  : t.role === 'director'
+                    ? '<span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200">ผู้บริหาร</span>'
+                    : t.role === 'admin'
+                      ? '<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">ผู้ดูแลระบบ</span>'
+                      : '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">ครูเวรทั่วไป</span>';
 
               const hasSig = t.signature ? true : false;
               
@@ -2452,11 +2474,15 @@
                       <td colspan="7" class="p-8 text-center text-slate-400 font-medium">ไม่พบข้อมูลตามเงื่อนไขที่ค้นหา</td>
                     </tr>
                   ` : filtered.map(t => {
-                    const roleBadge = t.role === 'head' 
+                    const roleBadge = t.role === 'head'
                       ? '<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">หัวหน้าเวร</span>'
-                      : t.role === 'admin'
-                        ? '<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">ผู้ดูแลระบบ</span>'
-                        : '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">ครูเวรทั่วไป</span>';
+                      : t.role === 'chief'
+                        ? '<span class="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-200">หัวหน้างานเวร</span>'
+                        : t.role === 'director'
+                          ? '<span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200">ผู้บริหาร</span>'
+                          : t.role === 'admin'
+                            ? '<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">ผู้ดูแลระบบ</span>'
+                            : '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">ครูเวรทั่วไป</span>';
 
                     const hasSig = t.signature ? true : false;
                     const gender = getTeacherGender(t);
