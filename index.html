@@ -422,6 +422,23 @@
         parsedHeads = local.headsOfDay;
       }
 
+      let parsedHeadPerms = null;
+      if (dbSett.head_menu_permissions) {
+        if (Array.isArray(dbSett.head_menu_permissions)) {
+          parsedHeadPerms = dbSett.head_menu_permissions;
+        } else {
+          try {
+            parsedHeadPerms = JSON.parse(dbSett.head_menu_permissions);
+          } catch (e) {
+            console.error("Failed to parse head_menu_permissions JSON string:", e);
+          }
+        }
+      } else if (dbSett.headMenuPermissions) {
+        parsedHeadPerms = dbSett.headMenuPermissions;
+      } else if (local.headMenuPermissions) {
+        parsedHeadPerms = local.headMenuPermissions;
+      }
+
       return {
         schoolName: dbSett.school_name || dbSett.schoolName || local.schoolName || '',
         headName: dbSett.head_name || dbSett.headName || local.headName || '',
@@ -439,7 +456,8 @@
         systemColor: dbSett.system_color || dbSett.systemColor || local.systemColor || '#14532d',
         weekStartDate: dbSett.week_start_date || dbSett.weekStartDate || local.weekStartDate || '',
         totalWeeks: dbSett.total_weeks !== undefined && dbSett.total_weeks !== null ? dbSett.total_weeks : (dbSett.totalWeeks !== undefined && dbSett.totalWeeks !== null ? dbSett.totalWeeks : (local.totalWeeks || 20)),
-        headsOfDay: parsedHeads
+        headsOfDay: parsedHeads,
+        headMenuPermissions: parsedHeadPerms
       };
     }
 
@@ -463,7 +481,8 @@
         system_color: jsSett.systemColor || '#14532d',
         week_start_date: jsSett.weekStartDate || null,
         total_weeks: jsSett.totalWeeks !== undefined ? jsSett.totalWeeks : 20,
-        heads_of_day: jsSett.headsOfDay ? (typeof jsSett.headsOfDay === 'object' ? JSON.stringify(jsSett.headsOfDay) : jsSett.headsOfDay) : '{}'
+        heads_of_day: jsSett.headsOfDay ? (typeof jsSett.headsOfDay === 'object' ? JSON.stringify(jsSett.headsOfDay) : jsSett.headsOfDay) : '{}',
+        head_menu_permissions: jsSett.headMenuPermissions ? JSON.stringify(jsSett.headMenuPermissions) : JSON.stringify(adminMenus.map(m => m.id))
       };
     }
 
@@ -494,7 +513,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.15.3';
+    const APP_VERSION = '1.16.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -694,13 +713,41 @@
     let teachersFilterGender = 'all';
     let teachersFilterSignature = 'all';
 
+    // ผู้ดูแลระบบเต็มสิทธิ์ (ไม่ใช่หัวหน้าเวรที่ถูกแต่งตั้งตามวัน) - ใช้แยกว่าควรถูกจำกัดเมนู/วันหรือไม่
+    function isFullAdmin(user) {
+      return !!user && (user.role === 'admin' || user.role === 'chief' || user.role === 'director');
+    }
+
+    // คืนรายชื่อวัน (ไทย) ที่ครูคนนี้ได้รับการแต่งตั้งเป็นหัวหน้าเวร (ทุกกลุ่มชาย/หญิง)
+    function getHeadAssignedDays(teacherId) {
+      const settings = db.getSettings();
+      const headsOfDay = settings.headsOfDay || {};
+      const days = [];
+
+      for (const day in headsOfDay) {
+        const val = headsOfDay[day];
+        if (typeof val === 'string') {
+          if (val === teacherId) days.push(day);
+        } else if (val && typeof val === 'object') {
+          if (val["ชาย"] === teacherId || val["หญิง"] === teacherId) days.push(day);
+        }
+      }
+      return days;
+    }
+
+    // รายการเมนู (id ใน adminMenus) ที่หัวหน้าเวร (ไม่ใช่แอดมิน) ได้รับอนุญาตให้เข้าถึง
+    function getAllowedHeadMenus() {
+      const settings = db.getSettings();
+      return settings.headMenuPermissions || adminMenus.map(m => m.id);
+    }
+
     function isUserAdminOrHead() {
       if (!currentUser) return false;
       if (currentUser.role === 'admin' || currentUser.role === 'chief' || currentUser.role === 'director') return true;
-      
+
       const settings = db.getSettings();
       const headsOfDay = settings.headsOfDay || {};
-      
+
       for (const day in headsOfDay) {
         const val = headsOfDay[day];
         if (typeof val === 'string') {
@@ -816,8 +863,14 @@
     }
 
     function buildSidebar() {
-      const menus = activeRoleMode === 'head' ? adminMenus : teacherMenus;
-      
+      let menus = activeRoleMode === 'head' ? adminMenus : teacherMenus;
+
+      // จำกัดเมนูของหัวหน้าเวร (ที่ไม่ใช่แอดมิน) ตามสิทธิ์ที่กำหนดไว้ในหน้าตั้งค่าระบบ
+      if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
+        const allowed = getAllowedHeadMenus();
+        menus = adminMenus.filter(m => m.id === 'profile-settings' || allowed.includes(m.id));
+      }
+
       let html = '';
       if (isUserAdminOrHead()) {
         html += `
@@ -1115,6 +1168,15 @@
     }
 
     function navigateTo(page) {
+      // กันหัวหน้าเวร (ที่ไม่ใช่แอดมิน) เข้าถึงเมนูที่ไม่ได้รับอนุญาตในหน้าตั้งค่าระบบ
+      if (activeRoleMode === 'head' && !isFullAdmin(currentUser) && page !== 'profile-settings') {
+        const allowed = getAllowedHeadMenus();
+        if (!allowed.includes(page)) {
+          showToast('คุณไม่มีสิทธิ์เข้าถึงเมนูนี้', 'error');
+          page = allowed.includes('dashboard') ? 'dashboard' : (allowed[0] || 'profile-settings');
+        }
+      }
+
       currentPage = page;
       if (sidebarOpen) toggleSidebar();
       document.querySelectorAll('.sidebar-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
@@ -1811,6 +1873,18 @@
         currentScheduleViewDay = getTodayThaiDayName();
       }
 
+      // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) เห็นเฉพาะแท็บวันที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
+      let scheduleViewDays = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+      if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
+        const headDays = getHeadAssignedDays(currentUser.id);
+        if (headDays.length > 0) {
+          scheduleViewDays = scheduleViewDays.filter(d => headDays.includes(d));
+          if (!scheduleViewDays.includes(currentScheduleViewDay)) {
+            currentScheduleViewDay = scheduleViewDays[0];
+          }
+        }
+      }
+
       return `
         <div class="fade-in space-y-6">
           <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b pb-4 gap-4">
@@ -1843,7 +1917,7 @@
 
           <!-- Horizontal Day Tab Switcher -->
           <div class="flex border-b border-slate-200 overflow-x-auto no-scrollbar py-1 gap-1 -mx-4 px-4 sm:mx-0 sm:px-0">
-            ${['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'].map(day => {
+            ${scheduleViewDays.map(day => {
               const isActive = currentScheduleViewDay === day;
               return `
                 <button onclick="onScheduleDayChange('${day}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
@@ -3461,6 +3535,7 @@
     // G. SYSTEM SETTINGS VIEW
     function renderSettingsView() {
       const settings = db.getSettings();
+      const currentHeadPerms = settings.headMenuPermissions || adminMenus.map(m => m.id);
 
       return `
         <div class="fade-in space-y-6 max-w-2xl text-xs">
@@ -3618,6 +3693,20 @@
                 </div>
               </div>
 
+              <!-- สิทธิ์การเข้าถึงเมนูของหัวหน้าเวร -->
+              <div class="border-t pt-4 space-y-3">
+                <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="shield-check" class="w-4 h-4 text-brand-700"></i>สิทธิ์การเข้าถึงเมนูของหัวหน้าเวร</h4>
+                <p class="text-[10px] text-slate-400">เลือกเมนูที่จะให้ "หัวหน้าเวรประจำวัน" (ครูที่ได้รับการแต่งตั้งเป็นหัวหน้าเวรในแต่ละวัน ไม่ใช่แอดมิน) มองเห็นและเข้าถึงได้ในโหมดหัวหน้าเวร — เมนู "ข้อมูลส่วนตัว" จะแสดงให้ทุกคนเสมอ และเมนูที่มีตัวเลือก "วัน" (เช่น ตารางเวร) หัวหน้าเวรจะเห็นเฉพาะวันที่ตนเองได้รับการแต่งตั้งเท่านั้น</p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  ${adminMenus.filter(m => m.id !== 'profile-settings').map(m => `
+                    <label class="flex items-center gap-2 border rounded-lg p-2.5 cursor-pointer hover:bg-slate-50 transition">
+                      <input type="checkbox" id="sett-head-perm-${m.id}" ${currentHeadPerms.includes(m.id) ? 'checked' : ''} class="rounded border-slate-300 text-brand-700 focus:ring-brand-500">
+                      <span class="flex items-center gap-1.5 text-slate-700 font-semibold"><i data-lucide="${m.icon}" class="w-3.5 h-3.5 text-brand-700"></i>${m.label}</span>
+                    </label>
+                  `).join('')}
+                </div>
+              </div>
+
               <div class="flex justify-end pt-3">
                 <button type="submit" class="bg-brand-850 hover:bg-brand-700 text-white font-bold px-6 py-2.5 rounded-lg shadow transition">
                   บันทึกข้อมูลและอัปเดต Supabase
@@ -3654,7 +3743,13 @@
 
         // ตั้งค่าสัปดาห์ปฏิบัติงาน
         weekStartDate: document.getElementById('sett-week-start') ? document.getElementById('sett-week-start').value : (current.weekStartDate || ''),
-        totalWeeks: document.getElementById('sett-total-weeks') ? (parseInt(document.getElementById('sett-total-weeks').value) || 20) : (current.totalWeeks || 20)
+        totalWeeks: document.getElementById('sett-total-weeks') ? (parseInt(document.getElementById('sett-total-weeks').value) || 20) : (current.totalWeeks || 20),
+
+        // สิทธิ์การเข้าถึงเมนูของหัวหน้าเวร
+        headMenuPermissions: adminMenus
+          .filter(m => m.id !== 'profile-settings')
+          .filter(m => document.getElementById(`sett-head-perm-${m.id}`)?.checked)
+          .map(m => m.id)
       };
 
       await saveSettingsDB(settings);
