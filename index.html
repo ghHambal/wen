@@ -513,7 +513,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.17.3';
+    const APP_VERSION = '1.17.4';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -2923,9 +2923,11 @@
 
       // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) ถูกล็อกให้ดูเฉพาะวัน+คณะที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
       let lockedDocsGroup = null;
+      let isLockedDocsView = false;
       if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
         const headDays = getHeadAssignedDays(currentUser.id);
         if (headDays.length > 0) {
+          isLockedDocsView = true;
           const dayNames = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
           if (!headDays.includes(getThaiDayNameForDate(currentDocumentsDate))) {
             const targetIdx = dayNames.indexOf(headDays[0]);
@@ -2963,7 +2965,19 @@
               <p class="text-xs text-slate-500 mt-1">ใบรับรองรายงานตรวจเวรประจำวันเพื่อนำเสนอผู้อำนวยการโรงเรียน</p>
             </div>
             <div class="flex items-center gap-2">
-              <input type="date" value="${currentDocumentsDate}" onchange="onDocumentsDateChange(this.value)" class="border border-slate-300 rounded-lg px-3 py-2.5 text-xs focus:ring-2 focus:ring-brand-500 outline-none">
+              ${isLockedDocsView ? `
+                <div class="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden">
+                  <button onclick="onDocumentsWeekChange(-1)" class="p-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition" title="สัปดาห์ก่อนหน้า">
+                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                  </button>
+                  <span class="px-2 text-xs font-semibold text-slate-700 whitespace-nowrap">${docDateThai}${weekNum ? ` · สัปดาห์ที่ ${weekNum}` : ''}</span>
+                  <button onclick="onDocumentsWeekChange(1)" class="p-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition" title="สัปดาห์ถัดไป">
+                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              ` : `
+                <input type="date" value="${currentDocumentsDate}" onchange="onDocumentsDateChange(this.value)" class="border border-slate-300 rounded-lg px-3 py-2.5 text-xs focus:ring-2 focus:ring-brand-500 outline-none">
+              `}
               <button onclick="window.print()" class="bg-brand-800 text-white text-xs px-3.5 py-2.5 rounded-lg hover:bg-brand-700 transition flex items-center gap-1 shadow font-bold">
                 <i data-lucide="printer" class="w-4 h-4"></i> พิมพ์เอกสารรายงาน
               </button>
@@ -2983,6 +2997,17 @@
     // เปลี่ยนวันที่ที่เลือกในหน้าเอกสารรายงานทางการ แล้ว re-render
     function onDocumentsDateChange(value) {
       currentDocumentsDate = value;
+      renderPage('documents');
+    }
+
+    // เปลี่ยนสัปดาห์ (สำหรับหัวหน้าเวรที่ถูกล็อกวัน) - เลื่อนวันที่ไปทีละ 7 วัน คงวันในสัปดาห์เดิม
+    function onDocumentsWeekChange(direction) {
+      const cur = new Date(currentDocumentsDate + 'T00:00:00');
+      cur.setDate(cur.getDate() + direction * 7);
+      const yyyy = cur.getFullYear();
+      const mm = String(cur.getMonth() + 1).padStart(2, '0');
+      const dd = String(cur.getDate()).padStart(2, '0');
+      currentDocumentsDate = `${yyyy}-${mm}-${dd}`;
       renderPage('documents');
     }
 
