@@ -494,7 +494,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.14.0';
+    const APP_VERSION = '1.14.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -3726,22 +3726,22 @@
       return `
         <div class="fade-in space-y-5 text-xs">
           <!-- Welcome Bar -->
-          <div class="bg-gradient-to-br from-brand-900 via-brand-800 to-brand-900 text-white rounded-2xl p-5 shadow-lg">
-            <div class="flex flex-col md:flex-row items-center gap-4">
-              <div class="profile-glossy-frame w-28 h-28 md:w-32 md:h-32 flex-shrink-0">
+          <div class="bg-gradient-to-br from-brand-900 via-brand-800 to-brand-900 text-white rounded-2xl p-5 md:p-6 shadow-lg">
+            <div class="flex flex-col md:flex-row items-center gap-5">
+              <div class="profile-glossy-frame w-32 h-32 md:w-40 md:h-40 flex-shrink-0">
                 ${getTeacherAvatar(currentUser, "w-full h-full object-cover")}
               </div>
               <div class="flex-1 space-y-2 w-full text-center md:text-left">
                 <div>
-                  <p class="text-brand-200 text-[11px] font-medium">
+                  <p class="text-amber-300 text-xs md:text-sm font-semibold">
                     ${getTeacherGender(currentUser) === 'ชาย' ? 'สวัสดีครับ' : 'สวัสดีค่ะ'} คุณครูผู้ปฏิบัติหน้าที่เวรประจำวัน${todayDay} 👋
                   </p>
-                  <h3 class="text-xl md:text-2xl font-extrabold mt-1 text-white">${currentUser.name}</h3>
-                  <p class="text-[10px] text-brand-100 mt-1">รหัส: ${currentUser.id} &nbsp;·&nbsp; วันนี้มี <b>${myPoints.length}</b> จุดเวร (เวรวัน${todayDay})</p>
+                  <h3 class="text-2xl md:text-3xl font-extrabold mt-1 text-white">${currentUser.name}</h3>
+                  <p class="text-xs md:text-sm text-brand-100 mt-1">รหัส: ${currentUser.id} &nbsp;·&nbsp; วันนี้มี <b>${myPoints.length}</b> จุดเวร (เวรวัน${todayDay})</p>
                 </div>
                 <div class="bg-white/10 border border-white/20 rounded-lg px-3 py-2 flex items-center gap-3 max-w-sm mx-auto md:mx-0">
-                  <div class="bg-white/15 rounded-full p-1.5 flex-shrink-0">
-                    <svg class="w-3.5 h-3.5 text-brand-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  <div class="bg-white/5 border border-emerald-400/40 rounded-full p-2 flex-shrink-0">
+                    <svg class="w-4 h-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                   </div>
                   <div class="w-px h-6 bg-white/20 flex-shrink-0"></div>
                   <span id="teacher-gps-status-badge" class="font-bold text-[10px]">กำลังตรวจสอบสัญญาณดาวเทียม...</span>
