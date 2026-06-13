@@ -513,7 +513,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.17.2';
+    const APP_VERSION = '1.17.3';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -2004,16 +2004,9 @@
 
       return `
         <div class="fade-in space-y-6">
-          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b pb-4 gap-4">
-            <div>
-              <h3 class="text-lg font-bold text-slate-900">${isLockedHeadView ? `จัดการตารางปฏิบัติหน้าที่เวร${currentScheduleGroupTab} ประจำวัน${currentScheduleViewDay}` : 'จัดการตารางปฏิบัติหน้าที่เวร'}</h3>
-              <p class="text-xs text-slate-500 mt-1">มอบหมายตำแหน่งตรวจเวรตามตารางคุณครูประจำสัปดาห์</p>
-            </div>
-            <div>
-              <button onclick="showToast('เชื่อมโยงและบันทึกตารางลง Supabase แล้ว', 'success')" class="bg-brand-850 text-white text-xs px-3 py-2 rounded-lg hover:bg-brand-700 transition flex items-center gap-1 shadow-sm font-semibold">
-                <i data-lucide="save" class="w-4 h-4"></i> บันทึกตารางเวรหลัก
-              </button>
-            </div>
+          <div class="border-b pb-4">
+            <h3 class="text-lg font-bold text-slate-900">${isLockedHeadView ? `จัดการตารางปฏิบัติหน้าที่เวร${currentScheduleGroupTab} ประจำวัน${currentScheduleViewDay}` : 'จัดการตารางปฏิบัติหน้าที่เวร'}</h3>
+            <p class="text-xs text-slate-500 mt-1">มอบหมายตำแหน่งตรวจเวรตามตารางคุณครูประจำสัปดาห์</p>
           </div>
 
           ${isLockedHeadView ? '' : `
