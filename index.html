@@ -513,7 +513,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.17.1';
+    const APP_VERSION = '1.17.2';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -1983,9 +1983,11 @@
       // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) เห็นเฉพาะแท็บวันที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
       let scheduleViewDays = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
       let lockedScheduleGroup = null;
+      let isLockedHeadView = false;
       if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
         const headDays = getHeadAssignedDays(currentUser.id);
         if (headDays.length > 0) {
+          isLockedHeadView = true;
           scheduleViewDays = scheduleViewDays.filter(d => headDays.includes(d));
           if (!scheduleViewDays.includes(currentScheduleViewDay)) {
             currentScheduleViewDay = scheduleViewDays[0];
@@ -2004,7 +2006,7 @@
         <div class="fade-in space-y-6">
           <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b pb-4 gap-4">
             <div>
-              <h3 class="text-lg font-bold text-slate-900">จัดการตารางปฏิบัติหน้าที่เวร</h3>
+              <h3 class="text-lg font-bold text-slate-900">${isLockedHeadView ? `จัดการตารางปฏิบัติหน้าที่เวร${currentScheduleGroupTab} ประจำวัน${currentScheduleViewDay}` : 'จัดการตารางปฏิบัติหน้าที่เวร'}</h3>
               <p class="text-xs text-slate-500 mt-1">มอบหมายตำแหน่งตรวจเวรตามตารางคุณครูประจำสัปดาห์</p>
             </div>
             <div>
@@ -2014,9 +2016,10 @@
             </div>
           </div>
 
+          ${isLockedHeadView ? '' : `
           <!-- Duty Group Tab Switcher -->
           <div class="flex border-b border-slate-200 gap-1">
-            ${(lockedScheduleGroup ? [lockedScheduleGroup] : ['ครูชาย', 'ครูหญิง']).map(group => {
+            ${['ครูชาย', 'ครูหญิง'].map(group => {
               const isActive = currentScheduleGroupTab === group;
               return `
                 <button onclick="onScheduleGroupTabChange('${group}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
@@ -2036,8 +2039,8 @@
               const isActive = currentScheduleViewDay === day;
               return `
                 <button onclick="onScheduleDayChange('${day}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
-                  isActive 
-                    ? 'bg-brand-900 text-white border-brand-900 shadow-sm' 
+                  isActive
+                    ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
                     : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
                 }">
                   วัน${day}
@@ -2045,6 +2048,7 @@
               `;
             }).join('')}
           </div>
+          `}
 
           <!-- Daily Head of Duty Setting Section -->
           <div class="bg-brand-50/50 border border-brand-200/60 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm">
