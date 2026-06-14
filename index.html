@@ -442,6 +442,7 @@
       return {
         schoolName: dbSett.school_name || dbSett.schoolName || local.schoolName || '',
         headName: dbSett.head_name || dbSett.headName || local.headName || '',
+        headNameFemale: dbSett.head_name_female || dbSett.headNameFemale || local.headNameFemale || '',
         directorName: dbSett.director_name || dbSett.directorName || local.directorName || '',
         lineToken: dbSett.line_token || dbSett.lineToken || local.lineToken || '',
         telegramToken: dbSett.telegram_token || dbSett.telegramToken || local.telegramToken || '',
@@ -467,6 +468,7 @@
         id: 'config',
         school_name: jsSett.schoolName,
         head_name: jsSett.headName,
+        head_name_female: jsSett.headNameFemale || '',
         director_name: jsSett.directorName,
         line_token: jsSett.lineToken,
         telegram_token: jsSett.telegramToken,
@@ -513,7 +515,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.17.7';
+    const APP_VERSION = '1.18.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -3074,6 +3076,7 @@
       if (rows.length === 0) return '';
 
       const weekText = weekNum ? ` สัปดาห์ที่ ${weekNum}` : '';
+      const headName = groupLabel === 'ครูหญิง' ? (settings.headNameFemale || settings.headName) : settings.headName;
 
       return `
         <div class="bg-white border rounded-xl shadow-lg p-6 md:p-8 max-w-4xl mx-auto print-container doc-page text-black" style="font-family: 'Sarabun', sans-serif;">
@@ -3110,7 +3113,7 @@
             </div>
             <div class="space-y-1">
               <p>ลงชื่อ.......................................................... หัวหน้าเวร</p>
-              <p class="font-bold text-slate-800">(${settings.headName})</p>
+              <p class="font-bold text-slate-800">(${headName})</p>
               <p class="text-slate-400">ผู้ประมวลใบเวร</p>
             </div>
             <div class="space-y-1">
@@ -3759,11 +3762,18 @@
                   <input type="text" id="sett-school" value="${settings.schoolName}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
                 </div>
                 <div>
-                  <label class="block text-slate-500 font-bold mb-1">หัวหน้าเวรผู้ลงชื่อสรุป:</label>
+                  <label class="block text-slate-500 font-bold mb-1">หัวหน้าเวร ผู้ลงชื่อสรุป (เวรครูชาย):</label>
                   <input type="text" id="sett-head" value="${settings.headName}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
                 </div>
               </div>
-              
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="sm:col-start-2">
+                  <label class="block text-slate-500 font-bold mb-1">หัวหน้าเวร ผู้ลงชื่อสรุป (เวรครูหญิง):</label>
+                  <input type="text" id="sett-head-female" value="${settings.headNameFemale || ''}" placeholder="เว้นว่างถ้าใช้ชื่อเดียวกับเวรครูชาย" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                </div>
+              </div>
+
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-slate-500 font-bold mb-1">ผู้อำนวยการโรงเรียน:</label>
@@ -3935,6 +3945,7 @@
         ...current,
         schoolName: document.getElementById('sett-school').value.trim(),
         headName: document.getElementById('sett-head').value.trim(),
+        headNameFemale: document.getElementById('sett-head-female').value.trim(),
         directorName: document.getElementById('sett-director').value.trim(),
         telegramToken: document.getElementById('sett-tele-token').value.trim(),
         telegramChatId: document.getElementById('sett-tele-chat').value.trim(),
