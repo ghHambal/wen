@@ -515,7 +515,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.18.0';
+    const APP_VERSION = '1.19.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -704,6 +704,7 @@
     let currentDutyPointsGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าตั้งค่าพิกัด
     let currentScheduleGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าจัดการตารางเวร
     let currentDocumentsDate = null; // วันที่เลือกในหน้าเอกสารรายงานทางการ (YYYY-MM-DD)
+    let currentDocsGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าเอกสารรายงาน (สำหรับผู้ดูแลระบบ)
     
     // Mini-maps in My Duty view (teacher)
     let myDutyMaps = {};
@@ -933,7 +934,7 @@
             <label class="block text-[9px] text-brand-300 uppercase font-bold tracking-wider mb-1.5 text-center font-semibold">สลับบทบาทการใช้งาน</label>
             <div class="grid grid-cols-2 gap-1 bg-white/10 rounded-lg p-0.5 text-[11px]">
               <button onclick="switchRoleMode('teacher')" class="py-1 rounded font-bold transition text-center ${activeRoleMode === 'teacher' ? 'bg-white text-brand-950 shadow-sm' : 'text-brand-200 hover:text-white'}">ครูเวร</button>
-              <button onclick="switchRoleMode('head')" class="py-1 rounded font-bold transition text-center ${activeRoleMode === 'head' ? 'bg-white text-brand-950 shadow-sm' : 'text-brand-200 hover:text-white'}">หัวหน้าเวร</button>
+              <button onclick="switchRoleMode('head')" class="py-1 rounded font-bold transition text-center ${activeRoleMode === 'head' ? 'bg-white text-brand-950 shadow-sm' : 'text-brand-200 hover:text-white'}">${isFullAdmin(currentUser) ? 'ผู้ดูแลระบบ' : 'หัวหน้าเวร'}</button>
             </div>
           </div>
         `;
@@ -2986,14 +2987,38 @@
             </div>
           </div>
 
-          ${lockedDocsGroup === 'ครูหญิง'
-            ? renderDutyReportPage('ครูหญิง', femalePoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName)
-            : lockedDocsGroup === 'ครูชาย'
-              ? renderDutyReportPage('ครูชาย', malePoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName)
-              : `${renderDutyReportPage('ครูชาย', malePoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName)}
-                 ${renderDutyReportPage('ครูหญิง', femalePoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName)}`}
+          ${lockedDocsGroup ? '' : `
+          <!-- Duty Group Tab Switcher -->
+          <div class="flex border-b border-slate-200 gap-1 no-print">
+            ${['ครูชาย', 'ครูหญิง'].map(group => {
+              const isActive = currentDocsGroupTab === group;
+              return `
+                <button onclick="onDocsGroupTabChange('${group}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
+                  isActive
+                    ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
+                    : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
+                }">
+                  เวร${group}
+                </button>
+              `;
+            }).join('')}
+          </div>
+          `}
+
+          ${(() => {
+            const docsGroup = lockedDocsGroup || currentDocsGroupTab;
+            const groupPoints = docsGroup === 'ครูหญิง' ? femalePoints : malePoints;
+            const page = renderDutyReportPage(docsGroup, groupPoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName);
+            return page || `<p class="text-center text-sm text-slate-400 py-10 no-print">ไม่มีจุดเวร${docsGroup}ที่ต้องรายงานในวันนี้</p>`;
+          })()}
         </div>
       `;
+    }
+
+    // เปลี่ยนแท็บกลุ่มเวร (ครูชาย/ครูหญิง) ในหน้าเอกสารรายงานทางการ แล้ว re-render
+    function onDocsGroupTabChange(group) {
+      currentDocsGroupTab = group;
+      renderPage('documents');
     }
 
     // เปลี่ยนวันที่ที่เลือกในหน้าเอกสารรายงานทางการ แล้ว re-render
