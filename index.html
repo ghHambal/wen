@@ -515,7 +515,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.19.0';
+    const APP_VERSION = '1.19.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -3147,6 +3147,8 @@
               <p class="text-slate-400">ผู้อำนวยการ${settings.schoolName}</p>
             </div>
           </div>
+
+          <div class="print-tail-spacer"></div>
 
         </div>
       `;
