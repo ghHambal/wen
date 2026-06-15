@@ -144,7 +144,8 @@
         <div class="flex items-center gap-2">
           <!-- Database status indicator on mobile header -->
           <button onclick="openSqlModal()" id="db-status-mobile" class="text-[10px] px-2 py-0.5 rounded-full font-bold border"></button>
-          
+          <span id="pending-sync-badge-mobile" class="hidden text-[9px] px-1.5 py-0.5 rounded-full font-bold border border-amber-400/50 bg-amber-500/20 text-amber-200"></span>
+
           <button onclick="toggleNotificationPanel()" class="p-1.5 hover:bg-white/10 rounded-full relative">
             <i data-lucide="bell" class="w-5 h-5"></i>
             <span id="mobile-notification-badge" class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full hidden"></span>
@@ -169,6 +170,7 @@
             <span class="text-brand-200">สถานะคลาวด์:</span>
             <button onclick="openSqlModal()" id="db-status-sidebar" class="px-2 py-0.5 font-bold rounded-full border transition hover:opacity-85"></button>
           </div>
+          <div id="pending-sync-badge-sidebar" class="hidden px-3 py-1.5 border-b border-brand-850 bg-amber-500/10 text-amber-300 text-[10px] font-bold text-center"></div>
           <nav class="flex-1 p-3 space-y-1 overflow-y-auto" id="sidebar-nav"></nav>
           <div class="p-4 border-t border-brand-850 bg-brand-950/20">
             <div class="flex items-center justify-between mb-3 text-xs text-brand-200">
@@ -272,6 +274,7 @@
             <span class="text-brand-200">ระบบฐานข้อมูล:</span>
             <button onclick="openSqlModal()" id="db-status-mobile-drawer" class="px-2 py-0.5 rounded font-bold border"></button>
           </div>
+          <div id="pending-sync-badge-mobile-drawer" class="hidden mb-3 px-2 py-1 rounded font-bold border border-amber-400/50 bg-amber-500/10 text-amber-200 text-[10px] text-center"></div>
           <button onclick="logout()" class="flex items-center gap-2 text-sm text-brand-200 hover:text-white w-full py-2 hover:bg-white/5 rounded px-2 transition">
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
@@ -525,7 +528,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.21.0';
+    const APP_VERSION = '1.22.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -553,6 +556,7 @@
             // Sync current cloud tables data to local storage as cache
             await syncCloudDataToLocal();
             updateDynamicTitles();
+            await processPendingSyncQueue();
           }
         }
       } catch (err) {
@@ -661,6 +665,71 @@
       showToast('คัดลอก SQL Code ลงคลิปบอร์ดสำเร็จแล้ว!', 'success');
     }
 
+    // Offline-first sync queue (เก็บข้อมูลที่บันทึกไม่สำเร็จไว้รอซิงค์ตอนออนไลน์)
+    function getPendingSyncQueue() {
+      return JSON.parse(localStorage.getItem('wen_pending_sync')) || [];
+    }
+
+    function savePendingSyncQueue(queue) {
+      localStorage.setItem('wen_pending_sync', JSON.stringify(queue));
+      updatePendingSyncBadge();
+    }
+
+    function queuePendingSync(table, dbRow) {
+      const queue = getPendingSyncQueue().filter(item => !(item.table === table && item.data.id === dbRow.id));
+      queue.push({ table, data: dbRow, queuedAt: Date.now() });
+      savePendingSyncQueue(queue);
+    }
+
+    async function processPendingSyncQueue() {
+      if (syncQueueProcessing || !useSupabase || !navigator.onLine) return;
+      const queue = getPendingSyncQueue();
+      if (queue.length === 0) return;
+
+      syncQueueProcessing = true;
+      try {
+        const remaining = [];
+        for (const item of queue) {
+          try {
+            const { error } = await supabaseClient.from(item.table).upsert(item.data);
+            if (error) remaining.push(item);
+          } catch (err) {
+            remaining.push(item);
+          }
+        }
+        savePendingSyncQueue(remaining);
+        if (remaining.length < queue.length) {
+          showToast(`ซิงค์ข้อมูลค้างส่งขึ้นคลาวด์สำเร็จ ${queue.length - remaining.length} รายการ`, 'success');
+        }
+      } finally {
+        syncQueueProcessing = false;
+      }
+    }
+
+    function updatePendingSyncBadge() {
+      const n = getPendingSyncQueue().length;
+      const longText = `⏳ รอซิงค์ ${n} รายการ`;
+      const shortText = `⏳ รอซิงค์ ${n}`;
+
+      const badgeSidebar = document.getElementById('pending-sync-badge-sidebar');
+      if (badgeSidebar) {
+        badgeSidebar.textContent = longText;
+        badgeSidebar.classList.toggle('hidden', n === 0);
+      }
+
+      const badgeDrawer = document.getElementById('pending-sync-badge-mobile-drawer');
+      if (badgeDrawer) {
+        badgeDrawer.textContent = longText;
+        badgeDrawer.classList.toggle('hidden', n === 0);
+      }
+
+      const badgeMobile = document.getElementById('pending-sync-badge-mobile');
+      if (badgeMobile) {
+        badgeMobile.textContent = shortText;
+        badgeMobile.classList.toggle('hidden', n === 0);
+      }
+    }
+
     // =========================================================================
     // 2. STATE & VIEW CONFIGURATIONS
     // =========================================================================
@@ -678,6 +747,7 @@
     let pendingCoReporters = []; // [{teacherId, name, signature}] - ครูร่วมเวรที่ยืนยันแล้วในฟอร์มรายงานนี้
     let coReporterRowSeq = 0; // ตัวนับ id แถวกรอกครูร่วมเวร
     let coReporterSigPads = {}; // rowId -> {canvas, ctx, drawing} สำหรับลายเซ็นชั่วคราวของครูร่วมเวร
+    let syncQueueProcessing = false; // กันการประมวลผล wen_pending_sync ซ้ำซ้อน
     let coReporterOtherIds = []; // teacher_id ที่ assign จุดนี้วันนี้ (ไม่รวม currentUser)
     let coReporterBannerAnswered = false; // ตอบ banner เริ่มต้นแล้วหรือยัง
     let coReporterRows = []; // [{rowId, status:'input'|'needsSig', teacherId, name, error}] แถวที่กำลังกรอก/รอเซ็น
@@ -4496,8 +4566,15 @@
       cleanReports.push(newReport);
       db.saveReports(cleanReports);
 
-      if (useSupabase) {
-        const dbReport = mapReportToDB(newReport);
+      const dbReport = mapReportToDB(newReport);
+
+      if (!useSupabase || !navigator.onLine) {
+        queuePendingSync('reports', dbReport);
+        showToast('บันทึกออฟไลน์ในเครื่องเรียบร้อย รอซิงค์ขึ้นคลาวด์เมื่อมีอินเทอร์เน็ต', 'warning');
+        return;
+      }
+
+      try {
         const { error } = await supabaseClient.from('reports').upsert(dbReport);
         if (error) {
           // อาจเป็นเพราะยังไม่ได้รัน migration (คอลัมน์ is_late/late_review_status ฯลฯ)
@@ -4506,16 +4583,19 @@
           const { is_late, late_review_status, late_reviewed_by, late_reviewed_at, ...baseReport } = dbReport;
           const fallbackResult = await supabaseClient.from('reports').upsert(baseReport);
           if (fallbackResult.error) {
-            console.error("Supabase base report upsert failed:", fallbackResult.error);
-            showToast('บันทึกลงคลาวด์ผิดพลาด บันทึกออฟไลน์ในเครื่องเรียบร้อย', 'warning');
+            console.error("Supabase base report upsert failed, queueing for retry:", fallbackResult.error);
+            queuePendingSync('reports', dbReport);
+            showToast('บันทึกลงคลาวด์ไม่สำเร็จ บันทึกออฟไลน์ไว้แล้ว รอซิงค์อัตโนมัติ', 'warning');
           } else {
             showToast('บันทึกรายงานขึ้นคลาวด์แล้ว (สถานะมาสายเก็บเฉพาะในเครื่องนี้ จนกว่าจะรัน migration)', 'warning');
           }
         } else {
           showToast('บันทึกรายงานและซิงค์คลาวด์ Supabase สำเร็จ!', 'success');
         }
-      } else {
-        showToast('บันทึกข้อมูลรายงานออฟไลน์สำเร็จ (Local Storage)', 'success');
+      } catch (err) {
+        console.error("Supabase upsert threw, queueing for retry:", err);
+        queuePendingSync('reports', dbReport);
+        showToast('ไม่สามารถเชื่อมต่ออินเทอร์เน็ต บันทึกออฟไลน์ไว้แล้ว รอซิงค์อัตโนมัติ', 'warning');
       }
     }
 
@@ -5041,16 +5121,21 @@
       lucide.createIcons();
       updateNotificationLogsUI();
       setupThaiToEnglishKeyboardConverter();
+      updatePendingSyncBadge();
 
       changeGPSSimulation();
 
       // Close dropdowns if user clicks outside
       document.addEventListener('click', (e) => {
-        if (!e.target.closest('#schedule-head-dropdown-container') && 
+        if (!e.target.closest('#schedule-head-dropdown-container') &&
             !e.target.closest('[id^="appoint-head-dropdown-container-"]')) {
           closeAllCustomDropdowns();
         }
       });
+
+      // Offline-first sync queue: ลองซิงค์อัตโนมัติเมื่อกลับมาออนไลน์ และทุก 30 วินาที
+      window.addEventListener('online', processPendingSyncQueue);
+      setInterval(processPendingSyncQueue, 30000);
     });
 
     // Handle touch coordinate actions in Canvas signature drawing modal
