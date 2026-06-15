@@ -525,7 +525,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.20.1';
+    const APP_VERSION = '1.21.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -675,6 +675,12 @@
     let signatureDrawing = false;
     let reportModalActivePointId = null;
     let uploadedReportPhotoBase64 = null;
+    let pendingCoReporters = []; // [{teacherId, name, signature}] - ครูร่วมเวรที่ยืนยันแล้วในฟอร์มรายงานนี้
+    let coReporterRowSeq = 0; // ตัวนับ id แถวกรอกครูร่วมเวร
+    let coReporterSigPads = {}; // rowId -> {canvas, ctx, drawing} สำหรับลายเซ็นชั่วคราวของครูร่วมเวร
+    let coReporterOtherIds = []; // teacher_id ที่ assign จุดนี้วันนี้ (ไม่รวม currentUser)
+    let coReporterBannerAnswered = false; // ตอบ banner เริ่มต้นแล้วหรือยัง
+    let coReporterRows = []; // [{rowId, status:'input'|'needsSig', teacherId, name, error}] แถวที่กำลังกรอก/รอเซ็น
     let myDutyTimerInterval = null;
     let currentMapInstance = null; // Leaflet map reference
     let pointCardMaps = {}; // pointId -> Leaflet map instance (mini-map inline ในการ์ดจุดเวร)
@@ -872,18 +878,29 @@
       showToast(`เข้าสู่ระบบในฐานะ: ${currentUser.name}`, 'success');
     }
 
+    // ตรวจรหัสครู/เบอร์โทร + รหัสผ่าน โดยไม่แตะ session ปัจจุบัน
+    // คืนค่า teacher object ถ้าตรงทั้งคู่ หรือ null ถ้าไม่พบ/รหัสผ่านผิด
+    function verifyTeacherCredentials(idOrPhone, password) {
+      const teachers = db.getTeachers();
+      const matched = teachers.find(t => t.id.toLowerCase() === idOrPhone.toLowerCase() || t.phone === idOrPhone);
+      if (!matched) return null;
+      const userPass = matched.password || '1234';
+      if (password !== userPass) return null;
+      return matched;
+    }
+
     function handleLogin(e) {
       e.preventDefault();
       const loginId = document.getElementById('login-id').value.trim();
       const loginPass = document.getElementById('login-pass').value;
       const teachers = db.getTeachers();
-      
+
       // Find teacher matching ID or Phone
-      const matched = teachers.find(t => t.id.toLowerCase() === loginId.toLowerCase() || t.phone === loginId);
-      
-      if (matched) {
-        const userPass = matched.password || '1234';
-        if (loginPass !== userPass) {
+      const found = teachers.find(t => t.id.toLowerCase() === loginId.toLowerCase() || t.phone === loginId);
+
+      if (found) {
+        const matched = verifyTeacherCredentials(loginId, loginPass);
+        if (!matched) {
           showToast('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 'error');
           return;
         }
@@ -4145,9 +4162,7 @@
               const isDone = !!rep;
               const hasProblem = isDone && rep.status === 'problem';
               
-              const coTeachers = (p.assignedTo || p.assigned_to || [])
-                .filter(item => isAssignedOnDay(item, todayDay))
-                .map(item => item.includes(':') ? item.split(':')[1] : item)
+              const coTeachers = getAssignedTeacherIdsForPoint(p, getTodayISODate())
                 .filter(id => id !== currentUser.id)
                 .map(id => getTeacherName(id));
 
@@ -4296,6 +4311,9 @@
                 </div>
               </div>
 
+              <!-- Co-reporter (รายงานแทนกันหลายคน) -->
+              <div id="co-reporter-section"></div>
+
               <!-- Signature Area -->
               <div id="teacher-signature-section" class="border-t pt-4"></div>
 
@@ -4439,6 +4457,18 @@
 
       // Save database (with Supabase sync)
       await saveReportDB(newReport);
+
+      // รายงานแทนกันหลายคน: บันทึกรายงานเดียวกันให้ครูร่วมเวรที่ยืนยันตัวตนไว้ทุกคน
+      for (const co of pendingCoReporters) {
+        const coReport = {
+          ...newReport,
+          id: newReportId + '_' + co.teacherId,
+          teacherId: co.teacherId,
+          signature: co.signature
+        };
+        await saveReportDB(coReport);
+      }
+      pendingCoReporters = [];
 
       // Simulated notification message
       let alertMsg = `📢 แจ้งผลปฏิบัติเวร โรงเรียนมูลนิธิอาซิซสถาน \n`;
@@ -4801,6 +4831,14 @@
         return item.split(':')[0] === day;
       }
       return true;
+    }
+
+    // คืน array teacher_id ทั้งหมดที่ assign จุดเวรนี้ในวันที่ระบุ (ไม่กรอง currentUser ออก)
+    function getAssignedTeacherIdsForPoint(point, dateStr) {
+      const dayName = getThaiDayNameForDate(dateStr);
+      return (point.assignedTo || point.assigned_to || [])
+        .filter(item => isAssignedOnDay(item, dayName))
+        .map(item => item.includes(':') ? item.split(':')[1] : item);
     }
 
     // จุดเวรของ currentUser สำหรับ "วันนี้" - จุดของกลุ่มตัวเองใช้เหมือนกันทุกวัน
@@ -6673,6 +6711,14 @@
         document.getElementById('form-modal-title').textContent = `รายงานผลการปฏิบัติหน้าที่ - จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}`;
       }
 
+      // รายงานแทนกันหลายคน: เตรียม state ของครูร่วมเวรใหม่ทุกครั้งที่เปิด modal
+      coReporterOtherIds = pt ? getAssignedTeacherIdsForPoint(pt, getTodayISODate()).filter(id => id !== currentUser.id) : [];
+      coReporterBannerAnswered = false;
+      coReporterRows = [];
+      pendingCoReporters = [];
+      coReporterSigPads = {};
+      renderCoReporterSection();
+
       loadTeacherSignatureStatus();
       document.getElementById('report-form-modal').classList.remove('hidden');
       updateTeacherLocationStatus();
@@ -6682,6 +6728,223 @@
     function closeReportForm() {
       document.getElementById('report-form-modal').classList.add('hidden');
       reportModalActivePointId = null;
+      pendingCoReporters = [];
+      coReporterRows = [];
+      coReporterOtherIds = [];
+      coReporterBannerAnswered = false;
+      coReporterSigPads = {};
+    }
+
+    // =========================================================================
+    // CO-REPORTER (รายงานแทนกันหลายคน) - ใน modal รายงานเดิม
+    // =========================================================================
+    function answerCoReporterBanner(addNow) {
+      coReporterBannerAnswered = true;
+      if (addNow) addCoReporterRow();
+      else renderCoReporterSection();
+    }
+
+    function addCoReporterRow() {
+      coReporterRowSeq++;
+      coReporterRows.push({ rowId: coReporterRowSeq, status: 'input', error: '' });
+      renderCoReporterSection();
+    }
+
+    function removeCoReporterRow(rowId) {
+      coReporterRows = coReporterRows.filter(r => r.rowId !== rowId);
+      delete coReporterSigPads[rowId];
+      renderCoReporterSection();
+    }
+
+    function removeConfirmedCoReporter(teacherId) {
+      pendingCoReporters = pendingCoReporters.filter(c => c.teacherId !== teacherId);
+      renderCoReporterSection();
+    }
+
+    function verifyCoReporterRow(rowId) {
+      const row = coReporterRows.find(r => r.rowId === rowId);
+      if (!row) return;
+      const idVal = document.getElementById(`co-rep-id-${rowId}`).value.trim();
+      const passVal = document.getElementById(`co-rep-pass-${rowId}`).value;
+
+      const candidate = idVal ? verifyTeacherCredentials(idVal, passVal) : null;
+      if (!candidate) {
+        row.error = 'รหัสครูหรือรหัสผ่านไม่ถูกต้อง';
+        renderCoReporterSection();
+        return;
+      }
+      if (!coReporterOtherIds.includes(candidate.id)) {
+        row.error = 'ครูคนนี้ไม่ได้รับมอบหมายที่จุดนี้วันนี้';
+        renderCoReporterSection();
+        return;
+      }
+      if (pendingCoReporters.some(c => c.teacherId === candidate.id)) {
+        row.error = 'เพิ่มครูคนนี้ไปแล้ว';
+        renderCoReporterSection();
+        return;
+      }
+
+      const hasExisting = db.getReports().some(r => r.date === getTodayISODate() && r.pointId === reportModalActivePointId && r.teacherId === candidate.id);
+      if (hasExisting) {
+        showToast('ครูคนนี้มีรายงานของวันนี้อยู่แล้ว ระบบจะปรับปรุงรายงานเดิม', 'info');
+      }
+
+      if (candidate.signature) {
+        pendingCoReporters.push({ teacherId: candidate.id, name: candidate.name, signature: candidate.signature });
+        coReporterRows = coReporterRows.filter(r => r.rowId !== rowId);
+      } else {
+        row.error = '';
+        row.status = 'needsSig';
+        row.teacherId = candidate.id;
+        row.name = candidate.name;
+      }
+      renderCoReporterSection();
+    }
+
+    function initCoReporterSigPad(rowId) {
+      const canvas = document.getElementById(`co-sig-canvas-${rowId}`);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx.strokeStyle = '#14532d';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      const state = { canvas, ctx, drawing: false };
+      coReporterSigPads[rowId] = state;
+
+      const start = (clientX, clientY) => {
+        state.drawing = true;
+        const rect = canvas.getBoundingClientRect();
+        ctx.beginPath();
+        ctx.moveTo(clientX - rect.left, clientY - rect.top);
+      };
+      const move = (clientX, clientY) => {
+        if (!state.drawing) return;
+        const rect = canvas.getBoundingClientRect();
+        ctx.lineTo(clientX - rect.left, clientY - rect.top);
+        ctx.stroke();
+      };
+      const stop = () => { state.drawing = false; };
+
+      canvas.addEventListener('mousedown', e => start(e.clientX, e.clientY));
+      canvas.addEventListener('mousemove', e => move(e.clientX, e.clientY));
+      canvas.addEventListener('mouseup', stop);
+      canvas.addEventListener('mouseout', stop);
+
+      canvas.addEventListener('touchstart', e => { e.preventDefault(); const t = e.touches[0]; start(t.clientX, t.clientY); }, false);
+      canvas.addEventListener('touchmove', e => { e.preventDefault(); const t = e.touches[0]; move(t.clientX, t.clientY); }, false);
+      canvas.addEventListener('touchend', e => { e.preventDefault(); stop(); }, false);
+    }
+
+    function clearCoReporterSig(rowId) {
+      const state = coReporterSigPads[rowId];
+      if (state) state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
+    }
+
+    function confirmCoReporterSig(rowId) {
+      const row = coReporterRows.find(r => r.rowId === rowId);
+      const state = coReporterSigPads[rowId];
+      if (!row || !state) return;
+
+      const dataUrl = state.canvas.toDataURL('image/png');
+      const blank = document.createElement('canvas');
+      blank.width = state.canvas.width;
+      blank.height = state.canvas.height;
+      if (dataUrl === blank.toDataURL('image/png')) {
+        showToast('กรุณาวาดลายมือชื่อของครูร่วมเวรให้สมบูรณ์ก่อน', 'error');
+        return;
+      }
+
+      pendingCoReporters.push({ teacherId: row.teacherId, name: row.name, signature: dataUrl });
+      coReporterRows = coReporterRows.filter(r => r.rowId !== rowId);
+      delete coReporterSigPads[rowId];
+      renderCoReporterSection();
+    }
+
+    function preventEnterSubmit(e, onEnter) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (onEnter) onEnter();
+      }
+    }
+
+    function renderCoReporterSection() {
+      const container = document.getElementById('co-reporter-section');
+      if (!container) return;
+
+      if (coReporterOtherIds.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+
+      let html = '<div class="border-t pt-4 space-y-3">';
+
+      if (!coReporterBannerAnswered) {
+        html += `
+          <div class="bg-brand-50 border border-brand-200 rounded-lg p-3 space-y-2">
+            <p class="font-bold text-brand-900 text-[11px]">👥 จุดนี้มีผู้ปฏิบัติหน้าที่ร่วม ${coReporterOtherIds.length} คน ต้องการเพิ่มรายชื่อผู้ร่วมเวรในรายงานนี้ด้วยหรือไม่?</p>
+            <div class="flex gap-2">
+              <button type="button" onclick="answerCoReporterBanner(true)" class="flex-1 bg-brand-800 hover:bg-brand-700 text-white font-bold py-1.5 rounded text-[10px] transition">ใช่ เพิ่มเลย</button>
+              <button type="button" onclick="answerCoReporterBanner(false)" class="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold py-1.5 rounded text-[10px] transition">ไม่ใช่</button>
+            </div>
+          </div>
+        `;
+        container.innerHTML = html + '</div>';
+        return;
+      }
+
+      if (pendingCoReporters.length > 0) {
+        html += '<p class="font-bold text-slate-700 text-[11px]">ครูร่วมเวรที่เพิ่มในรายงานนี้:</p>';
+        html += '<div class="flex flex-wrap gap-2">';
+        pendingCoReporters.forEach(c => {
+          html += `
+            <div class="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-2 py-1.5">
+              <img src="${c.signature}" class="max-h-6 border bg-white rounded" alt="ลายเซ็น">
+              <span class="font-semibold text-slate-700 text-[10px]">${c.name}</span>
+              <button type="button" onclick="removeConfirmedCoReporter('${c.teacherId}')" class="text-red-500 hover:text-red-700"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+            </div>
+          `;
+        });
+        html += '</div>';
+      }
+
+      coReporterRows.forEach(row => {
+        if (row.status === 'input') {
+          html += `
+            <div class="bg-slate-50 border rounded-lg p-3 space-y-2">
+              <div class="grid grid-cols-2 gap-2">
+                <input type="text" id="co-rep-id-${row.rowId}" placeholder="รหัสครู/เบอร์โทร" onkeydown="preventEnterSubmit(event)" class="border rounded-lg p-2 text-[11px] outline-none focus:ring-1 focus:ring-brand-500">
+                <input type="password" id="co-rep-pass-${row.rowId}" placeholder="รหัสผ่าน" onkeydown="preventEnterSubmit(event, () => verifyCoReporterRow(${row.rowId}))" class="border rounded-lg p-2 text-[11px] outline-none focus:ring-1 focus:ring-brand-500">
+              </div>
+              ${row.error ? `<p class="text-red-600 text-[10px] font-semibold">${row.error}</p>` : ''}
+              <div class="flex gap-2">
+                <button type="button" onclick="verifyCoReporterRow(${row.rowId})" class="flex-1 bg-brand-800 hover:bg-brand-700 text-white font-bold py-1.5 rounded text-[10px] transition">ยืนยัน</button>
+                <button type="button" onclick="removeCoReporterRow(${row.rowId})" class="border border-slate-200 hover:bg-slate-50 text-slate-500 px-3 rounded text-[10px] transition">ยกเลิก</button>
+              </div>
+            </div>
+          `;
+        } else if (row.status === 'needsSig') {
+          html += `
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+              <p class="text-[10px] text-amber-800 font-semibold">${row.name} ยังไม่มีลายเซ็นในระบบ กรุณาวาดลายเซ็นสำหรับรายงานนี้</p>
+              <div class="flex justify-center bg-white border rounded-lg">
+                <canvas id="co-sig-canvas-${row.rowId}" class="signature-pad" width="260" height="100"></canvas>
+              </div>
+              <div class="flex gap-2">
+                <button type="button" onclick="clearCoReporterSig(${row.rowId})" class="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold py-1.5 rounded text-[10px] transition">ล้างวาดใหม่</button>
+                <button type="button" onclick="confirmCoReporterSig(${row.rowId})" class="flex-1 bg-brand-800 hover:bg-brand-700 text-white font-bold py-1.5 rounded text-[10px] transition">ใช้ลายเซ็นนี้</button>
+              </div>
+            </div>
+          `;
+        }
+      });
+
+      html += `<button type="button" onclick="addCoReporterRow()" class="text-brand-700 hover:underline font-bold text-[10px]">+ เพิ่มผู้ร่วมเวร</button>`;
+      html += '</div>';
+
+      container.innerHTML = html;
+      lucide.createIcons();
+      coReporterRows.filter(r => r.status === 'needsSig').forEach(r => initCoReporterSigPad(r.rowId));
     }
 
     function toggleReportProblemsInput() {
