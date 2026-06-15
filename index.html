@@ -572,7 +572,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.26.1';
+    const APP_VERSION = '1.27.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -4518,6 +4518,9 @@
       const myPoints = getMyDutyPoints();
       const reports = db.getReports().filter(r => r.date === getTodayISODate() && r.teacherId === currentUser.id);
 
+      const teacherDays = getTeacherDutyDays(currentUser.id);
+      const teacherDaysLabel = teacherDays.length > 0 ? teacherDays.join(' และวัน') : todayDay;
+
       // การลาของฉันวันนี้ (ทั้งวัน = pointId null, เฉพาะจุด = pointId ตรงกับจุดเวร)
       const myLeaveRequests = getLeaveRequestsForTeacherDate(currentUser.id, getTodayISODate());
       const wholeDayLeave = myLeaveRequests.find(r => r.pointId === null);
@@ -4558,7 +4561,7 @@
               <div class="flex-1 space-y-1 md:space-y-2 w-full min-w-0 text-left">
                 <div>
                   <p class="text-amber-300 text-[10px] sm:text-xs md:text-sm font-semibold">
-                    ${getTeacherGender(currentUser) === 'ชาย' ? 'สวัสดีครับ' : 'สวัสดีค่ะ'} คุณครูผู้ปฏิบัติหน้าที่เวรประจำวัน${todayDay} 👋
+                    ${getTeacherGender(currentUser) === 'ชาย' ? 'สวัสดีครับ' : 'สวัสดีค่ะ'} คุณครูผู้ปฏิบัติหน้าที่เวรประจำวัน${teacherDaysLabel} 👋
                   </p>
                   <h3 class="text-base sm:text-xl md:text-3xl font-extrabold mt-1 text-white truncate">${currentUser.name}</h3>
                   <p class="text-[10px] sm:text-xs md:text-sm text-brand-100 mt-1">รหัส: ${currentUser.id} &nbsp;·&nbsp; วันนี้มี <b>${myPoints.length}</b> จุดเวร (เวรวัน${todayDay})</p>
@@ -4575,7 +4578,7 @@
           </div>
 
           <!-- Leave Status / Action Bar -->
-          ${wholeDayLeaveActive ? `
+          ${myPoints.length === 0 ? '' : wholeDayLeaveActive ? `
             <div class="bg-white border-2 ${wholeDayLeave.status === 'approved' ? 'border-slate-200' : 'border-amber-200'} rounded-2xl p-5 text-center shadow-sm space-y-2">
               <div class="flex justify-center">${leaveStatusBadge(wholeDayLeave)}</div>
               <p class="text-slate-500 text-[11px]">คุณแจ้งลาทั้งวันสำหรับวันนี้แล้ว${wholeDayLeave.reason ? ` (เหตุผล: ${wholeDayLeave.reason})` : ''}</p>
@@ -4591,12 +4594,21 @@
             </div>
           `}
 
-          <!-- My Points List -->
           <div class="space-y-4">
             ${wholeDayLeaveActive ? '' : sortedPoints.length === 0 ? `
-              <div class="bg-white border rounded-2xl p-8 text-center text-slate-500 font-medium shadow-sm">
-                <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
-                ไม่มีข้อมูลตำแหน่งงานเวรแต่งตั้งสำหรับคุณในวันนี้
+              <div class="bg-gradient-to-br from-emerald-50 via-white to-teal-50 border border-emerald-100 rounded-3xl p-8 text-center shadow-sm space-y-4 hover:shadow-md transition-all duration-300">
+                <div class="inline-flex p-4 bg-emerald-100/50 text-emerald-700 rounded-full animate-bounce">
+                  <i data-lucide="coffee" class="w-8 h-8"></i>
+                </div>
+                <div class="space-y-1.5">
+                  <h4 class="font-extrabold text-base text-emerald-900">วันหยุดปฏิบัติเวรของคุณครู 🎉</h4>
+                  <p class="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                    วันนี้คุณครูไม่มีรายชื่อปฏิบัติหน้าที่เวรประจำวันครับ ขอให้ท่านพักผ่อนให้เต็มที่เพื่อเตรียมความพร้อมสำหรับวันปฏิบัติงานเวรของท่านในวันถัดไป ชาร์จพลังงานให้เต็มเปี่ยมนะครับ! ☕🌿
+                  </p>
+                </div>
+                <div class="text-[10px] text-emerald-600 bg-emerald-100/30 px-3.5 py-1 rounded-full inline-block font-semibold">
+                  วันปฏิบัติเวรของท่าน: วัน${teacherDaysLabel}
+                </div>
               </div>
             ` : sortedPoints.map(p => {
               const rep = reports.find(r => r.pointId === p.id);
@@ -5592,6 +5604,26 @@
       return (point.assignedTo || point.assigned_to || [])
         .filter(item => isAssignedOnDay(item, dayName))
         .map(item => item.includes(':') ? item.split(':')[1] : item);
+    }
+
+    // คืนรายชื่อวัน (ไทย) ที่ครูคนนี้มีเวรปฏิบัติหน้าที่ในจุดเวรต่าง ๆ
+    function getTeacherDutyDays(teacherId) {
+      const points = db.getDutyPoints();
+      const days = new Set();
+      points.forEach(p => {
+        const list = p.assignedTo || p.assigned_to || [];
+        list.forEach(item => {
+          if (item.includes(':')) {
+            const [itemDay, itemTeacherId] = item.split(':');
+            if (itemTeacherId === teacherId) {
+              days.add(itemDay);
+            }
+          } else if (item === teacherId) {
+            ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี'].forEach(d => days.add(d));
+          }
+        });
+      });
+      return Array.from(days);
     }
 
     // จุดเวรของ currentUser สำหรับ "วันนี้" - จุดของกลุ่มตัวเองใช้เหมือนกันทุกวัน
