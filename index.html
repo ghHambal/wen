@@ -572,7 +572,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.26.0';
+    const APP_VERSION = '1.26.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -4714,8 +4714,8 @@
         </div>
 
         <!-- LEAVE REQUEST MODAL -->
-        <div id="leave-request-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-end md:items-center justify-center p-0 md:p-4">
-          <div class="bg-white rounded-t-2xl md:rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border">
+        <div id="leave-request-modal" class="fixed inset-0 bg-black/75 z-[10000] hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border flex flex-col fade-in">
             <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
               <h3 class="font-bold text-xs">แจ้งลาวันนี้</h3>
               <button onclick="closeLeaveRequestModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
