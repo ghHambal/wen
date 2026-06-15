@@ -572,7 +572,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.27.0';
+    const APP_VERSION = '1.28.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -4578,7 +4578,7 @@
           </div>
 
           <!-- Leave Status / Action Bar -->
-          ${myPoints.length === 0 ? '' : wholeDayLeaveActive ? `
+          ${wholeDayLeaveActive ? `
             <div class="bg-white border-2 ${wholeDayLeave.status === 'approved' ? 'border-slate-200' : 'border-amber-200'} rounded-2xl p-5 text-center shadow-sm space-y-2">
               <div class="flex justify-center">${leaveStatusBadge(wholeDayLeave)}</div>
               <p class="text-slate-500 text-[11px]">คุณแจ้งลาทั้งวันสำหรับวันนี้แล้ว${wholeDayLeave.reason ? ` (เหตุผล: ${wholeDayLeave.reason})` : ''}</p>
@@ -4586,7 +4586,7 @@
           ` : `
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white border rounded-2xl p-3 shadow-sm">
               <div class="text-[11px] text-slate-500 flex-1 min-w-0">
-                ${wholeDayLeave && wholeDayLeave.status === 'rejected' ? leaveStatusBadge(wholeDayLeave) : 'หากวันนี้คุณติดภารกิจ/ลาราชการ สามารถแจ้งลาเพื่อให้หัวหน้าเวรพิจารณาได้'}
+                ${wholeDayLeave && wholeDayLeave.status === 'rejected' ? leaveStatusBadge(wholeDayLeave) : 'หากคุณติดภารกิจ/ลาราชการ สามารถแจ้งลาล่วงหน้าเพื่อให้หัวหน้าเวรพิจารณาได้'}
               </div>
               <button onclick="triggerRipple(event, true); openLeaveRequestModal()" class="ripple-btn scale-spring-active flex-shrink-0 border border-amber-300 text-amber-700 hover:bg-amber-50 font-bold px-3 py-2 rounded-xl transition inline-flex items-center justify-center gap-1.5 text-[11px]">
                 <i data-lucide="calendar-x" class="w-3.5 h-3.5"></i> แจ้งลา
@@ -4729,16 +4729,20 @@
         <div id="leave-request-modal" class="fixed inset-0 bg-black/75 z-[10000] hidden flex items-center justify-center p-4">
           <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border flex flex-col fade-in">
             <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
-              <h3 class="font-bold text-xs">แจ้งลาวันนี้</h3>
+              <h3 class="font-bold text-xs">แจ้งลาปฏิบัติหน้าที่เวร</h3>
               <button onclick="closeLeaveRequestModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>
 
             <form onsubmit="submitLeaveRequest(event)" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">วันที่ต้องการลา:</label>
+                <input type="date" id="leave-date-select" onchange="onLeaveDateChanged()" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-bold" required>
+              </div>
 
               <div>
                 <label class="block text-slate-500 mb-1 font-bold">ขอบเขตการลา:</label>
                 <select id="leave-scope-select" onchange="toggleLeaveScopeFields()" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 font-bold text-slate-700">
-                  <option value="all">ลาทั้งวัน (ทุกจุดเวรของฉันวันนี้)</option>
+                  <option value="all">ลาทั้งวัน (ทุกจุดเวรของฉันในวันที่เลือก)</option>
                   <option value="point" ${leaveEligiblePoints.length === 0 ? 'disabled' : ''}>ลาเฉพาะจุด (เลือกจุดเวร)</option>
                 </select>
               </div>
@@ -4748,7 +4752,7 @@
                 <select id="leave-point-select" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
                   ${leaveEligiblePoints.map(p => `<option value="${p.id}">จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name} (${p.time} น.)</option>`).join('')}
                 </select>
-                ${leaveEligiblePoints.length === 0 ? '<p class="text-[10px] text-red-500 mt-1">ไม่มีจุดเวรที่สามารถแจ้งลาเฉพาะจุดได้ (รายงานครบแล้ว หรือแจ้งลาไปแล้ว)</p>' : ''}
+                ${leaveEligiblePoints.length === 0 ? '<p class="point-error-msg text-[10px] text-red-500 mt-1">ไม่มีจุดเวรที่สามารถแจ้งลาเฉพาะจุดได้ในวันที่เลือก</p>' : ''}
               </div>
 
               <div>
@@ -5734,12 +5738,79 @@
     function openLeaveRequestModal() {
       const modal = document.getElementById('leave-request-modal');
       if (!modal) return;
+      
+      const dateSelect = document.getElementById('leave-date-select');
+      if (dateSelect) {
+        const todayStr = getTodayISODate();
+        dateSelect.value = todayStr;
+        dateSelect.min = todayStr;
+      }
+      
       document.getElementById('leave-scope-select').value = 'all';
       document.getElementById('leave-type-select').value = 'personal';
       document.getElementById('leave-reason-text').value = '';
-      toggleLeaveScopeFields();
+      
+      onLeaveDateChanged();
       modal.classList.remove('hidden');
       if (window.lucide) lucide.createIcons();
+    }
+
+    function onLeaveDateChanged() {
+      const dateSelect = document.getElementById('leave-date-select');
+      if (!dateSelect) return;
+      const selectedDate = dateSelect.value;
+      if (!selectedDate) return;
+
+      const scopeSelect = document.getElementById('leave-scope-select');
+      const pointField = document.getElementById('leave-point-field');
+      const pointSelect = document.getElementById('leave-point-select');
+
+      const dutyPoints = getDutyPointsForTeacher(currentUser.id, selectedDate);
+      const reports = db.getReports().filter(r => r.date === selectedDate && r.teacherId === currentUser.id);
+      const leaveRequests = getLeaveRequestsForTeacherDate(currentUser.id, selectedDate);
+
+      const eligiblePoints = dutyPoints.filter(p => {
+        const rep = reports.find(r => r.pointId === p.id);
+        if (rep) return false;
+        const pointLeave = leaveRequests.find(r => r.pointId === p.id);
+        return !(pointLeave && (pointLeave.status === 'pending' || pointLeave.status === 'approved'));
+      });
+
+      pointSelect.innerHTML = '';
+      const existingError = pointField.querySelector('.point-error-msg');
+      if (existingError) {
+        existingError.remove();
+      }
+
+      const pointOption = scopeSelect.querySelector('option[value="point"]');
+
+      if (eligiblePoints.length > 0) {
+        eligiblePoints.forEach(p => {
+          const option = document.createElement('option');
+          option.value = p.id;
+          option.textContent = `จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name} (${p.time} น.)`;
+          pointSelect.appendChild(option);
+        });
+
+        if (pointOption) {
+          pointOption.removeAttribute('disabled');
+        }
+      } else {
+        if (pointOption) {
+          pointOption.setAttribute('disabled', 'true');
+        }
+        
+        if (scopeSelect.value === 'point') {
+          scopeSelect.value = 'all';
+        }
+
+        const errorMsg = document.createElement('p');
+        errorMsg.className = 'point-error-msg text-[10px] text-red-500 mt-1';
+        errorMsg.textContent = 'ไม่มีจุดเวรที่สามารถแจ้งลาเฉพาะจุดได้ในวันที่เลือก';
+        pointField.appendChild(errorMsg);
+      }
+
+      toggleLeaveScopeFields();
     }
 
     function closeLeaveRequestModal() {
@@ -5757,7 +5828,12 @@
       const scope = document.getElementById('leave-scope-select').value;
       const leaveType = document.getElementById('leave-type-select').value;
       const reason = document.getElementById('leave-reason-text').value.trim();
-      const dateStr = getTodayISODate();
+      const dateStr = document.getElementById('leave-date-select').value;
+
+      if (!dateStr) {
+        showToast('กรุณาเลือกวันที่ต้องการลา', 'error');
+        return;
+      }
 
       let pointId = null;
       if (scope === 'point') {
