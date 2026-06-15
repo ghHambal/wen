@@ -515,7 +515,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.19.1';
+    const APP_VERSION = '1.19.2';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -2954,11 +2954,6 @@
       const femalePoints = points.filter(p => (p.dutyGroup || 'ครูชาย') === 'ครูหญิง');
 
       const headEntry = settings.headsOfDay?.[docDay];
-      let dailyHeadId = '';
-      if (headEntry) {
-        dailyHeadId = typeof headEntry === 'string' ? headEntry : (headEntry['ชาย'] || headEntry['หญิง'] || '');
-      }
-      const dailyHeadName = dailyHeadId ? getTeacherName(dailyHeadId) : '';
 
       return `
         <div class="fade-in space-y-6">
@@ -3008,7 +3003,7 @@
           ${(() => {
             const docsGroup = lockedDocsGroup || currentDocsGroupTab;
             const groupPoints = docsGroup === 'ครูหญิง' ? femalePoints : malePoints;
-            const page = renderDutyReportPage(docsGroup, groupPoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName);
+            const page = renderDutyReportPage(docsGroup, groupPoints, docDay, docDateThai, weekNum, reports, settings, headEntry);
             return page || `<p class="text-center text-sm text-slate-400 py-10 no-print">ไม่มีจุดเวร${docsGroup}ที่ต้องรายงานในวันนี้</p>`;
           })()}
         </div>
@@ -3096,12 +3091,22 @@
 
     // สร้างเอกสารรายงาน 1 หน้า (A4) ของกลุ่มเวรที่กำหนด พร้อมหัวกระดาษ (โลโก้+ชื่อ ร.ร.+คำอธิบาย วัน/สัปดาห์),
     // ตารางจุดเวร และผู้ลงชื่อรับรอง 3 คน - คืนค่าว่างถ้าไม่มีจุดที่ต้องรายงานในวันนั้น
-    function renderDutyReportPage(groupLabel, groupPoints, docDay, docDateThai, weekNum, reports, settings, dailyHeadName) {
+    function renderDutyReportPage(groupLabel, groupPoints, docDay, docDateThai, weekNum, reports, settings, headEntry) {
       const rows = renderDutyReportRows(groupPoints, docDay, reports);
       if (rows.length === 0) return '';
 
       const weekText = weekNum ? ` สัปดาห์ที่ ${weekNum}` : '';
       const headName = groupLabel === 'ครูหญิง' ? (settings.headNameFemale || settings.headName) : settings.headName;
+
+      let dailyHeadId = '';
+      if (headEntry) {
+        if (typeof headEntry === 'string') {
+          dailyHeadId = headEntry;
+        } else {
+          dailyHeadId = groupLabel === 'ครูหญิง' ? (headEntry['หญิง'] || headEntry['ชาย'] || '') : (headEntry['ชาย'] || headEntry['หญิง'] || '');
+        }
+      }
+      const dailyHeadName = dailyHeadId ? getTeacherName(dailyHeadId) : '';
 
       return `
         <div class="bg-white border rounded-xl shadow-lg p-6 md:p-8 max-w-4xl mx-auto print-container doc-page text-black" style="font-family: 'Sarabun', sans-serif;">
