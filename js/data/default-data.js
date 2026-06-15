@@ -1512,6 +1512,7 @@
       telegramToken: '',
       telegramChatId: '',
       autoNotifyMinutes: 15,
+      lateGraceMinutes: 15,
       dutyDay: 'อังคาร',
       dutyGroup: 'ครูชาย',
       defaultRadius: 50,

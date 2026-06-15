@@ -373,7 +373,11 @@
         problem: dbRep.problem,
         solution: dbRep.solution,
         photo: dbRep.photo,
-        signature: dbRep.signature
+        signature: dbRep.signature,
+        isLate: dbRep.is_late !== undefined ? !!dbRep.is_late : !!dbRep.isLate,
+        lateReviewStatus: dbRep.late_review_status !== undefined ? dbRep.late_review_status : (dbRep.lateReviewStatus || null),
+        lateReviewedBy: dbRep.late_reviewed_by !== undefined ? dbRep.late_reviewed_by : (dbRep.lateReviewedBy || null),
+        lateReviewedAt: dbRep.late_reviewed_at !== undefined ? dbRep.late_reviewed_at : (dbRep.lateReviewedAt || null)
       };
     }
 
@@ -391,7 +395,11 @@
         problem: jsRep.problem,
         solution: jsRep.solution,
         photo: jsRep.photo,
-        signature: jsRep.signature
+        signature: jsRep.signature,
+        is_late: !!jsRep.isLate,
+        late_review_status: jsRep.lateReviewStatus || null,
+        late_reviewed_by: jsRep.lateReviewedBy || null,
+        late_reviewed_at: jsRep.lateReviewedAt || null
       };
     }
 
@@ -448,6 +456,7 @@
         telegramToken: dbSett.telegram_token || dbSett.telegramToken || local.telegramToken || '',
         telegramChatId: dbSett.telegram_chat_id || dbSett.telegramChatId || local.telegramChatId || '',
         autoNotifyMinutes: dbSett.auto_notify_minutes !== undefined && dbSett.auto_notify_minutes !== null ? dbSett.auto_notify_minutes : (dbSett.autoNotifyMinutes !== undefined && dbSett.autoNotifyMinutes !== null ? dbSett.autoNotifyMinutes : (local.autoNotifyMinutes || 15)),
+        lateGraceMinutes: dbSett.late_grace_minutes !== undefined && dbSett.late_grace_minutes !== null ? dbSett.late_grace_minutes : (dbSett.lateGraceMinutes !== undefined && dbSett.lateGraceMinutes !== null ? dbSett.lateGraceMinutes : (local.lateGraceMinutes ?? 15)),
         defaultRadius: dbSett.default_radius !== undefined && dbSett.default_radius !== null ? dbSett.default_radius : (dbSett.defaultRadius !== undefined && dbSett.defaultRadius !== null ? dbSett.defaultRadius : (local.defaultRadius || 50)),
         centerLat: dbSett.center_lat !== undefined && dbSett.center_lat !== null ? dbSett.center_lat : (dbSett.centerLat !== undefined && dbSett.centerLat !== null ? dbSett.centerLat : (local.centerLat || 6.787680)),
         centerLng: dbSett.center_lng !== undefined && dbSett.center_lng !== null ? dbSett.center_lng : (dbSett.centerLng !== undefined && dbSett.centerLng !== null ? dbSett.centerLng : (local.centerLng || 101.408120)),
@@ -474,6 +483,7 @@
         telegram_token: jsSett.telegramToken,
         telegram_chat_id: jsSett.telegramChatId,
         auto_notify_minutes: jsSett.autoNotifyMinutes,
+        late_grace_minutes: jsSett.lateGraceMinutes !== undefined && jsSett.lateGraceMinutes !== null ? jsSett.lateGraceMinutes : 15,
         default_radius: jsSett.defaultRadius !== undefined ? jsSett.defaultRadius : 50,
         center_lat: jsSett.centerLat !== undefined ? jsSett.centerLat : 6.787680,
         center_lng: jsSett.centerLng !== undefined ? jsSett.centerLng : 101.408120,
@@ -515,7 +525,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.19.2';
+    const APP_VERSION = '1.20.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -1481,7 +1491,7 @@
                           <td class="px-4 py-3 text-slate-500">${p.time} น.</td>
                           <td class="px-4 py-3 font-bold text-slate-800">${getTeacherName(teacherId)}</td>
                           <td class="px-4 py-3 text-center">${badge}</td>
-                          <td class="px-4 py-3 text-center font-bold text-slate-600">${rep ? rep.time + ' น.' : '-'}</td>
+                          <td class="px-4 py-3 text-center font-bold text-slate-600">${rep ? rep.time + ' น.' + lateBadge(rep) : '-'}</td>
                           <td class="px-4 py-3 text-center text-slate-500">${rep ? rep.distance.toFixed(1) + ' ม.' : '-'}</td>
                           <td class="px-4 py-3 max-w-[150px] truncate">
                             ${rep ? (rep.status === 'problem' ? `<span class="text-red-650 font-bold">[ปัญหา] ${rep.problem}</span>` : rep.result) : '<span class="text-slate-400">-</span>'}
@@ -1533,7 +1543,7 @@
                       </div>
                       <div class="text-[10px] text-slate-500 space-y-0.5">
                         <p><strong>ผู้เข้าเวร:</strong> ${getTeacherName(teacherId)}</p>
-                        <p><strong>เวลาเวร:</strong> ${p.time} น. ${rep ? `| <strong>ส่งเวลา:</strong> ${rep.time} น.` : ''}</p>
+                        <p><strong>เวลาเวร:</strong> ${p.time} น. ${rep ? `| <strong>ส่งเวลา:</strong> ${rep.time} น.${lateBadge(rep)}` : ''}</p>
                         ${rep ? `<p><strong>ระยะ GPS ยืนยัน:</strong> ${rep.distance.toFixed(1)} ม.</p>` : ''}
                       </div>
                       <div class="border-t pt-1.5 flex justify-between items-center text-[10px]">
@@ -3034,6 +3044,13 @@
     }
 
     // สร้างแถวตารางรายงานของจุดเวรกลุ่มที่กำหนด (ใช้เลขจุดแบบ per-group ผ่าน getDutyPointDisplayNumber)
+    // ป้าย "(สาย)" สำหรับรายงานที่บันทึกในช่วงเวลาผ่อนผัน (is_late)
+    // (Phase 4 จะขยายให้แสดงสถานะ "เห็นชอบ/ไม่เห็นชอบ" จากหัวหน้าเวร)
+    function lateBadge(rep) {
+      if (!rep || !rep.isLate) return '';
+      return ' <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-bold text-[9px] whitespace-nowrap">สาย</span>';
+    }
+
     function renderDutyReportRows(groupPoints, docDay, reports) {
       return groupPoints.flatMap((p) => {
         const assignedList = p.assignedTo || p.assigned_to || [];
@@ -3080,6 +3097,7 @@
               ` : ''}
               <td class="border border-slate-400 px-2 py-1.5">${getTeacherName(teacherId)}</td>
               <td class="border border-slate-400 px-2 py-1.5">
+                ${rep && rep.isLate ? `<div class="text-center mb-0.5">${lateBadge(rep)}</div>` : ''}
                 ${resultText ? `<p class="text-slate-700 leading-relaxed">${resultText}</p>` : ''}
                 ${sigMarkup}
               </td>
@@ -3815,6 +3833,11 @@
                   <label class="block text-slate-500 font-bold mb-1">ระยะเวลาแจ้งเตือนสาย (นาที):</label>
                   <input type="number" id="sett-minutes" value="${settings.autoNotifyMinutes}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
                 </div>
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">ช่วงเวลาผ่อนผันรายงานสาย (นาที):</label>
+                  <input type="number" id="sett-late-grace-minutes" min="0" value="${settings.lateGraceMinutes ?? 15}" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                  <p class="text-[10px] text-slate-400 mt-1">บวกต่อท้ายเวลาสิ้นสุดเวร ครูยังรายงานได้ในช่วงนี้แต่จะถูกบันทึกว่า "มาสาย"</p>
+                </div>
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t pt-4 border-b pb-4">
@@ -3983,6 +4006,7 @@
         telegramChatId: document.getElementById('sett-tele-chat').value.trim(),
         lineToken: document.getElementById('sett-line-token').value.trim(),
         autoNotifyMinutes: parseInt(document.getElementById('sett-minutes').value),
+        lateGraceMinutes: document.getElementById('sett-late-grace-minutes') ? (parseInt(document.getElementById('sett-late-grace-minutes').value) || 0) : (current.lateGraceMinutes ?? 15),
 
         defaultRadius: parseInt(document.getElementById('sett-radius').value),
         centerLat: parseFloat(document.getElementById('sett-center-lat').value),
@@ -4135,7 +4159,8 @@
                             ? '<span class="bg-red-500/10 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-red-500"></span>⚠️ แจ้งเหตุ</span>'
                             : '<span class="bg-green-500/10 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-green-500"></span>✅ ส่งแล้ว</span>'
                           : '<span class="bg-amber-500/10 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-amber-500"></span>⏳ รอบันทึก</span>'}
-                        
+                        ${isDone && rep.isLate ? '<span class="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center">⏰ มาสาย</span>' : ''}
+
                         <!-- Real-time Countdown Badge -->
                         <span id="my-duty-countdown-${p.id}" class="hidden text-brand-700 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded-full font-bold text-[10px] items-center gap-1">
                           <i data-lucide="clock" class="w-3.5 h-3.5"></i>
@@ -4366,6 +4391,19 @@
         return;
       }
 
+      // เช็คช่วงเวลาปฏิบัติหน้าที่ (รวมเวลาผ่อนผัน) คู่กับการเช็ค GPS
+      const settingsNow = db.getSettings();
+      const graceMin = settingsNow.lateGraceMinutes ?? 15;
+      const tRange = parseTimeRange(pt.time);
+      const nowDate = new Date();
+      const nowMin = nowDate.getHours() * 60 + nowDate.getMinutes();
+      const effectiveEndMin = tRange.endMin + graceMin;
+      if (nowMin < tRange.startMin || nowMin > effectiveEndMin) {
+        showToast('ไม่อยู่ในช่วงเวลาปฏิบัติหน้าที่ (รวมเวลาผ่อนผัน)', 'error');
+        return;
+      }
+      const isLate = nowMin > tRange.endMin;
+
       const statusSelect = document.getElementById('rep-status-select').value;
       const resultText = document.getElementById('rep-result-text').value.trim();
       const problemText = document.getElementById('rep-problem-text').value.trim();
@@ -4386,7 +4424,9 @@
         problem: statusSelect === 'problem' ? problemText : '',
         solution: statusSelect === 'problem' ? solutionText : '',
         photo: uploadedReportPhotoBase64 || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="%23f1f5f9"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Sarabun" font-size="12" fill="%2394a3b8">ไม่มีภาพถ่ายประกอบ</text></svg>',
-        signature: teacher.signature
+        signature: teacher.signature,
+        isLate: isLate,
+        lateReviewStatus: isLate ? 'pending' : null
       };
 
       // Save database (with Supabase sync)
@@ -4422,8 +4462,17 @@
         const dbReport = mapReportToDB(newReport);
         const { error } = await supabaseClient.from('reports').upsert(dbReport);
         if (error) {
-          console.error("Supabase upsert error:", error);
-          showToast('บันทึกลงคลาวด์ผิดพลาด บันทึกออฟไลน์ในเครื่องเรียบร้อย', 'warning');
+          // อาจเป็นเพราะยังไม่ได้รัน migration (คอลัมน์ is_late/late_review_status ฯลฯ)
+          // → ลองอัปเซิร์ตใหม่โดยตัดฟิลด์ใหม่ออก เพื่อให้ตัวรายงานยังซิงค์ขึ้นคลาวด์ได้
+          console.warn("Supabase upsert error, retrying without late-review columns:", error);
+          const { is_late, late_review_status, late_reviewed_by, late_reviewed_at, ...baseReport } = dbReport;
+          const fallbackResult = await supabaseClient.from('reports').upsert(baseReport);
+          if (fallbackResult.error) {
+            console.error("Supabase base report upsert failed:", fallbackResult.error);
+            showToast('บันทึกลงคลาวด์ผิดพลาด บันทึกออฟไลน์ในเครื่องเรียบร้อย', 'warning');
+          } else {
+            showToast('บันทึกรายงานขึ้นคลาวด์แล้ว (สถานะมาสายเก็บเฉพาะในเครื่องนี้ จนกว่าจะรัน migration)', 'warning');
+          }
         } else {
           showToast('บันทึกรายงานและซิงค์คลาวด์ Supabase สำเร็จ!', 'success');
         }
@@ -4471,7 +4520,7 @@
                       <tr class="hover:bg-slate-50 transition cursor-default">
                         <td class="px-4 py-3 text-center font-bold text-slate-600">${getTodayThaiFullDate(r.date)}</td>
                         <td class="px-4 py-3 font-semibold text-brand-950">${pt ? `จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}` : `จุดที่ ${r.pointId}`}</td>
-                        <td class="px-4 py-3 text-center font-semibold text-slate-800">${r.time} น.</td>
+                        <td class="px-4 py-3 text-center font-semibold text-slate-800">${r.time} น.${lateBadge(r)}</td>
                         <td class="px-4 py-3 text-center">${r.distance.toFixed(1)} ม.</td>
                         <td class="px-4 py-3 text-center">
                           ${r.status === 'problem' 
@@ -4783,38 +4832,52 @@
       };
     }
 
+    // คลาสสีของป้าย countdown: ปกติ = เขียว (brand), ช่วงผ่อนผัน = ส้ม
+    const COUNTDOWN_NORMAL_CLASSES = ['text-brand-700', 'bg-brand-50', 'border-brand-200'];
+    const COUNTDOWN_GRACE_CLASSES = ['text-orange-700', 'bg-orange-50', 'border-orange-300'];
+
     function updateMyDutyCountdownAndGlow() {
       const myPoints = getMyDutyPoints();
       const now = new Date();
       const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const graceMin = db.getSettings().lateGraceMinutes ?? 15;
 
       myPoints.forEach(p => {
         const tRange = parseTimeRange(p.time);
+        const effectiveEndMin = tRange.endMin + graceMin;
         const cardEl = document.getElementById(`my-duty-card-${p.id}`);
         const countdownEl = document.getElementById(`my-duty-countdown-${p.id}`);
-        
-        // 1. Update countdown
+
+        const isWithinDuty = currentMinutes >= tRange.startMin && currentMinutes <= tRange.endMin;
+        const isGrace = currentMinutes > tRange.endMin && currentMinutes <= effectiveEndMin;
+
+        // 1. Update countdown (รวมช่วงผ่อนผัน)
         if (countdownEl) {
           const isDone = cardEl && cardEl.getAttribute('data-is-done') === 'true';
-          const isActive = currentMinutes >= tRange.startMin && currentMinutes <= tRange.endMin;
-          
-          if (isActive && !isDone) {
-            const endSeconds = tRange.endMin * 60;
-            const diffSecs = endSeconds - currentSeconds;
-            if (diffSecs > 0) {
-              const h = Math.floor(diffSecs / 3600);
-              const m = Math.floor((diffSecs % 3600) / 60);
-              const s = diffSecs % 60;
-              const formatted = [h, m, s].map(v => v.toString().padStart(2, '0')).join(':');
-              
-              countdownEl.classList.remove('hidden');
-              countdownEl.classList.add('inline-flex');
-              const textSpan = countdownEl.querySelector('.countdown-timer-text');
-              if (textSpan) textSpan.textContent = `เหลือเวลาเวร: ${formatted}`;
+          const textSpan = countdownEl.querySelector('.countdown-timer-text');
+
+          // นับถอยหลังถึงเวลาสิ้นสุดจริงก่อน ถ้าเลยแล้วนับถอยหลังถึงสิ้นสุดเวลาผ่อนผัน
+          const targetSeconds = (isWithinDuty ? tRange.endMin : effectiveEndMin) * 60;
+          const diffSecs = targetSeconds - currentSeconds;
+
+          if ((isWithinDuty || isGrace) && !isDone && diffSecs > 0) {
+            const h = Math.floor(diffSecs / 3600);
+            const m = Math.floor((diffSecs % 3600) / 60);
+            const s = diffSecs % 60;
+            const formatted = [h, m, s].map(v => v.toString().padStart(2, '0')).join(':');
+
+            countdownEl.classList.remove('hidden');
+            countdownEl.classList.add('inline-flex');
+
+            if (isGrace) {
+              countdownEl.classList.remove(...COUNTDOWN_NORMAL_CLASSES);
+              countdownEl.classList.add(...COUNTDOWN_GRACE_CLASSES);
+              if (textSpan) textSpan.textContent = `อยู่ในช่วงเวลาผ่อนผัน: ${formatted}`;
             } else {
-              countdownEl.classList.add('hidden');
-              countdownEl.classList.remove('inline-flex');
+              countdownEl.classList.remove(...COUNTDOWN_GRACE_CLASSES);
+              countdownEl.classList.add(...COUNTDOWN_NORMAL_CLASSES);
+              if (textSpan) textSpan.textContent = `เหลือเวลาเวร: ${formatted}`;
             }
           } else {
             countdownEl.classList.add('hidden');
@@ -4822,15 +4885,14 @@
           }
         }
 
-        // 2. Toggle Glowing Border
+        // 2. Toggle Glowing Border (ยังเรืองแสงระหว่างช่วงผ่อนผันด้วย)
         if (cardEl) {
           const isDone = cardEl.getAttribute('data-is-done') === 'true';
-          const isActive = currentMinutes >= tRange.startMin && currentMinutes <= tRange.endMin;
-          
+
           const geo = getDutyGeofenceDistance(p, mockLatitude, mockLongitude);
           const inGeofence = geo.distance <= geo.radius;
 
-          if (isActive && inGeofence && !isDone) {
+          if ((isWithinDuty || isGrace) && inGeofence && !isDone) {
             cardEl.classList.add('glowing-border-active');
           } else {
             cardEl.classList.remove('glowing-border-active');
@@ -7093,7 +7155,7 @@
           </div>
           <div>
             <span class="text-slate-400 block">เวลารายงาน:</span>
-            <span class="font-bold text-slate-800">${rep.time} น. (${getTodayThaiFullDate(rep.date)})</span>
+            <span class="font-bold text-slate-800">${rep.time} น. (${getTodayThaiFullDate(rep.date)})${lateBadge(rep)}</span>
           </div>
           <div>
             <span class="text-slate-400 block">ระยะตรวจสอบ GPS:</span>
