@@ -572,7 +572,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.28.0';
+    const APP_VERSION = '1.29.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -5512,7 +5512,12 @@
     }
 
     // Helper functions
-    function getTodayISODate() { return new Date().toISOString().split('T')[0]; }
+    function getTodayISODate() {
+      const d = new Date();
+      const offset = d.getTimezoneOffset();
+      const localDate = new Date(d.getTime() - (offset * 60 * 1000));
+      return localDate.toISOString().split('T')[0];
+    }
     
     function getTodayThaiFullDate(customDateStr) {
       const d = customDateStr ? new Date(customDateStr) : new Date();
