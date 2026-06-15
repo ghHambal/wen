@@ -525,7 +525,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.20.0';
+    const APP_VERSION = '1.20.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -1241,6 +1241,14 @@
     }
 
     function navigateTo(page) {
+      // ถ้า session หลุด/currentUser เป็น null ให้กลับไปหน้า login แทนการ crash
+      if (!currentUser) {
+        document.getElementById('page-login').classList.remove('hidden');
+        document.getElementById('page-main').classList.add('hidden');
+        renderQuickLogin();
+        return;
+      }
+
       // กันหัวหน้าเวร (ที่ไม่ใช่แอดมิน) เข้าถึงเมนูที่ไม่ได้รับอนุญาตในหน้าตั้งค่าระบบ
       if (activeRoleMode === 'head' && !isFullAdmin(currentUser) && page !== 'profile-settings') {
         const allowed = getAllowedHeadMenus();
