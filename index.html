@@ -419,7 +419,8 @@
         approverId: dbReq.approver_id !== undefined ? dbReq.approver_id : (dbReq.approverId || null),
         reviewedBy: dbReq.reviewed_by !== undefined ? dbReq.reviewed_by : (dbReq.reviewedBy || null),
         reviewedAt: dbReq.reviewed_at !== undefined ? dbReq.reviewed_at : (dbReq.reviewedAt || null),
-        createdAt: dbReq.created_at || dbReq.createdAt || null
+        createdAt: dbReq.created_at || dbReq.createdAt || null,
+        rejectReason: dbReq.reject_reason || dbReq.rejectReason || ''
       };
     }
 
@@ -436,7 +437,8 @@
         approver_id: jsReq.approverId || jsReq.approver_id || null,
         reviewed_by: jsReq.reviewedBy || jsReq.reviewed_by || null,
         reviewed_at: jsReq.reviewedAt || jsReq.reviewed_at || null,
-        created_at: jsReq.createdAt || jsReq.created_at || new Date().toISOString()
+        created_at: jsReq.createdAt || jsReq.created_at || new Date().toISOString(),
+        reject_reason: jsReq.rejectReason || jsReq.reject_reason || null
       };
     }
 
@@ -570,7 +572,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.25.0';
+    const APP_VERSION = '1.26.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -4758,6 +4760,30 @@
           </div>
         </div>
 
+        <!-- REJECT REASON MODAL -->
+        <div id="reject-leave-modal" class="fixed inset-0 bg-black/75 z-[10000] hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border flex flex-col fade-in">
+            <div class="bg-red-700 text-white p-4 flex justify-between items-center">
+              <div class="flex items-center gap-2">
+                <i data-lucide="x-circle" class="w-5 h-5"></i>
+                <h3 class="font-bold text-sm">ระบุเหตุผลการปฏิเสธการลา</h3>
+              </div>
+              <button onclick="closeRejectLeaveModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form id="reject-leave-form" onsubmit="submitRejectLeave(event)" class="p-6 space-y-4 text-xs">
+              <input type="hidden" id="reject-leave-request-id" value="">
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">เหตุผลที่ไม่สามารถอนุมัติได้:</label>
+                <textarea id="reject-leave-reason-text" rows="3" required placeholder="เช่น วันนี้จำนวนครูเวรไม่เพียงพอ กรุณาสลับวันปฏิบัติเวร..." class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-red-500 text-slate-700 leading-relaxed"></textarea>
+              </div>
+              <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeRejectLeaveModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-4 py-2 rounded-lg transition">ยกเลิก</button>
+                <button type="submit" class="bg-red-700 hover:bg-red-800 text-white font-bold px-4 py-2 rounded-lg shadow transition">ยืนยันปฏิเสธการลา</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
                 <!-- REPORTING FORM MODAL -->
         <div id="report-form-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-end md:items-center justify-center p-0 md:p-4">
           <div class="bg-white rounded-t-2xl md:rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border">
@@ -5089,12 +5115,18 @@
 
     // หัวหน้าเวร/หัวหน้างานเวร อนุมัติ/ไม่อนุมัติคำขอลาของครู
     async function onLeaveApprovalAction(requestId, decision) {
+      if (decision === 'rejected') {
+        openRejectLeaveModal(requestId);
+        return;
+      }
+
       const req = db.getLeaveRequests().find(r => r.id === requestId);
       if (!req) return;
 
       const updated = {
         ...req,
         status: decision,
+        rejectReason: '',
         reviewedBy: currentUser.id,
         reviewedAt: new Date().toISOString()
       };
@@ -5104,7 +5136,40 @@
         await createLeaveReportsForApprovedRequest(updated);
       }
 
-      showToast(decision === 'approved' ? 'อนุมัติการลาเรียบร้อยแล้ว' : 'ไม่อนุมัติคำขอลาเรียบร้อยแล้ว', 'success');
+      showToast('อนุมัติการลาเรียบร้อยแล้ว', 'success');
+      navigateTo('duty-head-approvals');
+    }
+
+    function openRejectLeaveModal(requestId) {
+      document.getElementById('reject-leave-request-id').value = requestId;
+      document.getElementById('reject-leave-reason-text').value = '';
+      document.getElementById('reject-leave-modal').classList.remove('hidden');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function closeRejectLeaveModal() {
+      document.getElementById('reject-leave-modal').classList.add('hidden');
+    }
+
+    async function submitRejectLeave(e) {
+      e.preventDefault();
+      const requestId = document.getElementById('reject-leave-request-id').value;
+      const rejectReason = document.getElementById('reject-leave-reason-text').value.trim();
+
+      const req = db.getLeaveRequests().find(r => r.id === requestId);
+      if (!req) return;
+
+      const updated = {
+        ...req,
+        status: 'rejected',
+        rejectReason: rejectReason,
+        reviewedBy: currentUser.id,
+        reviewedAt: new Date().toISOString()
+      };
+
+      await saveLeaveRequestDB(updated);
+      closeRejectLeaveModal();
+      showToast('ปฏิเสธคำขอลาและบันทึกเหตุผลเรียบร้อยแล้ว', 'success');
       navigateTo('duty-head-approvals');
     }
 
@@ -5626,7 +5691,7 @@
         return `<span class="bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg font-bold text-[11px] inline-flex items-center gap-1.5"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> อนุมัติการลาแล้ว (${leaveTypeLabel(req.leaveType)})</span>`;
       }
       if (req.status === 'rejected') {
-        return `<span class="bg-red-100 text-red-700 px-2.5 py-1.5 rounded-lg font-bold text-[11px] inline-flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5"></i> ไม่อนุมัติการลา${req.reason ? ` (เหตุผล: ${req.reason})` : ''}</span>`;
+        return `<span class="bg-red-100 text-red-700 px-2.5 py-1.5 rounded-lg font-bold text-[11px] inline-flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5"></i> ไม่อนุมัติการลา (${leaveTypeLabel(req.leaveType)})${req.rejectReason ? ` (เหตุผล: ${req.rejectReason})` : ''}</span>`;
       }
       return `<span class="bg-amber-100 text-amber-700 px-2.5 py-1.5 rounded-lg font-bold text-[11px] inline-flex items-center gap-1.5"><i data-lucide="clock" class="w-3.5 h-3.5"></i> รออนุมัติการลา (${leaveTypeLabel(req.leaveType)})</span>`;
     }

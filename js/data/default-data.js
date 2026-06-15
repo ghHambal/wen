@@ -1590,11 +1590,28 @@ CREATE TABLE IF NOT EXISTS settings (
   heads_of_day TEXT DEFAULT '{}'
 );
 
+-- 4.1 สร้างตารางคำขอลา
+CREATE TABLE IF NOT EXISTS leave_requests (
+  id TEXT PRIMARY KEY,
+  date DATE NOT NULL,
+  teacher_id TEXT NOT NULL,
+  point_id BIGINT,
+  leave_type TEXT NOT NULL,
+  reason TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  approver_id TEXT,
+  reviewed_by TEXT,
+  reviewed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  reject_reason TEXT
+);
+
 -- 5. ปิดการตั้งค่า RLS เพื่ออนุญาตให้เขียนอ่านตรงได้สำหรับเว็บสาธิตนี้
 ALTER TABLE teachers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE duty_points DISABLE ROW LEVEL SECURITY;
 ALTER TABLE reports DISABLE ROW LEVEL SECURITY;
 ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE leave_requests DISABLE ROW LEVEL SECURITY;
 
 -- 6. นำเข้าข้อมูลเริ่มต้นที่จำเป็นลงในตาราง (เฉพาะข้อมูลที่ยังไม่มี - จะไม่เขียนทับของเดิม)
 
