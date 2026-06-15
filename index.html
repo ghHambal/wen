@@ -570,7 +570,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.23.0';
+    const APP_VERSION = '1.24.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -1063,6 +1063,118 @@
       if (sidebarOpen) toggleSidebar();
       renderQuickLogin();
       showToast('ออกจากระบบเรียบร้อยแล้ว', 'info');
+    }
+
+    // =========================================================================
+    // SSO จากระบบ ปพ.5 ออนไลน์ — รับ #sso?id=<รหัสครู>&pwd=<รหัสผ่าน> แล้วลองล็อกอินอัตโนมัติ
+    // =========================================================================
+    function handleSsoLogin() {
+      const hash = location.hash;
+      if (!hash.startsWith('#sso?')) return;
+
+      const params = new URLSearchParams(hash.slice('#sso?'.length));
+      const ssoId = (params.get('id') || '').trim();
+      const ssoPwd = params.get('pwd') || '';
+
+      // เคลียร์ hash ออกจาก URL ทันที ไม่ให้ลอง SSO ซ้ำ และไม่ฝากรหัสผ่านไว้ในแถบที่อยู่
+      history.replaceState(null, '', location.pathname + location.search);
+
+      if (!ssoId || currentUser) return;
+
+      const teacher = db.getTeachers().find(t => t.id.toLowerCase() === ssoId.toLowerCase());
+      if (!teacher) return;
+
+      if (ssoPwd) {
+        const matched = verifyTeacherCredentials(ssoId, ssoPwd);
+        if (matched) {
+          loginWithTeacher(matched);
+          return;
+        }
+      }
+
+      // ล็อกอินอัตโนมัติไม่สำเร็จ: ถ้ารหัสผ่านเวรยังเป็นค่าเริ่มต้น ชวนเชื่อมกับ ปพ.5
+      const currentPass = teacher.password || '1234';
+      if (ssoPwd && currentPass === '1234') {
+        showSsoPasswordSyncModal(teacher, ssoPwd);
+      } else {
+        const idInput = document.getElementById('login-id');
+        if (idInput) idInput.value = teacher.id;
+        showToast(`พบบัญชีของ ${teacher.name} จากระบบ ปพ.5 กรุณากรอกรหัสผ่านระบบเวรเพื่อเข้าสู่ระบบ`, 'info');
+      }
+    }
+
+    // เข้าสู่ระบบให้ครูที่ตรงกัน เหมือนปลายทางสำเร็จของ handleLogin()
+    function loginWithTeacher(matched) {
+      currentUser = matched;
+      activeRoleMode = isUserAdminOrHead() ? 'head' : 'teacher';
+
+      localStorage.setItem('wen_saved_account', JSON.stringify({
+        id: matched.id,
+        name: matched.name,
+        role: matched.role
+      }));
+
+      document.getElementById('page-login').classList.add('hidden');
+      document.getElementById('page-main').classList.remove('hidden');
+
+      updateUserRoleBadge();
+      buildSidebar();
+      updateDynamicTitles();
+      navigateTo(activeRoleMode === 'head' ? 'dashboard' : 'my-duty');
+      showToast(`เข้าสู่ระบบสำเร็จ! สวัสดีครับ ${currentUser.name}`, 'success');
+    }
+
+    // ป๊อบอัพถามยืนยันการเชื่อมรหัสผ่านระบบเวรให้ตรงกับ ปพ.5 (เมื่อรหัสผ่านเวรยังเป็นค่าเริ่มต้น 1234)
+    function showSsoPasswordSyncModal(teacher, ssoPwd) {
+      document.getElementById('sso-sync-modal')?.remove();
+      const modal = document.createElement('div');
+      modal.id = 'sso-sync-modal';
+      modal.className = 'fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4';
+      modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border text-center">
+          <div class="p-5 space-y-3">
+            <div class="w-12 h-12 mx-auto bg-brand-100 text-brand-800 rounded-full flex items-center justify-center">
+              <i data-lucide="link" class="w-6 h-6"></i>
+            </div>
+            <h4 class="font-bold text-slate-900 text-sm">เชื่อมบัญชีกับระบบ ปพ.5</h4>
+            <p class="text-slate-500 text-[11px]">ต้องการตั้งรหัสผ่านระบบเวรของ <b>${teacher.name}</b> ให้เป็นรหัสเดียวกับระบบ ปพ.5 หรือไม่? เข้าสู่ระบบครั้งต่อไปจะใช้รหัสผ่านเดียวกันทั้ง 2 ระบบ</p>
+            <div class="flex gap-2 pt-1">
+              <button type="button" id="sso-sync-cancel" class="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold py-2.5 rounded-lg transition">ไม่ ขอกรอกเอง</button>
+              <button type="button" id="sso-sync-confirm" class="flex-1 bg-brand-800 hover:bg-brand-700 text-white font-bold py-2.5 rounded-lg shadow transition">เชื่อมต่อเลย</button>
+            </div>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+      lucide.createIcons();
+
+      modal.querySelector('#sso-sync-cancel').addEventListener('click', () => {
+        modal.remove();
+        const idInput = document.getElementById('login-id');
+        if (idInput) idInput.value = teacher.id;
+      });
+
+      modal.querySelector('#sso-sync-confirm').addEventListener('click', () => {
+        modal.remove();
+        syncSsoPassword(teacher, ssoPwd);
+      });
+    }
+
+    // บันทึกรหัสผ่านใหม่ (จาก ปพ.5) ให้ครูคนนี้ในระบบเวร แล้วเข้าสู่ระบบทันที
+    async function syncSsoPassword(teacher, ssoPwd) {
+      const teachers = db.getTeachers();
+      const tIndex = teachers.findIndex(t => t.id === teacher.id);
+      if (tIndex === -1) return;
+
+      teachers[tIndex].password = ssoPwd;
+      db.saveTeachers(teachers);
+
+      if (useSupabase) {
+        const { error } = await supabaseClient.from('teachers').upsert(teachers[tIndex]);
+        if (error) console.error('Sync SSO password to cloud failed:', error);
+      }
+
+      showToast('เชื่อมต่อรหัสผ่านกับ ปพ.5 สำเร็จ!', 'success');
+      loginWithTeacher(teachers[tIndex]);
     }
 
     function buildSidebar() {
@@ -5752,7 +5864,7 @@
       mockLatitude = settings.centerLat || mockLatitude;
       mockLongitude = settings.centerLng || mockLongitude;
 
-      initSupabase();
+      initSupabase().then(handleSsoLogin);
       updateDynamicTitles();
       renderQuickLogin();
       lucide.createIcons();
