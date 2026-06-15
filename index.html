@@ -570,7 +570,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.24.0';
+    const APP_VERSION = '1.25.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -1940,11 +1940,11 @@
 
     function renderDutyHeadApprovalsView() {
       const myLeaveRequests = db.getLeaveRequests()
-        .filter(r => r.status === 'pending' && r.approverId === currentUser.id)
+        .filter(r => r.status === 'pending' && (r.approverId === currentUser.id || getDutyApproverId(r.teacherId, r.date) === currentUser.id || isFullAdmin(currentUser)))
         .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
 
       const myLateReports = db.getReports()
-        .filter(r => r.isLate && r.lateReviewStatus === 'pending' && getDutyApproverId(r.teacherId, r.date) === currentUser.id)
+        .filter(r => r.isLate && r.lateReviewStatus === 'pending' && (getDutyApproverId(r.teacherId, r.date) === currentUser.id || isFullAdmin(currentUser)))
         .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
 
       const todayDate = getTodayISODate();
@@ -3492,7 +3492,9 @@
             }
 
             if (rep.status === 'leave') {
-              sigMarkup = `<span class="text-slate-500 font-bold block text-center mt-1">ได้รับอนุมัติให้ลา</span>`;
+              const leaveReq = db.getLeaveRequests().find(r => r.teacherId === teacherId && r.date === rep.date && (r.pointId === null || r.pointId === p.id));
+              const label = leaveReq ? leaveTypeLabel(leaveReq.leaveType) : (rep.result && rep.result.includes('ฉุกเฉิน') ? 'ลาฉุกเฉิน' : 'ลากิจ');
+              sigMarkup = `<span class="text-slate-500 font-bold block text-center mt-1">${label} (อนุมัติ)</span>`;
             } else if (sigSrc) {
               // แสดงแค่รูปลายเซ็นเต็มช่อง (ขยายเกินช่องได้) ให้ดูเหมือนเซ็นเอกสารจริง
               sigMarkup = `<div class="flex justify-center -my-1.5"><img src="${sigSrc}" class="h-10 w-auto max-w-[85%] object-contain" alt="ลงชื่อ"></div>`;
@@ -5604,8 +5606,8 @@
     // จำนวนรายการรออนุมัติ/เห็นชอบทั้งหมดที่ currentUser ต้องดำเนินการ (สำหรับ badge ในเมนู "งานหัวหน้าเวร")
     function getPendingDutyApprovalsCount() {
       if (!currentUser) return 0;
-      const leaveCount = db.getLeaveRequests().filter(r => r.status === 'pending' && r.approverId === currentUser.id).length;
-      const lateCount = db.getReports().filter(r => r.isLate && r.lateReviewStatus === 'pending' && getDutyApproverId(r.teacherId, r.date) === currentUser.id).length;
+      const leaveCount = db.getLeaveRequests().filter(r => r.status === 'pending' && (r.approverId === currentUser.id || getDutyApproverId(r.teacherId, r.date) === currentUser.id || isFullAdmin(currentUser))).length;
+      const lateCount = db.getReports().filter(r => r.isLate && r.lateReviewStatus === 'pending' && (getDutyApproverId(r.teacherId, r.date) === currentUser.id || isFullAdmin(currentUser))).length;
       return leaveCount + lateCount;
     }
 
@@ -8234,7 +8236,9 @@
       let signatureMarkup = '';
       const sigSrc = rep.signature || (teacher ? teacher.signature : null);
       if (rep.status === 'leave') {
-        signatureMarkup = `<span class="text-slate-500 font-bold">ได้รับอนุมัติให้ลา</span>`;
+        const leaveReq = db.getLeaveRequests().find(r => r.teacherId === rep.teacherId && r.date === rep.date && (r.pointId === null || r.pointId === rep.pointId));
+        const label = leaveReq ? leaveTypeLabel(leaveReq.leaveType) : (rep.result && rep.result.includes('ฉุกเฉิน') ? 'ลาฉุกเฉิน' : 'ลากิจ');
+        signatureMarkup = `<span class="text-slate-500 font-bold">${label} (อนุมัติ)</span>`;
       } else if (sigSrc) {
         signatureMarkup = `<img src="${sigSrc}" class="max-h-16 mx-auto border rounded p-1 bg-white" alt="ลายเซ็น">`;
       } else {
