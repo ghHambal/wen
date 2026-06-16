@@ -604,7 +604,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.31.4';
+    const APP_VERSION = '1.31.5';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -1908,16 +1908,6 @@
           </div>
         </div>
 
-        <!-- REPORT VIEW MODAL -->
-        <div id="report-view-modal" class="fixed inset-0 bg-black/60 z-[200] hidden flex items-center justify-center p-4">
-          <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border">
-            <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
-              <h3 class="font-bold text-xs">รายละเอียดข้อมูลการปฏิบัติเวร</h3>
-              <button onclick="closeReportDetails()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
-            </div>
-            <div id="report-view-content" class="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs"></div>
-          </div>
-        </div>
       `;
     }
 
@@ -8816,5 +8806,16 @@
       });
     }
   </script>
+
+  <!-- GLOBAL: Report View Modal — ต้องอยู่นอก #main-content เพื่อให้ทุกหน้าใช้ได้ -->
+  <div id="report-view-modal" class="fixed inset-0 bg-black/60 z-[200] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border">
+      <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
+        <h3 class="font-bold text-xs">รายละเอียดข้อมูลการปฏิบัติเวร</h3>
+        <button onclick="closeReportDetails()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div id="report-view-content" class="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs"></div>
+    </div>
+  </div>
 </body>
 </html>
