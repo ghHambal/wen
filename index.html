@@ -604,7 +604,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.31.1';
+    const APP_VERSION = '1.31.2';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -1736,11 +1736,11 @@
 
           <!-- Stats Grid -->
           <div class="grid grid-cols-2 lg:grid-cols-6 gap-3">
-            ${statCard('จุดเวรทั้งหมด', totalPoints, 'map-pin', 'bg-blue-50 text-blue-700 border-blue-100')}
-            ${statCard('รายงานแล้ว', reportedCount, 'check-circle', 'bg-green-50 text-green-700 border-green-100')}
-            ${statCard('พบปัญหา', problemCount, 'alert-triangle', 'bg-red-50 text-red-700 border-red-100')}
-            ${statCard('ลา', leaveCount, 'palm-tree', 'bg-slate-100 text-slate-700 border-slate-200')}
-            ${statCard('ยังไม่รายงาน', notReportedCount, 'x-circle', 'bg-amber-50 text-amber-700 border-amber-100')}
+            ${statCard('จุดเวรทั้งหมด', totalPoints, 'map-pin', 'bg-blue-50 text-blue-700 border-blue-100', 'all')}
+            ${statCard('รายงานแล้ว', reportedCount, 'check-circle', 'bg-green-50 text-green-700 border-green-100', 'reported')}
+            ${statCard('พบปัญหา', problemCount, 'alert-triangle', 'bg-red-50 text-red-700 border-red-100', 'problem')}
+            ${statCard('ลา', leaveCount, 'palm-tree', 'bg-slate-100 text-slate-700 border-slate-200', 'leave')}
+            ${statCard('ยังไม่รายงาน', notReportedCount, 'x-circle', 'bg-amber-50 text-amber-700 border-amber-100', 'not_reported')}
             <div class="col-span-2 lg:col-span-1 bg-gradient-to-br from-brand-900 to-brand-800 text-white rounded-xl p-4 shadow-sm flex flex-col justify-between">
               <div>
                 <p class="text-[10px] text-brand-100">อัตราการรายงาน</p>
@@ -2521,9 +2521,13 @@
       });
     }
 
-    function statCard(label, value, icon, cls) {
+    function statCard(label, value, icon, cls, filterKey = null) {
+      const clickable = filterKey
+        ? `onclick="filterDashboardByCard('${filterKey}')" role="button" tabindex="0" title="คลิกเพื่อกรองตาม: ${label}"`
+        : '';
+      const hoverCls = filterKey ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-transform' : '';
       return `
-        <div class="card-stat bg-white rounded-xl border p-3.5 flex items-center gap-3 shadow-sm ${cls}">
+        <div class="card-stat bg-white rounded-xl border p-3.5 flex items-center gap-3 shadow-sm ${cls} ${hoverCls}" ${clickable}>
           <div class="p-2 rounded-lg bg-white/50">
             <i data-lucide="${icon}" class="w-5 h-5"></i>
           </div>
@@ -2533,6 +2537,15 @@
           </div>
         </div>
       `;
+    }
+
+    function filterDashboardByCard(status) {
+      const sel = document.getElementById('dash-filter-status');
+      if (!sel) return;
+      sel.value = status;
+      filterDashboardTable();
+      const table = document.getElementById('dashboard-table');
+      if (table) table.closest('.bg-white')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     // Mobile GPS Sync Selector
