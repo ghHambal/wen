@@ -602,7 +602,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.30.2';
+    const APP_VERSION = '1.31.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -896,6 +896,12 @@
     // ผู้ดูแลระบบเต็มสิทธิ์ (ไม่ใช่หัวหน้าเวรที่ถูกแต่งตั้งตามวัน) - ใช้แยกว่าควรถูกจำกัดเมนู/วันหรือไม่
     function isFullAdmin(user) {
       return !!user && (user.role === 'admin' || user.role === 'chief' || user.role === 'director');
+    }
+
+    // หัวหน้างานเวร (คนเดียว) ที่ดูแลภาพรวมจุดเวรทั้งหมดทั้งชาย+หญิง และกำหนดช่วงเวลาแต่ละจุด
+    function isOpsHead(user) {
+      const settings = db.getSettings();
+      return !!settings.dutyOperationsHeadId && settings.dutyOperationsHeadId === (user?.id ?? currentUser?.id);
     }
 
     // คืนรายชื่อวัน (ไทย) ที่ครูคนนี้ได้รับการแต่งตั้งเป็นหัวหน้าเวร (ทุกกลุ่มชาย/หญิง)
@@ -1222,9 +1228,15 @@
       let menus = activeRoleMode === 'head' ? adminMenus : teacherMenus;
 
       // จำกัดเมนูของหัวหน้าเวร (ที่ไม่ใช่แอดมิน) ตามสิทธิ์ที่กำหนดไว้ในหน้าตั้งค่าระบบ
+      // หัวหน้างานเวร (isOpsHead) ได้รับเมนู duty-points เพิ่มเติมเสมอ เพื่อตั้งช่วงเวลาแต่ละจุด
       if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
         const allowed = getAllowedHeadMenus();
-        menus = adminMenus.filter(m => m.id === 'profile-settings' || allowed.includes(m.id) || (m.id === 'duty-head-approvals' && canAccessDutyHeadApprovals()));
+        menus = adminMenus.filter(m =>
+          m.id === 'profile-settings' ||
+          allowed.includes(m.id) ||
+          (m.id === 'duty-head-approvals' && canAccessDutyHeadApprovals()) ||
+          (m.id === 'duty-points' && isOpsHead(currentUser))
+        );
       }
 
       // ซ่อนเมนู "งานหัวหน้าเวร" สำหรับผู้ที่ไม่ใช่หัวหน้าเวร/หัวหน้างานเวร/แอดมิน
@@ -1242,7 +1254,7 @@
             <label class="block text-[9px] text-brand-300 uppercase font-bold tracking-wider mb-1.5 text-center font-semibold">สลับบทบาทการใช้งาน</label>
             <div class="grid grid-cols-2 gap-1 bg-white/10 rounded-lg p-0.5 text-[11px]">
               <button onclick="switchRoleMode('teacher')" class="py-1 rounded font-bold transition text-center ${activeRoleMode === 'teacher' ? 'bg-white text-brand-950 shadow-sm' : 'text-brand-200 hover:text-white'}">ครูเวร</button>
-              <button onclick="switchRoleMode('head')" class="py-1 rounded font-bold transition text-center ${activeRoleMode === 'head' ? 'bg-white text-brand-950 shadow-sm' : 'text-brand-200 hover:text-white'}">${isFullAdmin(currentUser) ? 'ผู้ดูแลระบบ' : 'หัวหน้าเวร'}</button>
+              <button onclick="switchRoleMode('head')" class="py-1 rounded font-bold transition text-center ${activeRoleMode === 'head' ? 'bg-white text-brand-950 shadow-sm' : 'text-brand-200 hover:text-white'}">${isFullAdmin(currentUser) ? 'ผู้ดูแลระบบ' : isOpsHead(currentUser) ? 'หัวหน้างานเวร' : 'หัวหน้าเวร'}</button>
             </div>
           </div>
         `;
@@ -1549,7 +1561,8 @@
       }
 
       // กันหัวหน้าเวร (ที่ไม่ใช่แอดมิน) เข้าถึงเมนูที่ไม่ได้รับอนุญาตในหน้าตั้งค่าระบบ
-      if (activeRoleMode === 'head' && !isFullAdmin(currentUser) && page !== 'profile-settings' && !(page === 'duty-head-approvals' && canAccessDutyHeadApprovals())) {
+      // หัวหน้างานเวร (isOpsHead) ผ่านได้เสมอสำหรับ duty-points
+      if (activeRoleMode === 'head' && !isFullAdmin(currentUser) && page !== 'profile-settings' && !(page === 'duty-head-approvals' && canAccessDutyHeadApprovals()) && !(isOpsHead(currentUser) && page === 'duty-points')) {
         const allowed = getAllowedHeadMenus();
         if (!allowed.includes(page)) {
           showToast('คุณไม่มีสิทธิ์เข้าถึงเมนูนี้', 'error');
@@ -1658,9 +1671,10 @@
       let reports = db.getReports().filter(r => r.date === getTodayISODate());
 
       // หน้า "รายงานเวรวันนี้" (ไม่ใช่ดัชบอร์ด): หัวหน้าเวร (ที่ไม่ใช่แอดมิน) ถูกล็อกให้เห็นเฉพาะจุดเวรของคณะที่ตนเองได้รับแต่งตั้งเป็นหัวหน้าในวันนี้
+      // หัวหน้างานเวร (isOpsHead) เห็นภาพรวมทุกจุดทั้งชาย+หญิง ไม่ถูกกรองตามวัน/กลุ่ม
       let headTodayGroup = null;
       let headNotOnDutyToday = false;
-      if (currentPage === 'today-report' && activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
+      if (currentPage === 'today-report' && activeRoleMode === 'head' && !isFullAdmin(currentUser) && !isOpsHead(currentUser)) {
         const headDays = getHeadAssignedDays(currentUser.id);
         if (headDays.length > 0) {
           headTodayGroup = getHeadAssignedDutyGroup(currentUser.id, getTodayThaiDayName());
@@ -2030,7 +2044,7 @@
       const approvableTeachers = getTeachersApprovableByMe(todayDate);
 
       const settings = db.getSettings();
-      const canManageExemptions = isFullAdmin(currentUser) || (!!settings.dutyOperationsHeadId && settings.dutyOperationsHeadId === currentUser.id);
+      const canManageExemptions = isFullAdmin(currentUser) || isOpsHead(currentUser);
       if (currentDutyApprovalsTab === 'exemption' && !canManageExemptions) currentDutyApprovalsTab = 'leave';
 
       const upcomingExemptions = db.getDutyExemptions()
@@ -3251,8 +3265,9 @@
     // D. DUTY POINTS VIEW (Admin View)
     function renderDutyPointsView() {
       // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) ถูกล็อกให้เห็นเฉพาะคณะ (ชาย/หญิง) ที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
+      // หัวหน้างานเวร (isOpsHead) เห็นทุกกลุ่มและแก้ไขช่วงเวลาได้ทุกจุด
       let dutyPointsGroupTabs = ['ครูชาย', 'ครูหญิง'];
-      if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
+      if (activeRoleMode === 'head' && !isFullAdmin(currentUser) && !isOpsHead(currentUser)) {
         const headGroups = getHeadAssignedDutyGroups(currentUser.id);
         if (headGroups.length > 0) {
           dutyPointsGroupTabs = headGroups;
@@ -5134,7 +5149,7 @@
       const nowMin = nowDate.getHours() * 60 + nowDate.getMinutes();
       const effectiveEndMin = tRange.endMin + graceMin;
       if (nowMin < tRange.startMin || nowMin > effectiveEndMin) {
-        showToast('ไม่อยู่ในช่วงเวลาปฏิบัติหน้าที่ (รวมเวลาผ่อนผัน)', 'error');
+        showToast(`ไม่อยู่ในช่วงเวลาปฏิบัติหน้าที่ของจุดนี้ (${pt.time} น.) ตามนโยบายหัวหน้างานเวร`, 'error');
         return;
       }
       const isLate = nowMin > tRange.endMin;
