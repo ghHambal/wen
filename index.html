@@ -602,7 +602,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.30.0';
+    const APP_VERSION = '1.30.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -1893,7 +1893,7 @@
         </div>
 
         <!-- REPORT VIEW MODAL -->
-        <div id="report-view-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+        <div id="report-view-modal" class="fixed inset-0 bg-black/60 z-[200] hidden flex items-center justify-center p-4">
           <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border">
             <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
               <h3 class="font-bold text-xs">รายละเอียดข้อมูลการปฏิบัติเวร</h3>
@@ -4961,8 +4961,8 @@
         </div>
 
                 <!-- REPORTING FORM MODAL -->
-        <div id="report-form-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-end md:items-center justify-center p-0 md:p-4">
-          <div class="bg-white rounded-t-2xl md:rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border">
+        <div id="report-form-modal" class="fixed inset-0 bg-black/60 z-[200] hidden flex items-center justify-center p-3 sm:p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border">
             <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
               <h3 class="font-bold text-xs" id="form-modal-title">รายงานผลการปฏิบัติหน้าที่</h3>
               <button onclick="closeReportForm()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
