@@ -604,7 +604,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.31.3';
+    const APP_VERSION = '1.31.4';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -3282,7 +3282,11 @@
       // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) ถูกล็อกให้เห็นเฉพาะคณะ (ชาย/หญิง) ที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
       // หัวหน้างานเวร (isOpsHead) เห็นทุกกลุ่มและแก้ไขช่วงเวลาได้ทุกจุด
       let dutyPointsGroupTabs = ['ครูชาย', 'ครูหญิง'];
-      if (activeRoleMode === 'head' && !isFullAdmin(currentUser) && !isOpsHead(currentUser)) {
+      const isDailyHead = activeRoleMode === 'head' && !isFullAdmin(currentUser) && !isOpsHead(currentUser);
+      // วันที่หัวหน้าประจำวันได้รับมอบหมาย ใช้กรอง assignedTo ใน card
+      const headAssignedDays = isDailyHead ? getHeadAssignedDays(currentUser.id) : null;
+
+      if (isDailyHead) {
         const headGroups = getHeadAssignedDutyGroups(currentUser.id);
         if (headGroups.length > 0) {
           dutyPointsGroupTabs = headGroups;
@@ -3355,7 +3359,20 @@
                       </a>
                     </p>
                     ` : ''}
-                    <p class="flex items-center gap-1"><i data-lucide="users" class="w-3.5 h-3.5 text-slate-400"></i> ผู้ดูแล: ${(p.assignedTo || p.assigned_to || []).map(id => getTeacherName(id)).join(', ') || '<span class="text-red-500">ยังไม่มีผู้รับผิดชอบ</span>'}</p>
+                    <p class="flex items-center gap-1"><i data-lucide="users" class="w-3.5 h-3.5 text-slate-400"></i> ผู้ดูแล: ${(() => {
+                      let assigned = p.assignedTo || p.assigned_to || [];
+                      if (headAssignedDays && headAssignedDays.length > 0) {
+                        assigned = assigned.filter(id => {
+                          if (typeof id === 'string' && id.includes(':')) {
+                            return headAssignedDays.includes(id.split(':')[0]);
+                          }
+                          return true;
+                        });
+                      }
+                      return assigned.length > 0
+                        ? assigned.map(id => getTeacherName(id)).join(', ')
+                        : '<span class="text-red-500">ยังไม่มีผู้รับผิดชอบ</span>';
+                    })()}</p>
                   </div>
 
                   <button type="button" onclick="togglePointCardMap(${p.id})" class="w-full flex items-center justify-center gap-1 text-[10px] font-bold text-brand-700 hover:text-brand-900 hover:bg-brand-50 py-1.5 mt-2 rounded-lg border border-brand-100 transition">
