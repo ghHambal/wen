@@ -602,7 +602,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.30.1';
+    const APP_VERSION = '1.30.2';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -1769,7 +1769,7 @@
           <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
               <h4 class="font-bold text-xs text-brand-950">สถานะความคืบหน้ารายบุคคล</h4>
-              <span class="text-[10px] text-slate-400">ทุกจุดเวรวันนี้ (ครูชาย + ครูหญิง)</span>
+              <span class="text-[10px] text-slate-400">${headTodayGroup ? `คณะ${headTodayGroup} วันนี้` : headNotOnDutyToday ? 'ไม่มีเวรวันนี้' : 'ทุกจุดเวรวันนี้ (ครูชาย + ครูหญิง)'}</span>
             </div>
             
             <!-- Wide screen Table (hidden on mobile) -->
