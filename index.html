@@ -98,7 +98,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.32.0</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.32.1</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
           </div>
@@ -184,7 +184,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.32.0</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.32.1</div>
           </div>
         </aside>
 
@@ -282,7 +282,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.32.0</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.32.1</div>
         </div>
       </aside>
 
@@ -607,7 +607,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.32.0';
+    const APP_VERSION = '1.32.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -642,6 +642,8 @@
               if (isHeadNow && activeRoleMode === 'teacher' && currentPage === 'my-duty') {
                 activeRoleMode = 'head';
                 navigateTo('dashboard');
+              } else {
+                renderPage(currentPage);
               }
               updateUserRoleBadge();
               buildSidebar();
@@ -1559,7 +1561,11 @@
       }
     }
 
-    function loginAsSavedAccount() {
+    async function loginAsSavedAccount() {
+      if (isSyncing && dbInitPromise) {
+        showToast("กำลังซิงค์ฐานข้อมูลคลาวด์ กรุณารอสักครู่...", "info");
+        await dbInitPromise;
+      }
       const savedStr = localStorage.getItem('wen_saved_account');
       if (!savedStr) return;
       try {
@@ -4665,6 +4671,21 @@
               </div>
             </form>
           </div>
+
+          <!-- เครื่องมือรีเซ็ตพิกัดสำหรับแอดมิน -->
+          <div class="bg-white border rounded-xl shadow-sm p-6 space-y-4">
+            <h3 class="text-sm font-bold text-red-800 border-b pb-3 flex items-center gap-1.5">
+              <i data-lucide="alert-triangle" class="w-4 h-4"></i> จัดการพิกัดจุดปฏิบัติเวร (เครื่องมือแอดมิน)
+            </h3>
+            <p class="text-[10px] text-slate-500">
+              กรณีพิกัดจุดเวรคลาดเคลื่อนหรือย้อนกลับเป็นพิกัดเริ่มต้น (จำลอง) ท่านสามารถสั่งรีเซ็ตค่าพิกัดของจุดปฏิบัติเวรทั้งหมด (จุดที่ 1-41) ให้ย้ายมายังพิกัดศูนย์กลางของโรงเรียนที่ตั้งค่าไว้ (${settings.centerLat || 6.787680}, ${settings.centerLng || 101.408120}) จากนั้นจึงค่อยลากจัดตำแหน่งแต่ละจุดบนแผนที่ในหน้า "ตั้งค่าจุดเวรและพิกัด Geofence"
+            </p>
+            <div class="flex">
+              <button type="button" onclick="resetAllPointsToSchoolCenter()" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold px-4 py-2.5 rounded-lg transition shadow-sm flex items-center gap-1">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> ตั้งค่าพิกัดจุดเวรทั้งหมดมาที่จุดศูนย์กลางโรงเรียน
+              </button>
+            </div>
+          </div>
         </div>
       `;
     }
@@ -7687,6 +7708,33 @@
         modalMapMarker = null;
         modalMapMarker2 = null;
       }
+    }
+
+    async function resetAllPointsToSchoolCenter() {
+      if (!confirm('คุณยืนยันที่จะรีเซ็ตพิกัดของจุดเวรทั้งหมด (จุดที่ 1-41) มายังจุดศูนย์กลางของโรงเรียนที่ตั้งค่าไว้หรือไม่? การดำเนินการนี้จะทดแทนพิกัดปัจจุบันทั้งหมดบนคลาวด์ด้วยพิกัดศูนย์กลางโรงเรียนทันที!')) {
+        return;
+      }
+      
+      const settings = db.getSettings();
+      const lat = settings.centerLat || mockLatitude;
+      const lng = settings.centerLng || mockLongitude;
+      
+      const points = db.getDutyPoints();
+      points.forEach(p => {
+        p.lat = lat;
+        p.lng = lng;
+        if (p.lat2 !== undefined && p.lat2 !== null) {
+          p.lat2 = lat;
+        }
+        if (p.lng2 !== undefined && p.lng2 !== null) {
+          p.lng2 = lng;
+        }
+      });
+      
+      showToast('กำลังบันทึกและซิงค์พิกัดจุดเวรชุดใหม่ไปยัง Supabase...', 'info');
+      await saveDutyPointsDB(points);
+      showToast('รีเซ็ตพิกัดจุดเวรทั้งหมดมายังจุดศูนย์กลางโรงเรียนและอัปเดตคลาวด์สำเร็จแล้ว', 'success');
+      renderPage('settings');
     }
 
     let settingsMapInstance = null;
