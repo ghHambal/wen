@@ -98,7 +98,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.7.5</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.31.7</p>
         </div>
         
         <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
@@ -181,7 +181,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.7.5</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.31.7</div>
           </div>
         </aside>
 
@@ -279,7 +279,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.7.5</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.31.7</div>
         </div>
       </aside>
 
@@ -604,7 +604,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.31.6';
+    const APP_VERSION = '1.31.7';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -631,6 +631,22 @@
             
             // Sync current cloud tables data to local storage as cache
             await syncCloudDataToLocal();
+
+            // Re-evaluate user role mode once sync is completed to fix the race condition on new devices
+            if (currentUser) {
+              const latestUser = db.getTeachers().find(t => t.id === currentUser.id);
+              if (latestUser) {
+                currentUser = latestUser;
+              }
+              const isHeadNow = isUserAdminOrHead();
+              if (isHeadNow && activeRoleMode === 'teacher' && currentPage === 'my-duty') {
+                activeRoleMode = 'head';
+                navigateTo('dashboard');
+              }
+              updateUserRoleBadge();
+              buildSidebar();
+            }
+
             updateDynamicTitles();
             await processPendingSyncQueue();
           }
@@ -977,7 +993,7 @@
 
     function isUserAdminOrHead() {
       if (!currentUser) return false;
-      if (currentUser.role === 'admin' || currentUser.role === 'chief' || currentUser.role === 'director') return true;
+      if (currentUser.role === 'admin' || currentUser.role === 'chief' || currentUser.role === 'director' || currentUser.role === 'head') return true;
 
       const settings = db.getSettings();
       if (settings.dutyOperationsHeadId && settings.dutyOperationsHeadId === currentUser.id) return true;
