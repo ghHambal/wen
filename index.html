@@ -99,6 +99,9 @@
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
           <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.31.7</p>
+          <div class="mt-2 flex justify-center">
+            <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
+          </div>
         </div>
         
         <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
@@ -616,6 +619,7 @@
 
     // Initialize Supabase Client Connection Check
     async function initSupabase() {
+      isSyncing = true;
       try {
         if (window.supabase && window.supabase.createClient) {
           supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -655,6 +659,7 @@
         console.error("Supabase initialize connection failed:", err);
         useSupabase = false;
       }
+      isSyncing = false;
       updateDatabaseStatusUI();
     }
 
@@ -734,6 +739,13 @@
       const clses = useSupabase 
         ? 'bg-green-100 border-green-300 text-green-800' 
         : 'bg-amber-100 border-amber-300 text-amber-800 animate-pulse';
+
+      // Login page badge
+      const badgeL = document.getElementById('db-status-login');
+      if (badgeL) {
+        badgeL.textContent = texts;
+        badgeL.className = `text-[10px] px-2 py-0.5 rounded-full font-bold border ${clses}`;
+      }
 
       // Desktop
       const badgeS = document.getElementById('db-status-sidebar');
@@ -840,6 +852,8 @@
     // 2. STATE & VIEW CONFIGURATIONS
     // =========================================================================
     let currentUser = null;
+    let isSyncing = true;
+    let dbInitPromise = null;
     let currentPage = 'dashboard';
     let sidebarOpen = false;
     let mockLatitude = 6.787680;  // Default simulation coordinates
@@ -1075,10 +1089,34 @@
       return matched;
     }
 
-    function handleLogin(e) {
+    async function handleLogin(e) {
       e.preventDefault();
       const loginId = document.getElementById('login-id').value.trim();
       const loginPass = document.getElementById('login-pass').value;
+
+      const form = e.target;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const originalBtnText = submitBtn ? submitBtn.innerHTML : 'เข้าสู่ระบบ';
+
+      // If still syncing, show loading state and await database connection/sync
+      if (isSyncing && dbInitPromise) {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = `
+            <svg class="animate-spin -ml-1 mr-3 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            กำลังเชื่อมต่อคลาวด์...
+          `;
+        }
+        await dbInitPromise;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnText;
+        }
+      }
+
       const teachers = db.getTeachers();
 
       // Find teacher matching ID or Phone
@@ -1087,7 +1125,11 @@
       if (found) {
         const matched = verifyTeacherCredentials(loginId, loginPass);
         if (!matched) {
-          showToast('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 'error');
+          if (!useSupabase) {
+            showToast('รหัสผ่านไม่ถูกต้อง (ระบบอยู่ในโหมดออฟไลน์ กรุณาใช้รหัสผ่านเริ่มต้น 1234 หรือตรวจสอบการเชื่อมต่ออินเทอร์เน็ต)', 'error');
+          } else {
+            showToast('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 'error');
+          }
           return;
         }
 
@@ -6343,7 +6385,7 @@
       mockLatitude = settings.centerLat || mockLatitude;
       mockLongitude = settings.centerLng || mockLongitude;
 
-      initSupabase().then(handleSsoLogin);
+      dbInitPromise = initSupabase().then(handleSsoLogin);
       updateDynamicTitles();
       renderQuickLogin();
       lucide.createIcons();
