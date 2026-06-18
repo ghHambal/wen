@@ -98,7 +98,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.31.7</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.31.8</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
           </div>
@@ -184,7 +184,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.31.7</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.31.8</div>
           </div>
         </aside>
 
@@ -282,7 +282,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.31.7</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.31.8</div>
         </div>
       </aside>
 
@@ -607,7 +607,7 @@
     };
 
     // Clear stale local data if app version changed
-    const APP_VERSION = '1.31.7';
+    const APP_VERSION = '1.31.8';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.removeItem('wen_teachers');
       localStorage.removeItem('wen_dutyPoints');
@@ -5928,13 +5928,15 @@
       return getTeacherGender(t) === 'ชาย' ? 'ครูชาย' : 'ครูหญิง';
     }
 
-    // entry แบบไม่มี prefix วัน (เช่น "1087") = มอบหมายทุกวัน
+    // entry แบบไม่มี prefix วัน (เช่น "1087") = มอบหมายในวันหลักของระบบ (settings.dutyDay เช่น อังคาร)
     // entry แบบมี prefix วัน (เช่น "อังคาร:1087") = มอบหมายเฉพาะวันนั้น
     function isAssignedOnDay(item, day) {
       if (item.includes(':')) {
         return item.split(':')[0] === day;
       }
-      return true;
+      const settings = db.getSettings();
+      const defaultDay = settings.dutyDay || 'อังคาร';
+      return defaultDay === day;
     }
 
     // คืน array teacher_id ทั้งหมดที่ assign จุดเวรนี้ในวันที่ระบุ (ไม่กรอง currentUser ออก)
@@ -5949,6 +5951,8 @@
     function getTeacherDutyDays(teacherId) {
       const points = db.getDutyPoints();
       const days = new Set();
+      const settings = db.getSettings();
+      const defaultDay = settings.dutyDay || 'อังคาร';
       points.forEach(p => {
         const list = p.assignedTo || p.assigned_to || [];
         list.forEach(item => {
@@ -5958,19 +5962,21 @@
               days.add(itemDay);
             }
           } else if (item === teacherId) {
-            ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี'].forEach(d => days.add(d));
+            days.add(defaultDay);
           }
         });
       });
       return Array.from(days);
     }
 
-    // จุดเวรของ currentUser สำหรับ "วันนี้" - จุดของกลุ่มตัวเองใช้เหมือนกันทุกวัน
-    // (entry แบบมี prefix วัน เช่น "อังคาร:1087" ยังคงจำกัดเฉพาะวันนั้น)
+    // จุดเวรของ currentUser สำหรับ "วันนี้"
+    // (entry แบบมี prefix วัน เช่น "อังคาร:1087" จะจำกัดเฉพาะวันนั้น ส่วนไม่มี prefix จะถือว่าปฏิบัติเวรในวันหลักของระบบ)
     function getMyDutyPoints() {
       const points = db.getDutyPoints();
       const todayDay = getTodayThaiDayName();
       const myGroup = getTeacherDutyGroup(currentUser);
+      const settings = db.getSettings();
+      const defaultDay = settings.dutyDay || 'อังคาร';
 
       return points.filter(p => {
         if ((p.dutyGroup || 'ครูชาย') !== myGroup) return false;
@@ -5980,7 +5986,8 @@
             const [itemDay, itemTeacherId] = item.split(':');
             return itemDay === todayDay && itemTeacherId === currentUser.id;
           }
-          return item === currentUser.id;
+          // หากไม่มี prefix วัน ให้ถือว่าเวรปฏิบัติเฉพาะวันหลักของระบบ (defaultDay)
+          return todayDay === defaultDay && item === currentUser.id;
         });
       });
     }
@@ -5992,6 +5999,8 @@
       if (!teacher) return [];
       const dayName = getThaiDayNameForDate(dateStr);
       const group = getTeacherDutyGroup(teacher);
+      const settings = db.getSettings();
+      const defaultDay = settings.dutyDay || 'อังคาร';
 
       return points.filter(p => {
         if ((p.dutyGroup || 'ครูชาย') !== group) return false;
@@ -6001,7 +6010,8 @@
             const [itemDay, itemTeacherId] = item.split(':');
             return itemDay === dayName && itemTeacherId === teacherId;
           }
-          return item === teacherId;
+          // หากไม่มี prefix วัน ให้ถือว่าเวรปฏิบัติเฉพาะวันหลักของระบบ (defaultDay)
+          return dayName === defaultDay && item === teacherId;
         });
       });
     }
