@@ -1180,6 +1180,7 @@
     let simSelectedPointId = 1; // Sandbox point selection
     let simCheckInState = 'none'; // Sandbox checkin status: 'none' | 'recent' | 'complete'
     let simGPSState = 'in'; // Sandbox GPS geofence simulation: 'in' | 'out'
+    let simReportTimeMode = 'on-time'; // Sandbox report time simulation: 'on-time' | 'late' | 'outside'
     let isSimulationMode = false; // Flag if report modal is in simulation mode
     let coReporterSigPads = {}; // rowId -> {canvas, ctx, drawing} สำหรับลายเซ็นชั่วคราวของครูร่วมเวร
     let syncQueueProcessing = false; // กันการประมวลผล wen_pending_sync ซ้ำซ้อน
@@ -5560,6 +5561,10 @@
               <i data-lucide="flask-conical" class="w-4 h-4 text-amber-600 animate-pulse"></i>
               <span>โหมดจำลองการทำงาน (Sandbox) - ข้อมูลนี้จะไม่ถูกบันทึกจริง</span>
             </div>
+            <div id="modal-simulation-time-banner" class="hidden bg-slate-100 border-b border-slate-200 px-5 py-2.5 text-slate-700 flex items-center gap-2">
+              <i data-lucide="clock" class="w-4 h-4 text-slate-600"></i>
+              <span id="modal-simulation-time-text"></span>
+            </div>
             
             <form onsubmit="handleReportSubmit(event)" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
               
@@ -5774,12 +5779,25 @@
       let distance = 0;
       let isLate = false;
 
+      let simulatedReportTimeMin = null;
       if (isSimulationMode) {
         distance = (simGPSState === 'in') ? 12.5 : 345.2;
         if (simGPSState === 'out') {
           showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้ (โหมดจำลอง)', 'error');
           return;
         }
+
+        const range = parseTimeRange(pt.reportWindow ? pt.reportWindow : pt.time);
+        const graceMin = db.getSettings().lateGraceMinutes ?? 15;
+        if (simReportTimeMode === 'outside') {
+          const outsideTimeMin = range.endMin + graceMin + 5;
+          showToast(`ไม่อยู่ในช่วงเวลาที่รายงานได้ (${pt.reportWindow || pt.time} น.) (จำลองเวลาคืนนี้ ${minutesToTimeLabel(outsideTimeMin)})`, 'error');
+          return;
+        }
+        simulatedReportTimeMin = simReportTimeMode === 'late'
+          ? Math.min(range.endMin + Math.max(1, Math.min(5, graceMin)), range.endMin + graceMin)
+          : Math.max(range.startMin, range.endMin - 5);
+        isLate = simReportTimeMode === 'late';
       } else {
         // วันนี้มีประกาศยกเว้นเวรเหตุสุดวิสัยหรือไม่ → ห้ามรายงานเวร
         const myExemption = getExemptionForDate(getTodayISODate(), getTeacherDutyGroup(currentUser));
@@ -6418,6 +6436,16 @@
                   </select>
                 </div>
               </div>
+
+              <div class="mt-4">
+                <label class="block text-slate-500 font-bold mb-1">4. สถานะเวลาการรายงาน:</label>
+                <select id="sim-time-select" onchange="simChangeReportTimeMode(this.value)" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-semibold">
+                  <option value="on-time" ${simReportTimeMode === 'on-time' ? 'selected' : ''}>รายงานในช่วงเวลาปกติ</option>
+                  <option value="late" ${simReportTimeMode === 'late' ? 'selected' : ''}>รายงานสาย (ยังอยู่ในช่วงผ่อนผัน)</option>
+                  <option value="outside" ${simReportTimeMode === 'outside' ? 'selected' : ''}>รายงานนอกช่วงเวลาที่อนุญาต</option>
+                </select>
+                <p class="text-[10px] text-slate-500 mt-2">ระบบจำลองจะใช้สถานะนี้เพื่อทดสอบผลลัพธ์ของการส่งรายงานในช่วงเวลา, สาย, หรือนอกช่วงเวลา</p>
+              </div>
             </div>
             
             <div class="border-t pt-5 mt-3 space-y-3">
@@ -6446,6 +6474,11 @@
       renderPage('simulate-reporting');
     }
 
+    function simChangeReportTimeMode(val) {
+      simReportTimeMode = val;
+      renderPage('simulate-reporting');
+    }
+
     function simClickCheckIn() {
       if (simGPSState === 'out') {
         showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้ ไม่สามารถเช็คอินได้', 'error');
@@ -6459,6 +6492,10 @@
     function simClickReport() {
       if (simGPSState === 'out') {
         showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้', 'error');
+        return;
+      }
+      if (simCheckInState !== 'complete') {
+        showToast('กรุณาจำลองการเช็คอินและรอให้สถานะเป็นพร้อมส่งรายงานก่อน (เช็คอินเกิน 20 นาที)', 'warning');
         return;
       }
       openReportForm(simSelectedPointId, true);
@@ -7013,6 +7050,34 @@
         startMin: parseMin(startPart),
         endMin: parseMin(endPart)
       };
+    }
+
+    function minutesToTimeLabel(totalMinutes) {
+      const hours = Math.floor(totalMinutes / 60) % 24;
+      const minutes = totalMinutes % 60;
+      return `${hours.toString().padStart(2, '0')}.${minutes.toString().padStart(2, '0')}`;
+    }
+
+    function updateReportModalSimulationBanner() {
+      const timeBanner = document.getElementById('modal-simulation-time-banner');
+      if (!timeBanner) return;
+      if (!isSimulationMode) {
+        timeBanner.classList.add('hidden');
+        return;
+      }
+
+      let text = '';
+      if (simReportTimeMode === 'on-time') {
+        text = 'จำลองการรายงานอยู่ในช่วงเวลาปกติ';
+      } else if (simReportTimeMode === 'late') {
+        text = 'จำลองการรายงานสาย: ภายในช่วงผ่อนผัน (ระบบจะบันทึกเป็นมาสาย)';
+      } else if (simReportTimeMode === 'outside') {
+        text = 'จำลองการรายงานนอกช่วงเวลาที่อนุญาต: ส่งแล้วระบบจะปฏิเสธรายการ';
+      }
+
+      const textEl = document.getElementById('modal-simulation-time-text');
+      if (textEl) textEl.textContent = text;
+      timeBanner.classList.remove('hidden');
     }
 
     // คลาสสีของป้าย countdown: ปกติ = เขียว (brand), ช่วงผ่อนผัน = ส้ม
@@ -8933,6 +8998,7 @@
           simBanner.classList.add('hidden');
         }
       }
+      updateReportModalSimulationBanner();
       
       const previewBox = document.getElementById('rep-photo-preview-box');
       if (previewBox) {
@@ -8991,6 +9057,8 @@
       
       const simBanner = document.getElementById('modal-simulation-banner');
       if (simBanner) simBanner.classList.add('hidden');
+      const timeBanner = document.getElementById('modal-simulation-time-banner');
+      if (timeBanner) timeBanner.classList.add('hidden');
       
       if (isSimulationMode) {
         isSimulationMode = false;
