@@ -661,12 +661,30 @@
       updateDatabaseStatusUI();
     }
 
+
     // Sync cloud tables to cache
     async function syncCloudDataToLocal() {
+      // 1. Sync Settings first (Critical metadata)
+      try {
+        const settings = await supabaseClient.from('settings').select('*').eq('id', 'config');
+        if (settings.data && settings.data.length > 0) {
+          const mappedSettings = mapSettingsFromDB(settings.data[0]);
+          db.saveSettings(mappedSettings);
+        }
+      } catch (err) {
+        console.warn("Failed to sync settings table:", err);
+      }
+
+      // 2. Sync Teachers (Credentials and Profiles)
       try {
         const teachers = await supabaseClient.from('teachers').select('*');
         if (teachers.data && teachers.data.length > 0) db.saveTeachers(teachers.data);
+      } catch (err) {
+        console.warn("Failed to sync teachers table:", err);
+      }
 
+      // 3. Sync Duty Points
+      try {
         const points = await supabaseClient.from('duty_points').select('*').order('id');
         if (points.data && points.data.length > 0) {
           const mappedPoints = points.data.map(mapDutyPointFromDB);
@@ -699,32 +717,41 @@
             }
           }
         }
+      } catch (err) {
+        console.warn("Failed to sync duty_points table:", err);
+      }
 
+      // 4. Sync Reports
+      try {
         const reports = await supabaseClient.from('reports').select('*');
         if (reports.data) {
           const mappedReports = reports.data.map(mapReportFromDB);
           db.saveReports(mappedReports);
         }
+      } catch (err) {
+        console.warn("Failed to sync reports table:", err);
+      }
 
+      // 5. Sync Leave Requests
+      try {
         const leaveRequests = await supabaseClient.from('leave_requests').select('*');
         if (leaveRequests.data) {
           const mappedLeaveRequests = leaveRequests.data.map(mapLeaveRequestFromDB);
           db.saveLeaveRequests(mappedLeaveRequests);
         }
+      } catch (err) {
+        console.warn("Failed to sync leave_requests table:", err);
+      }
 
+      // 6. Sync Duty Exemptions
+      try {
         const dutyExemptions = await supabaseClient.from('duty_exemptions').select('*');
         if (dutyExemptions.data) {
           const mappedExemptions = dutyExemptions.data.map(mapDutyExemptionFromDB);
           db.saveDutyExemptions(mappedExemptions);
         }
-
-        const settings = await supabaseClient.from('settings').select('*').eq('id', 'config');
-        if (settings.data && settings.data.length > 0) {
-          const mappedSettings = mapSettingsFromDB(settings.data[0]);
-          db.saveSettings(mappedSettings);
-        }
       } catch (err) {
-        console.warn("Failed to sync cloud tables", err);
+        console.warn("Failed to sync duty_exemptions table:", err);
       }
     }
 
@@ -1115,12 +1142,53 @@
         }
       }
 
+      // บังคับดึงข้อมูลบัญชีล่าสุดจาก Supabase Cloud โดยตรงก่อนตรวจสอบรหัสผ่านเมื่อออนไลน์
+      let cloudUserFound = true;
+      if (useSupabase && supabaseClient) {
+        try {
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = 'กำลังตรวจสอบสิทธิ์คลาวด์...';
+          }
+          const { data, error } = await supabaseClient
+            .from('teachers')
+            .select('*')
+            .or(`id.eq.${loginId},phone.eq.${loginId}`)
+            .limit(1);
+          
+          if (!error && data && data.length > 0) {
+            const freshTeacher = data[0];
+            const localTeachers = db.getTeachers();
+            const tIdx = localTeachers.findIndex(t => t.id === freshTeacher.id);
+            if (tIdx > -1) {
+              localTeachers[tIdx] = freshTeacher;
+            } else {
+              localTeachers.push(freshTeacher);
+            }
+            db.saveTeachers(localTeachers);
+          } else if (!error && data && data.length === 0) {
+            // ออนไลน์อยู่แต่ไม่พบบัญชีนี้ในฐานข้อมูลคลาวด์ ลบออกจากแคชเพื่อป้องกันการใช้รหัสเก่าที่ไม่มีอยู่จริง
+            cloudUserFound = false;
+            const localTeachers = db.getTeachers();
+            const filtered = localTeachers.filter(t => t.id.toLowerCase() !== loginId.toLowerCase() && t.phone !== loginId);
+            db.saveTeachers(filtered);
+          }
+        } catch (err) {
+          console.warn("Failed to fetch fresh teacher credentials from Supabase:", err);
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+          }
+        }
+      }
+
       const teachers = db.getTeachers();
 
       // Find teacher matching ID or Phone
       const found = teachers.find(t => t.id.toLowerCase() === loginId.toLowerCase() || t.phone === loginId);
 
-      if (found) {
+      if (found && cloudUserFound) {
         const matched = verifyTeacherCredentials(loginId, loginPass);
         if (!matched) {
           if (!useSupabase) {
@@ -1149,6 +1217,19 @@
         updateDynamicTitles();
         navigateTo(activeRoleMode === 'head' ? 'dashboard' : 'my-duty');
         showToast(`เข้าสู่ระบบสำเร็จ! สวัสดีครับ ${currentUser.name}`, 'success');
+
+        // ดึงการตั้งค่าล่าสุดทั้งหมดจาก Cloud ทันทีเพื่ออัปเดตพิกัด/โลโก้/ผู้รับผิดชอบ โดยไม่ต้องรอหรือดึงแคชเก่า
+        if (useSupabase && supabaseClient) {
+          showToast('กำลังดาวน์โหลดข้อมูลการตั้งค่าระบบและจุดเวรล่าสุด...', 'info');
+          syncCloudDataToLocal().then(() => {
+            updateDynamicTitles();
+            buildSidebar();
+            renderPage(currentPage);
+            showToast('ดึงข้อมูลการตั้งค่าจากคลาวด์ล่าสุดเสร็จสิ้น', 'success');
+          }).catch(err => {
+            console.error("Post-login sync failed:", err);
+          });
+        }
       } else if (loginId.toLowerCase() === 'admin') {
         if (loginPass === 'admin' || loginPass === '1234') {
           loginAs('admin');
@@ -1570,9 +1651,41 @@
       if (!savedStr) return;
       try {
         const saved = JSON.parse(savedStr);
+
+        let cloudUserFound = true;
+        // บังคับดึงข้อมูลบัญชีล่าสุดจาก Supabase Cloud โดยตรงก่อนล็อกอินทางลัดเมื่อออนไลน์
+        if (useSupabase && supabaseClient) {
+          try {
+            const { data, error } = await supabaseClient
+              .from('teachers')
+              .select('*')
+              .eq('id', saved.id)
+              .limit(1);
+            
+            if (!error && data && data.length > 0) {
+              const freshTeacher = data[0];
+              const localTeachers = db.getTeachers();
+              const tIdx = localTeachers.findIndex(t => t.id === freshTeacher.id);
+              if (tIdx > -1) {
+                localTeachers[tIdx] = freshTeacher;
+              } else {
+                localTeachers.push(freshTeacher);
+              }
+              db.saveTeachers(localTeachers);
+            } else if (!error && data && data.length === 0) {
+              cloudUserFound = false;
+              const localTeachers = db.getTeachers();
+              const filtered = localTeachers.filter(t => t.id !== saved.id);
+              db.saveTeachers(filtered);
+            }
+          } catch (err) {
+            console.warn("Failed to fetch fresh quick login teacher credentials:", err);
+          }
+        }
+
         const teachers = db.getTeachers();
         const matched = teachers.find(t => t.id === saved.id);
-        if (matched) {
+        if (matched && cloudUserFound) {
           currentUser = matched;
           activeRoleMode = isUserAdminOrHead() ? 'head' : 'teacher';
           
@@ -1585,8 +1698,19 @@
           updateDynamicTitles();
           navigateTo(activeRoleMode === 'head' ? 'dashboard' : 'my-duty');
           showToast(`เข้าใช้งานต่อในชื่อ: ${currentUser.name} สำเร็จ`, 'success');
+
+          // ดึงการตั้งค่าล่าสุดทั้งหมดจาก Cloud ทันทีเพื่ออัปเดตพิกัด/โลโก้/ผู้รับผิดชอบ โดยไม่ต้องใช้แคชเก่า
+          if (useSupabase && supabaseClient) {
+            syncCloudDataToLocal().then(() => {
+              updateDynamicTitles();
+              buildSidebar();
+              renderPage(currentPage);
+            }).catch(err => {
+              console.error("Post-quick-login sync failed:", err);
+            });
+          }
         } else {
-          showToast('ไม่พบข้อมูลครูนี้ในระบบ กรุณาล็อกอินใหม่', 'error');
+          showToast('ไม่พบข้อมูลครูนี้ในระบบ หรือบัญชีอาจถูกลบแล้ว กรุณาล็อกอินใหม่', 'error');
           localStorage.removeItem('wen_saved_account');
           renderQuickLogin();
         }
