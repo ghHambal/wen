@@ -1177,6 +1177,10 @@
     let coReporterRowSeq = 0; // ตัวนับ id แถวกรอกครูร่วมเวร
     let pendingSubmitReportData = null; // Store report arguments during ikhlas confirmation
     let ikhlasConfirmed = false; // Flag to check if ikhlas confirmation is done
+    let simSelectedPointId = 1; // Sandbox point selection
+    let simCheckInState = 'none'; // Sandbox checkin status: 'none' | 'recent' | 'complete'
+    let simGPSState = 'in'; // Sandbox GPS geofence simulation: 'in' | 'out'
+    let isSimulationMode = false; // Flag if report modal is in simulation mode
     let coReporterSigPads = {}; // rowId -> {canvas, ctx, drawing} สำหรับลายเซ็นชั่วคราวของครูร่วมเวร
     let syncQueueProcessing = false; // กันการประมวลผล wen_pending_sync ซ้ำซ้อน
     let coReporterOtherIds = []; // teacher_id ที่ assign จุดนี้วันนี้ (ไม่รวม currentUser)
@@ -1202,6 +1206,7 @@
       { id: 'duty-points', icon: 'map-pin', label: 'จุดเวรและพิกัด' },
       { id: 'documents', icon: 'file-text', label: 'เอกสารรายงาน' },
       { id: 'memo', icon: 'file-warning', label: 'บันทึกข้อความติดตาม' },
+      { id: 'simulate-reporting', icon: 'flask-conical', label: 'จำลองรายงานเวร (Sandbox)' },
       { id: 'settings', icon: 'settings', label: 'ตั้งค่าระบบ' },
       { id: 'profile-settings', icon: 'user-cog', label: 'ข้อมูลส่วนตัว' },
     ];
@@ -1666,6 +1671,11 @@
         );
       }
 
+      // ซ่อนเมนูจำลองรายงานสำหรับผู้ที่ไม่ใช่แอดมินสูงสุด
+      if (!isFullAdmin(currentUser)) {
+        menus = menus.filter(m => m.id !== 'simulate-reporting');
+      }
+
       // ซ่อนเมนู "งานหัวหน้าเวร" สำหรับผู้ที่ไม่ใช่หัวหน้าเวร/หัวหน้างานเวร/แอดมิน
       if (!canAccessDutyHeadApprovals()) {
         menus = menus.filter(m => m.id !== 'duty-head-approvals');
@@ -2118,6 +2128,9 @@
           break;
         case 'memo':
           mc.innerHTML = renderMemoView();
+          break;
+        case 'simulate-reporting':
+          mc.innerHTML = renderSimulateReportingView();
           break;
         case 'settings':
           mc.innerHTML = renderSettingsView();
@@ -5080,7 +5093,7 @@
                 <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="shield-check" class="w-4 h-4 text-brand-700"></i>สิทธิ์การเข้าถึงเมนูของหัวหน้าเวร</h4>
                 <p class="text-[10px] text-slate-400">เลือกเมนูที่จะให้ "หัวหน้าเวรประจำวัน" (ครูที่ได้รับการแต่งตั้งเป็นหัวหน้าเวรในแต่ละวัน ไม่ใช่แอดมิน) มองเห็นและเข้าถึงได้ในโหมดหัวหน้าเวร — เมนู "ข้อมูลส่วนตัว" จะแสดงให้ทุกคนเสมอ และเมนูที่มีตัวเลือก "วัน" (เช่น ตารางเวร) หัวหน้าเวรจะเห็นเฉพาะวันที่ตนเองได้รับการแต่งตั้งเท่านั้น</p>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  ${adminMenus.filter(m => m.id !== 'profile-settings').map(m => `
+                  ${adminMenus.filter(m => m.id !== 'profile-settings' && m.id !== 'simulate-reporting').map(m => `
                     <label class="flex items-center gap-2 border rounded-lg p-2.5 cursor-pointer hover:bg-slate-50 transition">
                       <input type="checkbox" id="sett-head-perm-${m.id}" ${currentHeadPerms.includes(m.id) ? 'checked' : ''} class="rounded border-slate-300 text-brand-700 focus:ring-brand-500">
                       <span class="flex items-center gap-1.5 text-slate-700 font-semibold"><i data-lucide="${m.icon}" class="w-3.5 h-3.5 text-brand-700"></i>${m.label}</span>
@@ -5542,6 +5555,12 @@
               <button onclick="closeReportForm()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>
             
+            <!-- Simulation Warning Banner -->
+            <div id="modal-simulation-banner" class="hidden bg-amber-50 border-b border-amber-200 px-5 py-2.5 text-amber-800 font-bold flex items-center gap-2">
+              <i data-lucide="flask-conical" class="w-4 h-4 text-amber-600 animate-pulse"></i>
+              <span>โหมดจำลองการทำงาน (Sandbox) - ข้อมูลนี้จะไม่ถูกบันทึกจริง</span>
+            </div>
+            
             <form onsubmit="handleReportSubmit(event)" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
               
               <!-- Target Point Status Alert -->
@@ -5736,15 +5755,8 @@
     async function handleReportSubmit(e) {
       if (e) e.preventDefault();
 
-      // วันนี้มีประกาศยกเว้นเวรเหตุสุดวิสัยหรือไม่ → ห้ามรายงานเวร
-      const myExemption = getExemptionForDate(getTodayISODate(), getTeacherDutyGroup(currentUser));
-      if (myExemption) {
-        showToast(`วันนี้ได้รับการยกเว้นการปฏิบัติหน้าที่เวร เนื่องจาก: ${myExemption.reason}`, 'warning');
-        return;
-      }
-
       const teacher = db.getTeachers().find(t => t.id === currentUser.id);
-      if (!teacher || !teacher.signature) {
+      if (!isSimulationMode && (!teacher || !teacher.signature)) {
         showToast('กรุณาทำการลงทะเบียนวาดลายมือชื่ออิเล็กทรอนิกส์ก่อนส่งรายงาน', 'error');
         return;
       }
@@ -5759,43 +5771,61 @@
       const pt = points.find(p => p.id === reportModalActivePointId);
       if (!pt) return;
 
-      const geo = getDutyGeofenceDistance(pt, mockLatitude, mockLongitude);
-      const distance = geo.distance;
-      if (distance > geo.radius) {
-        showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้', 'error');
-        return;
-      }
+      let distance = 0;
+      let isLate = false;
 
-      // เช็คว่าเช็คอินครบ 20 นาทียัง (แอดมินยกเว้นได้สำหรับการทดสอบ)
-      if (currentUser.id !== 'admin') {
-        const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
-        const checkInTime = localStorage.getItem(checkInKey);
-        if (!checkInTime) {
-          showToast('ผิดพลาด: ท่านยังไม่ได้ทำการเช็คอินเริ่มปฏิบัติงานสำหรับจุดนี้', 'error');
+      if (isSimulationMode) {
+        distance = (simGPSState === 'in') ? 12.5 : 345.2;
+        if (simGPSState === 'out') {
+          showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้ (โหมดจำลอง)', 'error');
           return;
         }
-        const elapsedMs = Date.now() - parseInt(checkInTime);
-        const elapsedMins = Math.floor(elapsedMs / 60000);
-        if (elapsedMins < 20) {
-          showToast(`ผิดพลาด: ท่านปฏิบัติหน้าที่ยังไม่ครบ 20 นาที (ขาดอีก ${20 - elapsedMins} นาที)`, 'error');
+      } else {
+        // วันนี้มีประกาศยกเว้นเวรเหตุสุดวิสัยหรือไม่ → ห้ามรายงานเวร
+        const myExemption = getExemptionForDate(getTodayISODate(), getTeacherDutyGroup(currentUser));
+        if (myExemption) {
+          showToast(`วันนี้ได้รับการยกเว้นการปฏิบัติหน้าที่เวร เนื่องจาก: ${myExemption.reason}`, 'warning');
           return;
         }
-      }
 
-      // เช็คช่วงเวลาที่รายงานได้ — ถ้า reportWindow กำหนดโดยหัวหน้างานเวร ใช้นั้นก่อน มิฉะนั้นใช้ p.time ทั้งช่วง
-      const settingsNow = db.getSettings();
-      const graceMin = settingsNow.lateGraceMinutes ?? 15;
-      const tRange = parseTimeRange(pt.time);
-      const nowDate = new Date();
-      const nowMin = nowDate.getHours() * 60 + nowDate.getMinutes();
-      const reportRange = pt.reportWindow ? parseTimeRange(pt.reportWindow) : tRange;
-      const effectiveEndMin = reportRange.endMin + graceMin;
-      if (nowMin < reportRange.startMin || nowMin > effectiveEndMin) {
-        const windowDisplay = pt.reportWindow || pt.time;
-        showToast(`ไม่อยู่ในช่วงเวลาที่รายงานได้ (${windowDisplay} น.) ตามนโยบายหัวหน้างานเวร`, 'error');
-        return;
+        const geo = getDutyGeofenceDistance(pt, mockLatitude, mockLongitude);
+        distance = geo.distance;
+        if (distance > geo.radius) {
+          showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้', 'error');
+          return;
+        }
+
+        // เช็คว่าเช็คอินครบ 20 นาทียัง (แอดมินยกเว้นได้สำหรับการทดสอบ)
+        if (currentUser.id !== 'admin') {
+          const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
+          const checkInTime = localStorage.getItem(checkInKey);
+          if (!checkInTime) {
+            showToast('ผิดพลาด: ท่านยังไม่ได้ทำการเช็คอินเริ่มปฏิบัติงานสำหรับจุดนี้', 'error');
+            return;
+          }
+          const elapsedMs = Date.now() - parseInt(checkInTime);
+          const elapsedMins = Math.floor(elapsedMs / 60000);
+          if (elapsedMins < 20) {
+            showToast(`ผิดพลาด: ท่านปฏิบัติหน้าที่ยังไม่ครบ 20 นาที (ขาดอีก ${20 - elapsedMins} นาที)`, 'error');
+            return;
+          }
+        }
+
+        // เช็คช่วงเวลาที่รายงานได้ — ถ้า reportWindow กำหนดโดยหัวหน้างานเวร ใช้นั้นก่อน มิฉะนั้นใช้ p.time ทั้งช่วง
+        const settingsNow = db.getSettings();
+        const graceMin = settingsNow.lateGraceMinutes ?? 15;
+        const tRange = parseTimeRange(pt.time);
+        const nowDate = new Date();
+        const nowMin = nowDate.getHours() * 60 + nowDate.getMinutes();
+        const reportRange = pt.reportWindow ? parseTimeRange(pt.reportWindow) : tRange;
+        const effectiveEndMin = reportRange.endMin + graceMin;
+        if (nowMin < reportRange.startMin || nowMin > effectiveEndMin) {
+          const windowDisplay = pt.reportWindow || pt.time;
+          showToast(`ไม่อยู่ในช่วงเวลาที่รายงานได้ (${windowDisplay} น.) ตามนโยบายหัวหน้างานเวร`, 'error');
+          return;
+        }
+        isLate = nowMin > reportRange.endMin;
       }
-      const isLate = nowMin > reportRange.endMin;
 
       const statusSelect = document.getElementById('rep-status-select').value;
       const resultText = document.getElementById('rep-result-text').value.trim();
@@ -5804,6 +5834,8 @@
 
       const newReportId = 'R' + Date.now();
       const timeNow = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
+
+      const signature = (teacher && teacher.signature) ? teacher.signature : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2050/svg" width="100" height="50"><text x="10" y="30" font-family="sans-serif" font-size="12" fill="red">Simulated Sig</text></svg>';
 
       const newReport = {
         id: newReportId,
@@ -5817,7 +5849,7 @@
         problem: statusSelect === 'problem' ? problemText : '',
         solution: statusSelect === 'problem' ? solutionText : '',
         photo: uploadedReportPhotoBase64 || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="%23f1f5f9"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Sarabun" font-size="12" fill="%2394a3b8">ไม่มีภาพถ่ายประกอบ</text></svg>',
-        signature: teacher.signature,
+        signature: signature,
         isLate: isLate,
         lateReviewStatus: isLate ? 'pending' : null
       };
@@ -5833,41 +5865,49 @@
       ikhlasConfirmed = false;
       pendingSubmitReportData = null;
 
-      // Save database (with Supabase sync)
-      await saveReportDB(newReport);
+      if (!isSimulationMode) {
+        // Save database (with Supabase sync)
+        await saveReportDB(newReport);
 
-      // รายงานแทนกันหลายคน: บันทึกรายงานเดียวกันให้ครูร่วมเวรที่ยืนยันตัวตนไว้ทุกคน
-      for (const co of pendingCoReporters) {
-        const coReport = {
-          ...newReport,
-          id: newReportId + '_' + co.teacherId,
-          teacherId: co.teacherId,
-          signature: co.signature
-        };
-        await saveReportDB(coReport);
+        // รายงานแทนกันหลายคน: บันทึกรายงานเดียวกันให้ครูร่วมเวรที่ยืนยันตัวตนไว้ทุกคน
+        for (const co of pendingCoReporters) {
+          const coReport = {
+            ...newReport,
+            id: newReportId + '_' + co.teacherId,
+            teacherId: co.teacherId,
+            signature: co.signature
+          };
+          await saveReportDB(coReport);
+        }
       }
       pendingCoReporters = [];
 
-      // Simulated notification message
-      let alertMsg = `📢 แจ้งผลปฏิบัติเวร โรงเรียนมูลนิธิอาซิซสถาน \n`;
-      alertMsg += `จุดเวร: จุดที่ ${getDutyPointDisplayNumber(pt)} (${pt.name})\n`;
-      alertMsg += `ผู้ปฏิบัติ: ${currentUser.name}\n`;
-      alertMsg += `เวลาบันทึก: ${timeNow} น.\n`;
-      alertMsg += `สถานะ: ${statusSelect === 'problem' ? '⚠️ พบประเด็นขัดข้อง!' : '✅ ปกติเรียบร้อยดี'}\n`;
-      if (statusSelect === 'problem') {
-        alertMsg += `ปัญหาที่พบ: ${problemText}\nแนวทางดำเนินการ: ${solutionText}\n`;
+      if (!isSimulationMode) {
+        // Simulated notification message
+        let alertMsg = `📢 แจ้งผลปฏิบัติเวร โรงเรียนมูลนิธิอาซิซสถาน \n`;
+        alertMsg += `จุดเวร: จุดที่ ${getDutyPointDisplayNumber(pt)} (${pt.name})\n`;
+        alertMsg += `ผู้ปฏิบัติ: ${currentUser.name}\n`;
+        alertMsg += `เวลาบันทึก: ${timeNow} น.\n`;
+        alertMsg += `สถานะ: ${statusSelect === 'problem' ? '⚠️ พบประเด็นขัดข้อง!' : '✅ ปกติเรียบร้อยดี'}\n`;
+        if (statusSelect === 'problem') {
+          alertMsg += `ปัญหาที่พบ: ${problemText}\nแนวทางดำเนินการ: ${solutionText}\n`;
+        } else {
+          alertMsg += `ผลตรวจเวร: ${resultText}\n`;
+        }
+        alertMsg += `GPS ตรวจสอบ: อยู่ห่าง ${distance.toFixed(1)} เมตร (ภายในรัศมี)`;
+
+        triggerTelegramNotification(alertMsg);
+
+        // เคลียร์ประวัติการเช็กอินในเครื่องของวันนี้สำหรับจุดนี้
+        const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
+        localStorage.removeItem(checkInKey);
       } else {
-        alertMsg += `ผลตรวจเวร: ${resultText}\n`;
+        // ในโหมดจำลอง: เคลียร์/อัปเดตสถานะจำลอง
+        simCheckInState = 'none';
+        showToast('จำลองส่งรายงานผลปฏิบัติเวรสำเร็จ (ข้ามการบันทึกฐานข้อมูลจริงและแจ้งเตือน Line/Telegram)', 'success');
       }
-      alertMsg += `GPS ตรวจสอบ: อยู่ห่าง ${distance.toFixed(1)} เมตร (ภายในรัศมี)`;
 
-      triggerTelegramNotification(alertMsg);
-
-      // เคลียร์ประวัติการเช็กอินในเครื่องของวันนี้สำหรับจุดนี้
-      const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
-      localStorage.removeItem(checkInKey);
-
-      closeReportForm();
+      closeReportForm(true);
       showAppreciationDuaModal();
     }
 
@@ -5933,7 +5973,12 @@
     function closeAppreciationDuaModal() {
       const modal = document.getElementById('appreciation-dua-modal');
       if (modal) modal.classList.add('hidden');
-      navigateTo('my-duty');
+      if (isSimulationMode) {
+        isSimulationMode = false;
+        renderPage('simulate-reporting');
+      } else {
+        navigateTo('my-duty');
+      }
     }
 
     async function saveReportDB(newReport, silent = false) {
@@ -6299,6 +6344,124 @@
           </div>
         </div>
       `;
+    }
+
+    // =========================================================================
+    // 5.1 SANDBOX SIMULATION MODE
+    // =========================================================================
+    function renderSimulateReportingView() {
+      const points = db.getDutyPoints();
+      const pt = points.find(p => p.id === simSelectedPointId) || points[0];
+      if (pt && simSelectedPointId !== pt.id) {
+        simSelectedPointId = pt.id;
+      }
+
+      let buttonHtml = '';
+      if (simCheckInState === 'none') {
+        buttonHtml = `
+          <button onclick="simClickCheckIn()" class="w-full bg-brand-800 hover:bg-brand-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            📌 เช็คอินเริ่มปฏิบัติงาน (จำลอง)
+          </button>
+        `;
+      } else if (simCheckInState === 'recent') {
+        buttonHtml = `
+          <button disabled class="w-full bg-blue-900/40 text-blue-200 border border-blue-500/30 font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-not-allowed">
+            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            🕒 กำลังปฏิบัติหน้าที่ (จำลอง) (เหลือ 20 นาที)
+          </button>
+        `;
+      } else {
+        buttonHtml = `
+          <button onclick="simClickReport()" class="w-full bg-emerald-650 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            📸 ถ่ายรูปส่งรายงานเวร (จำลอง)
+          </button>
+        `;
+      }
+
+      return `
+        <div class="fade-in space-y-6 text-xs max-w-xl">
+          <div class="border-b pb-4">
+            <h3 class="text-lg font-bold text-slate-900">จำลองการรายงานเวร (Sandbox)</h3>
+            <p class="text-slate-500 mt-1">ใช้ทดสอบปุ่มเช็คอิน ระบบตรวจสอบพิกัด และป๊อปอัปความสัตย์จริง (อิคลาส) โดยไม่มีผลกระทบต่อฐานข้อมูลจริง</p>
+          </div>
+
+          <div class="bg-white border rounded-xl shadow-sm p-6 space-y-5">
+            <h4 class="font-bold text-slate-800 border-b pb-2 flex items-center gap-1.5">
+              <i data-lucide="flask-conical" class="w-4 h-4 text-brand-700"></i>ตั้งค่าสภาวะการจำลอง
+            </h4>
+            
+            <div class="space-y-4">
+              <div>
+                <label class="block text-slate-500 font-bold mb-1">1. เลือกจุดเวรจำลอง:</label>
+                <select id="sim-point-select" onchange="simChangePoint(this.value)" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-semibold">
+                  ${points.map(p => `<option value="${p.id}" ${simSelectedPointId === p.id ? 'selected' : ''}>จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name} (${p.time} น.)</option>`).join('')}
+                </select>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">2. สถานะเวลากับการเข้าเวร:</label>
+                  <select id="sim-checkin-select" onchange="simChangeCheckIn(this.value)" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-semibold">
+                    <option value="none" ${simCheckInState === 'none' ? 'selected' : ''}>ยังไม่ได้กดเช็คอิน (📌 ปุ่มเริ่มต้น)</option>
+                    <option value="recent" ${simCheckInState === 'recent' ? 'selected' : ''}>เพิ่งเช็คอินเสร็จ (🕒 บล็อกรอครบ 20 นาที)</option>
+                    <option value="complete" ${simCheckInState === 'complete' ? 'selected' : ''}>เช็คอินเกิน 20 นาทีแล้ว (📸 พร้อมถ่ายรูปส่งรายงาน)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">3. พิกัดจำลองของคุณ:</label>
+                  <select id="sim-gps-select" onchange="simChangeGPS(this.value)" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-semibold">
+                    <option value="in" ${simGPSState === 'in' ? 'selected' : ''}>อยู่ในรัศมีระยะเวร (ผ่าน ✅)</option>
+                    <option value="out" ${simGPSState === 'out' ? 'selected' : ''}>อยู่นอกเขตรัศมีเวร (บล็อก ❌)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div class="border-t pt-5 mt-3 space-y-3">
+              <label class="block text-slate-550 font-bold text-center">ตัวอย่างปุ่มแสดงบนหน้าจอของครูเวร:</label>
+              <div class="max-w-xs mx-auto border rounded-2xl p-4 bg-slate-50 shadow-inner">
+                ${buttonHtml}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function simChangePoint(val) {
+      simSelectedPointId = parseInt(val);
+      renderPage('simulate-reporting');
+    }
+
+    function simChangeCheckIn(val) {
+      simCheckInState = val;
+      renderPage('simulate-reporting');
+    }
+
+    function simChangeGPS(val) {
+      simGPSState = val;
+      renderPage('simulate-reporting');
+    }
+
+    function simClickCheckIn() {
+      if (simGPSState === 'out') {
+        showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้ ไม่สามารถเช็คอินได้', 'error');
+        return;
+      }
+      simCheckInState = 'recent';
+      showToast('จำลองการเช็คอินเข้าเวรสำเร็จ! ระบบเริ่มนับถอยหลังเวลา', 'success');
+      renderPage('simulate-reporting');
+    }
+
+    function simClickReport() {
+      if (simGPSState === 'out') {
+        showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้', 'error');
+        return;
+      }
+      openReportForm(simSelectedPointId, true);
     }
 
     // =========================================================================
@@ -8686,19 +8849,29 @@
         const activePt = points.find(p => p.id === reportModalActivePointId);
         const distAlert = document.getElementById('modal-distance-alert');
         if (activePt && distAlert) {
-          const geo = getDutyGeofenceDistance(activePt, mockLatitude, mockLongitude);
+          let distance, inRadius, radiusVal;
+          if (isSimulationMode) {
+            inRadius = (simGPSState === 'in');
+            distance = inRadius ? 12.5 : 345.2;
+            radiusVal = activePt.radius || 100;
+          } else {
+            const geo = getDutyGeofenceDistance(activePt, mockLatitude, mockLongitude);
+            distance = geo.distance;
+            radiusVal = geo.radius;
+            inRadius = (geo.distance <= geo.radius);
+          }
 
-          if (geo.distance <= geo.radius) {
+          if (inRadius) {
             distAlert.className = "p-3 rounded-lg border font-bold flex items-center gap-2 bg-green-50 text-green-800 border-green-200";
             distAlert.innerHTML = `
               <i data-lucide="check-circle" class="w-4 h-4 text-green-650"></i>
-              <span>อยู่ในระยะลงชื่อปฏิบัติงาน (ห่างจากจุด ${geo.distance.toFixed(1)} เมตร)</span>
+              <span>อยู่ในระยะลงชื่อปฏิบัติงาน (ห่างจากจุด ${distance.toFixed(1)} เมตร)${isSimulationMode ? ' [โหมดจำลอง]' : ''}</span>
             `;
           } else {
             distAlert.className = "p-3 rounded-lg border font-bold flex items-center gap-2 bg-red-50 text-red-800 border-red-200";
             distAlert.innerHTML = `
               <i data-lucide="alert-triangle" class="w-4 h-4 text-red-650"></i>
-              <span>อยู่นอกระยะปฏิบัติงาน (ห่างจากจุด ${geo.distance.toFixed(1)} เมตร, รัศมีสูงสุด ${geo.radius} เมตร)</span>
+              <span>อยู่นอกระยะปฏิบัติงาน (ห่างจากจุด ${distance.toFixed(1)} เมตร, รัศมีสูงสุด ${radiusVal} เมตร)${isSimulationMode ? ' [โหมดจำลอง]' : ''}</span>
             `;
           }
           lucide.createIcons();
@@ -8747,9 +8920,19 @@
       });
     }
 
-    function openReportForm(pointId) {
+    function openReportForm(pointId, isSim = false) {
+      isSimulationMode = isSim;
       reportModalActivePointId = pointId;
       uploadedReportPhotoBase64 = null;
+      
+      const simBanner = document.getElementById('modal-simulation-banner');
+      if (simBanner) {
+        if (isSimulationMode) {
+          simBanner.classList.remove('hidden');
+        } else {
+          simBanner.classList.add('hidden');
+        }
+      }
       
       const previewBox = document.getElementById('rep-photo-preview-box');
       if (previewBox) {
@@ -8779,7 +8962,8 @@
       const points = db.getDutyPoints();
       const pt = points.find(p => p.id === pointId);
       if (pt) {
-        document.getElementById('form-modal-title').textContent = `รายงานผลการปฏิบัติหน้าที่ - จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}`;
+        const titlePrefix = isSimulationMode ? '[โหมดจำลอง] ' : '';
+        document.getElementById('form-modal-title').textContent = `${titlePrefix}รายงานผลการปฏิบัติหน้าที่ - จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}`;
       }
 
       // รายงานแทนกันหลายคน: เตรียม state ของครูร่วมเวรใหม่ทุกครั้งที่เปิด modal
@@ -8804,6 +8988,14 @@
       coReporterOtherIds = [];
       coReporterBannerAnswered = false;
       coReporterSigPads = {};
+      
+      const simBanner = document.getElementById('modal-simulation-banner');
+      if (simBanner) simBanner.classList.add('hidden');
+      
+      if (isSimulationMode) {
+        isSimulationMode = false;
+        renderPage('simulate-reporting');
+      }
     }
 
     // =========================================================================
