@@ -610,7 +610,8 @@
         totalWeeks: dbSett.total_weeks !== undefined && dbSett.total_weeks !== null ? dbSett.total_weeks : (dbSett.totalWeeks !== undefined && dbSett.totalWeeks !== null ? dbSett.totalWeeks : (local.totalWeeks || 20)),
         headsOfDay: parsedHeads,
         headMenuPermissions: parsedHeadPerms,
-        dutyOperationsHeadId: dbSett.duty_operations_head_id || dbSett.dutyOperationsHeadId || local.dutyOperationsHeadId || ''
+        dutyOperationsHeadId: dbSett.duty_operations_head_id || dbSett.dutyOperationsHeadId || local.dutyOperationsHeadId || '',
+        appreciationDuaText: dbSett.appreciation_dua_text || dbSett.appreciationDuaText || local.appreciationDuaText || 'ขออัลลอฮฺทรงตอบแทนความดีงามแก่ท่าน (ญะซากัลลอฮุ ค็อยร็อน) ที่มุ่งมั่นในการปฏิบัติหน้าที่ด้วยความอิคลาส และขอพระองค์ทรงให้ท่านยืนหยัดคงไว้ซึ่งความดีงามนี้ตลอดไป'
       };
     }
 
@@ -638,7 +639,8 @@
         total_weeks: jsSett.totalWeeks !== undefined ? jsSett.totalWeeks : 20,
         heads_of_day: jsSett.headsOfDay ? (typeof jsSett.headsOfDay === 'object' ? JSON.stringify(jsSett.headsOfDay) : jsSett.headsOfDay) : '{}',
         head_menu_permissions: jsSett.headMenuPermissions ? JSON.stringify(jsSett.headMenuPermissions) : JSON.stringify(adminMenus.map(m => m.id)),
-        duty_operations_head_id: jsSett.dutyOperationsHeadId || null
+        duty_operations_head_id: jsSett.dutyOperationsHeadId || null,
+        appreciation_dua_text: jsSett.appreciationDuaText || ''
       };
     }
 
@@ -734,7 +736,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.32.6';
+    const APP_VERSION = '1.32.7';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1173,6 +1175,8 @@
     let uploadedReportPhotoBase64 = null;
     let pendingCoReporters = []; // [{teacherId, name, signature}] - ครูร่วมเวรที่ยืนยันแล้วในฟอร์มรายงานนี้
     let coReporterRowSeq = 0; // ตัวนับ id แถวกรอกครูร่วมเวร
+    let pendingSubmitReportData = null; // Store report arguments during ikhlas confirmation
+    let ikhlasConfirmed = false; // Flag to check if ikhlas confirmation is done
     let coReporterSigPads = {}; // rowId -> {canvas, ctx, drawing} สำหรับลายเซ็นชั่วคราวของครูร่วมเวร
     let syncQueueProcessing = false; // กันการประมวลผล wen_pending_sync ซ้ำซ้อน
     let coReporterOtherIds = []; // teacher_id ที่ assign จุดนี้วันนี้ (ไม่รวม currentUser)
@@ -5062,6 +5066,15 @@
                 </div>
               </div>
 
+              <!-- ข้อความชื่นชมและดูอาอ์หลังส่งรายงานสำเร็จ -->
+              <div class="border-t pt-4 space-y-3">
+                <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="heart" class="w-4 h-4 text-brand-700"></i>ข้อความชื่นชมและดูอาอ์หลังรายงานเวร</h4>
+                <p class="text-[10px] text-slate-400">ข้อความชื่นชมแสดงความขอบคุณและวิงวอนขอพร (ดูอาอ์) ที่จะเด้งแสดงผลขึ้นหน้าจอหลังคุณครูกดส่งรายงานเวรสำเร็จ เพื่อเป็นแรงบันดาลใจและเตือนใจด้านความอิคลาส</p>
+                <div>
+                  <textarea id="sett-appreciation-dua-text" rows="3" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 leading-relaxed">${settings.appreciationDuaText || 'ขออัลลอฮฺทรงตอบแทนความดีงามแก่ท่าน (ญะซากัลลอฮุ ค็อยร็อน) ที่มุ่งมั่นในการปฏิบัติหน้าที่ด้วยความอิคลาส และขอพระองค์ทรงให้ท่านยืนหยัดคงไว้ซึ่งความดีงามนี้ตลอดไป'}</textarea>
+                </div>
+              </div>
+
               <!-- สิทธิ์การเข้าถึงเมนูของหัวหน้าเวร -->
               <div class="border-t pt-4 space-y-3">
                 <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="shield-check" class="w-4 h-4 text-brand-700"></i>สิทธิ์การเข้าถึงเมนูของหัวหน้าเวร</h4>
@@ -5138,7 +5151,8 @@
           .map(m => m.id),
 
         // หัวหน้างานเวร (ผู้อนุมัติลำดับสุดท้าย)
-        dutyOperationsHeadId: document.getElementById('sett-duty-operations-head') ? document.getElementById('sett-duty-operations-head').value : (current.dutyOperationsHeadId || '')
+        dutyOperationsHeadId: document.getElementById('sett-duty-operations-head') ? document.getElementById('sett-duty-operations-head').value : (current.dutyOperationsHeadId || ''),
+        appreciationDuaText: document.getElementById('sett-appreciation-dua-text') ? document.getElementById('sett-appreciation-dua-text').value.trim() : (current.appreciationDuaText || '')
       };
 
       await saveSettingsDB(settings);
@@ -5401,13 +5415,42 @@
                       </button>
                     ` : pointLeaveActive ? `
                       <span class="flex-1 flex items-center justify-center text-center">${leaveStatusBadge(pointLeave)}</span>
-                    ` : `
-                      <button id="btn-report-point-${p.id}" onclick="triggerRipple(event, false); confirmReportPoint(${p.id})"
-                        class="ripple-btn scale-spring-active flex-1 bg-brand-800 hover:bg-brand-700 text-white font-bold py-2.5 rounded-xl shadow-md transition inline-flex items-center justify-center gap-1.5 text-[11px]">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                        รายงานจุดนี้
-                      </button>
-                    `}
+                    ` : (() => {
+                      const checkInKey = 'checkin_' + currentUser.id + '_' + p.id + '_' + getTodayISODate();
+                      const checkInTime = localStorage.getItem(checkInKey);
+                      
+                      if (checkInTime) {
+                        const elapsedMs = Date.now() - parseInt(checkInTime);
+                        const elapsedMins = Math.floor(elapsedMs / 60000);
+                        const remainingMins = 20 - elapsedMins;
+                        
+                        if (remainingMins > 0) {
+                          return `
+                            <button disabled id="btn-report-point-${p.id}"
+                              class="flex-1 bg-blue-900/40 text-blue-200 border border-blue-500/30 font-bold py-2.5 rounded-xl transition inline-flex items-center justify-center gap-1.5 text-[11px] cursor-not-allowed">
+                              <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                              กำลังปฏิบัติหน้าที่ (เหลือ ${remainingMins} นาที)
+                            </button>
+                          `;
+                        } else {
+                          return `
+                            <button id="btn-report-point-${p.id}" onclick="triggerRipple(event, false); confirmReportPoint(${p.id})"
+                              class="ripple-btn scale-spring-active flex-1 bg-emerald-650 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl shadow-md transition inline-flex items-center justify-center gap-1.5 text-[11px]">
+                              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                              ถ่ายรูปส่งรายงานเวร
+                            </button>
+                          `;
+                        }
+                      } else {
+                        return `
+                          <button id="btn-report-point-${p.id}" onclick="triggerRipple(event, false); checkInTeacherPoint(${p.id})"
+                            class="ripple-btn scale-spring-active flex-1 bg-brand-800 hover:bg-brand-700 text-white font-bold py-2.5 rounded-xl shadow-md transition inline-flex items-center justify-center gap-1.5 text-[11px]">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            📌 เช็คอินเริ่มปฏิบัติงาน
+                          </button>
+                        `;
+                      }
+                    })()}
                   </div>
                 </div>
               `;
@@ -5625,6 +5668,58 @@
             </div>
           </div>
         </div>
+
+        <!-- Ikhlas Confirmation Modal -->
+        <div id="ikhlas-confirm-modal" class="fixed inset-0 bg-black/70 z-[400] hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border">
+            <div class="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-4 flex justify-between items-center">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-amber-100" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                <h4 class="font-bold text-xs">คำยืนยันความซื่อสัตย์ในการปฏิบัติหน้าที่ (อิคลาส)</h4>
+              </div>
+            </div>
+            <div class="p-6 space-y-4 text-slate-700 text-[11px] leading-relaxed">
+              <p>ท่านขอยืนยันด้วยความสัตย์จริงต่อตนเองและอัลลอฮฺ (ซ.บ.) ว่า ผู้ร่วมปฏิบัติหน้าที่เวรที่เพิ่มเข้ามาในรายงาน ได้แก่:</p>
+              
+              <div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 space-y-1.5 font-bold text-amber-900" id="ikhlas-co-reporters-list">
+                <!-- Will be dynamically populated -->
+              </div>
+              
+              <p class="text-slate-500 text-[10px] leading-normal">
+                <strong>ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่า 20 นาที</strong> ตามที่ได้รายงานร่วมกันในวันนี้ 
+                <br><br>
+                <span class="text-red-500 font-semibold">*(การลงบันทึกข้อมูลที่เป็นจริงและเที่ยงตรง ถือเป็นเกียรติยศ ความอิคลาส และความรับผิดชอบอันสำคัญยิ่งต่อหน้าที่)*</span>
+              </p>
+              
+              <div class="flex gap-2 pt-2 border-t text-xs">
+                <button type="button" onclick="closeIkhlasConfirm()" class="flex-1 border border-slate-200 hover:bg-slate-50 py-2 rounded-lg text-slate-600 font-bold transition">ย้อนกลับไปแก้ไข</button>
+                <button type="button" onclick="confirmAndSubmitReport()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-lg shadow transition">ยืนยันด้วยความสัตย์จริง</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Appreciation & Dua Modal -->
+        <div id="appreciation-dua-modal" class="fixed inset-0 bg-black/70 z-[500] hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border text-center">
+            <div class="bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-800 p-6 flex justify-center flex-col items-center space-y-2 text-white">
+              <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center animate-pulse">
+                <svg class="w-6 h-6 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+              </div>
+              <h4 class="font-extrabold text-sm tracking-wide">บันทึกส่งรายงานสำเร็จแล้ว</h4>
+              <p class="text-[10px] text-emerald-200">ระบบได้บันทึกรายงานเข้าสู่ระบบฐานข้อมูลแล้ว</p>
+            </div>
+            <div class="p-6 space-y-4">
+              <div id="appreciation-dua-content" class="text-slate-800 text-[11px] leading-relaxed font-semibold italic bg-slate-50 border border-slate-100 rounded-xl p-4 text-center">
+                <!-- Text loaded from settings -->
+              </div>
+              
+              <button type="button" onclick="closeAppreciationDuaModal()" class="w-full bg-emerald-750 hover:bg-emerald-650 text-white font-bold py-2.5 rounded-lg shadow hover:shadow-md transition text-xs">
+                อามีน (ปิดหน้าต่าง)
+              </button>
+            </div>
+          </div>
+        </div>
       `;
     }
 
@@ -5639,7 +5734,7 @@
 
     // Submit report and sync with Supabase
     async function handleReportSubmit(e) {
-      e.preventDefault();
+      if (e) e.preventDefault();
 
       // วันนี้มีประกาศยกเว้นเวรเหตุสุดวิสัยหรือไม่ → ห้ามรายงานเวร
       const myExemption = getExemptionForDate(getTodayISODate(), getTeacherDutyGroup(currentUser));
@@ -5669,6 +5764,22 @@
       if (distance > geo.radius) {
         showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้', 'error');
         return;
+      }
+
+      // เช็คว่าเช็คอินครบ 20 นาทียัง (แอดมินยกเว้นได้สำหรับการทดสอบ)
+      if (currentUser.id !== 'admin') {
+        const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
+        const checkInTime = localStorage.getItem(checkInKey);
+        if (!checkInTime) {
+          showToast('ผิดพลาด: ท่านยังไม่ได้ทำการเช็คอินเริ่มปฏิบัติงานสำหรับจุดนี้', 'error');
+          return;
+        }
+        const elapsedMs = Date.now() - parseInt(checkInTime);
+        const elapsedMins = Math.floor(elapsedMs / 60000);
+        if (elapsedMins < 20) {
+          showToast(`ผิดพลาด: ท่านปฏิบัติหน้าที่ยังไม่ครบ 20 นาที (ขาดอีก ${20 - elapsedMins} นาที)`, 'error');
+          return;
+        }
       }
 
       // เช็คช่วงเวลาที่รายงานได้ — ถ้า reportWindow กำหนดโดยหัวหน้างานเวร ใช้นั้นก่อน มิฉะนั้นใช้ p.time ทั้งช่วง
@@ -5711,6 +5822,17 @@
         lateReviewStatus: isLate ? 'pending' : null
       };
 
+      // หากมีครูร่วมเวรและยังไม่ได้ยืนยันความอิคลาส
+      if (pendingCoReporters.length > 0 && !ikhlasConfirmed) {
+        pendingSubmitReportData = { newReport, pendingCoReportersCopy: [...pendingCoReporters], pt, alertMsgText: { statusSelect, problemText, solutionText, resultText, distance, timeNow } };
+        showIkhlasConfirmModal();
+        return;
+      }
+
+      // Reset confirmation flag
+      ikhlasConfirmed = false;
+      pendingSubmitReportData = null;
+
       // Save database (with Supabase sync)
       await saveReportDB(newReport);
 
@@ -5741,7 +5863,76 @@
 
       triggerTelegramNotification(alertMsg);
 
+      // เคลียร์ประวัติการเช็กอินในเครื่องของวันนี้สำหรับจุดนี้
+      const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
+      localStorage.removeItem(checkInKey);
+
       closeReportForm();
+      showAppreciationDuaModal();
+    }
+
+    function checkInTeacherPoint(pointId) {
+      const points = db.getDutyPoints();
+      const pt = points.find(p => p.id === pointId);
+      if (!pt) return;
+
+      const geo = getDutyGeofenceDistance(pt, mockLatitude, mockLongitude);
+      if (geo.distance > geo.radius) {
+        showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้ ไม่สามารถเช็คอินได้', 'error');
+        return;
+      }
+
+      const checkInKey = 'checkin_' + currentUser.id + '_' + pointId + '_' + getTodayISODate();
+      localStorage.setItem(checkInKey, Date.now().toString());
+      showToast('เช็คอินเริ่มปฏิบัติหน้าที่สำเร็จ! กรุณาอยู่ประจำจุดอย่างน้อย 20 นาที', 'success');
+      renderPage(currentPage);
+    }
+
+    function showIkhlasConfirmModal() {
+      const modal = document.getElementById('ikhlas-confirm-modal');
+      const listContainer = document.getElementById('ikhlas-co-reporters-list');
+      if (modal && listContainer && pendingSubmitReportData) {
+        const names = pendingSubmitReportData.pendingCoReportersCopy.map(c => `<li>• ${c.name}</li>`).join('');
+        listContainer.innerHTML = `<ul class="space-y-1">${names}</ul>`;
+        modal.classList.remove('hidden');
+      }
+    }
+
+    function closeIkhlasConfirm() {
+      const modal = document.getElementById('ikhlas-confirm-modal');
+      if (modal) modal.classList.add('hidden');
+      pendingSubmitReportData = null;
+      ikhlasConfirmed = false;
+    }
+
+    async function confirmAndSubmitReport() {
+      if (!pendingSubmitReportData) return;
+      
+      ikhlasConfirmed = true;
+      const modal = document.getElementById('ikhlas-confirm-modal');
+      if (modal) modal.classList.add('hidden');
+
+      // Restructure pendingSubmitReportData details into global states to let handleReportSubmit execute properly
+      const data = pendingSubmitReportData;
+      pendingCoReporters = data.pendingCoReportersCopy;
+      
+      // Execute submit without event
+      await handleReportSubmit(null);
+    }
+
+    function showAppreciationDuaModal() {
+      const modal = document.getElementById('appreciation-dua-modal');
+      const content = document.getElementById('appreciation-dua-content');
+      const settings = db.getSettings();
+      if (modal && content) {
+        content.textContent = settings.appreciationDuaText || 'ขออัลลอฮฺทรงตอบแทนความดีงามแก่ท่าน (ญะซากัลลอฮุ ค็อยร็อน) ที่มุ่งมั่นในการปฏิบัติหน้าที่ด้วยความอิคลาส และขอพระองค์ทรงให้ท่านยืนหยัดคงไว้ซึ่งความดีงามนี้ตลอดไป';
+        modal.classList.remove('hidden');
+      }
+    }
+
+    function closeAppreciationDuaModal() {
+      const modal = document.getElementById('appreciation-dua-modal');
+      if (modal) modal.classList.add('hidden');
       navigateTo('my-duty');
     }
 
@@ -6866,6 +7057,13 @@
       // Offline-first sync queue: ลองซิงค์อัตโนมัติเมื่อกลับมาออนไลน์ และทุก 30 วินาที
       window.addEventListener('online', processPendingSyncQueue);
       setInterval(processPendingSyncQueue, 30000);
+
+      // ดำเนินการรีเรนเดอร์หน้ารายการเวรทุกๆ 30 วินาที เพื่อรีเฟรชเวลานับถอยหลังปฏิบัติงาน
+      setInterval(() => {
+        if (currentPage === 'my-duty' && !isUserActivelyEditing()) {
+          renderPage('my-duty');
+        }
+      }, 30000);
 
       // ดึงข้อมูลล่าสุดจากคลาวด์มาบันทึกในแคชทุกๆ 60 วินาที เพื่อให้ข้อมูลหน้าจอทันสมัยเสมอเมื่อออนไลน์
       setInterval(async () => {
