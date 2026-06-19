@@ -1181,7 +1181,7 @@
 
     // ผู้ดูแลระบบเต็มสิทธิ์ (ไม่ใช่หัวหน้าเวรที่ถูกแต่งตั้งตามวัน) - ใช้แยกว่าควรถูกจำกัดเมนู/วันหรือไม่
     function isFullAdmin(user) {
-      return !!user && (user.role === 'admin' || user.role === 'chief' || user.role === 'director' || user.role === 'head');
+      return !!user && (user.role === 'admin' || user.role === 'chief' || user.role === 'director');
     }
 
     // หัวหน้างานเวร (คนเดียว) ที่ดูแลภาพรวมจุดเวรทั้งหมดทั้งชาย+หญิง และกำหนดช่วงเวลาแต่ละจุด
