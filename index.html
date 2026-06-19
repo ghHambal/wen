@@ -85,6 +85,70 @@
       </div>
     </div>
 
+    <!-- OFFLINE DATA DOWNLOAD MODAL -->
+    <div id="offline-download-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10005] hidden flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 flex flex-col transform transition-all scale-95 duration-300">
+        <div class="bg-brand-900 text-white p-5 text-center flex flex-col items-center gap-2">
+          <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center shadow-inner">
+            <i data-lucide="download-cloud" class="w-6 h-6 text-white"></i>
+          </div>
+          <h3 class="font-bold text-base tracking-wide mt-1">ดาวน์โหลดข้อมูลเพื่อใช้งานออฟไลน์</h3>
+          <p class="text-xs text-brand-200">ประหยัดปริมาณการใช้เน็ตมือถือและช่วยให้ระบบทำงานเร็วขึ้น 10 เท่า</p>
+        </div>
+        
+        <div class="p-6 space-y-4 text-xs leading-relaxed text-slate-600">
+          <p class="font-bold text-slate-800 text-center text-sm">ดาวน์โหลดฐานข้อมูลที่จำเป็นเก็บไว้ในเครื่องของคุณ</p>
+          
+          <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div class="flex items-start gap-2.5">
+              <i data-lucide="zap" class="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0"></i>
+              <div>
+                <p class="font-bold text-slate-700">โหลดข้อมูลเร็วพิเศษ (Instant Load)</p>
+                <p class="text-[10px] text-slate-400">ภาพโลโก้ พิกัดแผนที่ และลายเซ็นครูจะถูกดึงจากในเครื่องทันที ไม่ต้องรอดาวน์โหลดใหม่ทุกครั้งที่เปิดเว็บ</p>
+              </div>
+            </div>
+            
+            <div class="flex items-start gap-2.5">
+              <i data-lucide="database" class="w-4 h-4 text-brand-600 mt-0.5 flex-shrink-0"></i>
+              <div>
+                <p class="font-bold text-slate-700">ประหยัดเน็ตมือถือ (Bandwidth Saving)</p>
+                <p class="text-[10px] text-slate-400">ลดการดึงข้อมูลรูปโปรไฟล์และลายเซ็นขนาดใหญ่ซ้ำๆ ผ่านเน็ตมือถือของคุณครู</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-2.5">
+              <i data-lucide="wifi-off" class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0"></i>
+              <div>
+                <p class="font-bold text-slate-700">รองรับโหมดไม่มีสัญญาณเน็ต (Offline Resilience)</p>
+                <p class="text-[10px] text-slate-400">คุณครูสามารถลงลายเซ็น ถ่ายรูป และยืนยันเวรได้ตามปกติ ระบบจะส่งขึ้นคลาวด์เมื่อเน็ตกลับมาใช้งานได้</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Loading Progress Container -->
+          <div id="offline-download-progress-container" class="hidden space-y-2 py-2">
+            <div class="flex justify-between text-[10px] text-brand-800 font-bold">
+              <span id="offline-download-status-text">กำลังเริ่มต้นการดาวน์โหลด...</span>
+              <span id="offline-download-percentage">0%</span>
+            </div>
+            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+              <div id="offline-download-progress-bar" class="bg-brand-600 h-full rounded-full transition-all duration-300 w-0"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="offline-download-actions" class="p-4 bg-slate-50 border-t flex flex-col sm:flex-row gap-2 justify-end">
+          <button onclick="closeOfflinePromptModal(false)" class="text-slate-500 hover:text-slate-700 hover:bg-slate-200 px-4 py-2.5 rounded-xl font-bold transition text-center text-xs">
+            ข้ามไปก่อน (ใช้งานปกติ)
+          </button>
+          <button onclick="startOfflineAssetDownload()" class="bg-brand-800 hover:bg-brand-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition flex items-center justify-center gap-1.5 text-xs">
+            <i data-lucide="download-cloud" class="w-4 h-4"></i>
+            <span>ดาวน์โหลดข้อมูลและเริ่มใช้งาน</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- LOGIN PAGE -->
     <div id="page-login" class="h-full w-full flex items-center justify-center p-4 min-h-screen" style="background: linear-gradient(135deg, #14532d 0%, #166534 50%, #14532d 100%);">
       <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl w-full max-w-md p-8 border border-white/20 fade-in">
@@ -669,6 +733,123 @@
       }
       isSyncing = false;
       updateDatabaseStatusUI();
+    }
+
+    // ฟังก์ชันขอคำอนุมัติเปิดให้ดาวน์โหลดข้อมูลมาเซฟในเครื่องเมื่อล็อกอินครั้งแรก
+    function checkAndPromptOfflineDownload() {
+      const isDownloaded = localStorage.getItem('wen_assets_downloaded');
+      if (isDownloaded === 'true') {
+        // ถ้าเคยโหลดเสร็จสิ้นแล้ว ให้ผ่านเข้าสู่ระบบได้เลย
+        return;
+      }
+      
+      // แสดงโมดอลป๊อปอัปให้ดาวน์โหลดข้อมูล
+      const modal = document.getElementById('offline-download-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        // รีเซ็ตการตั้งค่าแสดงผลของส่วนโหลด
+        const progressContainer = document.getElementById('offline-download-progress-container');
+        const actionsContainer = document.getElementById('offline-download-actions');
+        if (progressContainer) progressContainer.classList.add('hidden');
+        if (actionsContainer) actionsContainer.classList.remove('hidden');
+      }
+    }
+
+    function closeOfflinePromptModal(isDownloaded = false) {
+      const modal = document.getElementById('offline-download-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+      }
+      if (isDownloaded) {
+        localStorage.setItem('wen_assets_downloaded', 'true');
+        showToast('ตั้งค่าระบบฐานข้อมูลออฟไลน์เรียบร้อยแล้ว!', 'success');
+      } else {
+        showToast('คุณข้ามการดาวน์โหลดระบบชั่วคราว ข้อมูลบางอย่างอาจโหลดช้าลง', 'info');
+      }
+    }
+
+    async function startOfflineAssetDownload() {
+      const statusText = document.getElementById('offline-download-status-text');
+      const progressBar = document.getElementById('offline-download-progress-bar');
+      const percentageText = document.getElementById('offline-download-percentage');
+      const progressContainer = document.getElementById('offline-download-progress-container');
+      const actionsContainer = document.getElementById('offline-download-actions');
+
+      if (progressContainer) progressContainer.classList.remove('hidden');
+      if (actionsContainer) actionsContainer.classList.add('hidden');
+
+      const updateProgress = (text, percent) => {
+        if (statusText) statusText.textContent = text;
+        if (progressBar) progressBar.style.width = percent + '%';
+        if (percentageText) percentageText.textContent = percent + '%';
+      };
+
+      try {
+        if (!useSupabase || !supabaseClient) {
+          updateProgress('เชื่อมต่อคลาวด์ขัดข้อง กำลังเชื่อมต่อใหม่...', 10);
+          await initSupabase();
+          if (!useSupabase) {
+            throw new Error("Cannot connect to Supabase Cloud.");
+          }
+        }
+
+        // ค่อยๆ โหลดทีละตารางเพื่อให้มองเห็นความคืบหน้า (Progress)
+        updateProgress('กำลังเชื่อมต่อฐานข้อมูลคลาวด์...', 15);
+        await new Promise(r => setTimeout(r, 300));
+
+        // 1. Sync Settings
+        updateProgress('กำลังดาวน์โหลดข้อมูลการตั้งค่า โลโก้ และสีของระบบ...', 35);
+        try {
+          const settings = await supabaseClient.from('settings').select('*').eq('id', 'config');
+          if (settings.data && settings.data.length > 0) {
+            const mappedSettings = mapSettingsFromDB(settings.data[0]);
+            db.saveSettings(mappedSettings);
+          }
+        } catch (err) { console.warn("Failed to sync settings table:", err); }
+        await new Promise(r => setTimeout(r, 300));
+
+        // 2. Sync Teachers
+        updateProgress('กำลังดาวน์โหลดรายชื่อ ลายเซ็นครู และรูปโปรไฟล์คณะครู...', 60);
+        try {
+          const teachers = await supabaseClient.from('teachers').select('*');
+          if (teachers.data && teachers.data.length > 0) db.saveTeachers(teachers.data);
+        } catch (err) { console.warn("Failed to sync teachers table:", err); }
+        await new Promise(r => setTimeout(r, 300));
+
+        // 3. Sync Duty Points
+        updateProgress('กำลังดาวน์โหลดข้อมูลจุดเวรและพิกัดแผนที่ทั้ง 41 จุด...', 80);
+        try {
+          const points = await supabaseClient.from('duty_points').select('*').order('id');
+          if (points.data && points.data.length > 0) {
+            const mappedPoints = points.data.map(mapDutyPointFromDB);
+            db.saveDutyPoints(mappedPoints);
+          }
+        } catch (err) { console.warn("Failed to sync duty_points table:", err); }
+        await new Promise(r => setTimeout(r, 300));
+
+        // 4. Sync Reports & Leave Requests
+        updateProgress('กำลังดาวน์โหลดข้อมูลประวัติรายงานเวรและคำขอลา...', 95);
+        try {
+          const reports = await supabaseClient.from('reports').select('*');
+          if (reports.data) db.saveReports(reports.data.map(mapReportFromDB));
+          const leaveRequests = await supabaseClient.from('leave_requests').select('*');
+          if (leaveRequests.data) db.saveLeaveRequests(leaveRequests.data.map(mapLeaveRequestFromDB));
+        } catch (err) { console.warn("Failed to sync reports/leave tables:", err); }
+        await new Promise(r => setTimeout(r, 300));
+
+        updateProgress('การดาวน์โหลดฐานข้อมูลเสร็จสมบูรณ์ 100%!', 100);
+        await new Promise(r => setTimeout(r, 400));
+        
+        closeOfflinePromptModal(true);
+        updateDynamicTitles();
+        buildSidebar();
+        renderPage(currentPage);
+      } catch (err) {
+        console.error("Offline download failed:", err);
+        updateProgress('การเชื่อมต่อล้มเหลว กรุณาเช็คอินเทอร์เน็ตแล้วลองใหม่', 0);
+        if (actionsContainer) actionsContainer.classList.remove('hidden');
+        showToast('ไม่สามารถดาวน์โหลดข้อมูลได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง', 'error');
+      }
     }
 
     let isManualSyncing = false;
@@ -1266,14 +1447,16 @@
         navigateTo(activeRoleMode === 'head' ? 'dashboard' : 'my-duty');
         showToast(`เข้าสู่ระบบสำเร็จ! สวัสดีครับ ${currentUser.name}`, 'success');
 
-        // ดึงการตั้งค่าล่าสุดทั้งหมดจาก Cloud ทันทีเพื่ออัปเดตพิกัด/โลโก้/ผู้รับผิดชอบ โดยไม่ต้องรอหรือดึงแคชเก่า
-        if (useSupabase && supabaseClient) {
-          showToast('กำลังดาวน์โหลดข้อมูลการตั้งค่าระบบและจุดเวรล่าสุด...', 'info');
+        // ตรวจสอบความจำเป็นในการดาวน์โหลดฐานข้อมูลออฟไลน์ครั้งแรก
+        checkAndPromptOfflineDownload();
+
+        // ดึงการตั้งค่าล่าสุดทั้งหมดจาก Cloud ในพื้นหลังทันทีเมื่อเข้าใช้งาน เพื่อรีเฟรชข้อมูลหากเคยดาวน์โหลดไว้แล้ว
+        const isDownloaded = localStorage.getItem('wen_assets_downloaded');
+        if (isDownloaded === 'true' && useSupabase && supabaseClient) {
           syncCloudDataToLocal().then(() => {
             updateDynamicTitles();
             buildSidebar();
             renderPage(currentPage);
-            showToast('ดึงข้อมูลการตั้งค่าจากคลาวด์ล่าสุดเสร็จสิ้น', 'success');
           }).catch(err => {
             console.error("Post-login sync failed:", err);
           });
@@ -1747,8 +1930,12 @@
           navigateTo(activeRoleMode === 'head' ? 'dashboard' : 'my-duty');
           showToast(`เข้าใช้งานต่อในชื่อ: ${currentUser.name} สำเร็จ`, 'success');
 
-          // ดึงการตั้งค่าล่าสุดทั้งหมดจาก Cloud ทันทีเพื่ออัปเดตพิกัด/โลโก้/ผู้รับผิดชอบ โดยไม่ต้องใช้แคชเก่า
-          if (useSupabase && supabaseClient) {
+          // ตรวจสอบความจำเป็นในการดาวน์โหลดฐานข้อมูลออฟไลน์ครั้งแรก
+          checkAndPromptOfflineDownload();
+
+          // ดึงการตั้งค่าล่าสุดทั้งหมดจาก Cloud ในพื้นหลังทันทีเมื่อเข้าใช้งาน เพื่อรีเฟรชข้อมูลหากเคยดาวน์โหลดไว้แล้ว
+          const isDownloaded = localStorage.getItem('wen_assets_downloaded');
+          if (isDownloaded === 'true' && useSupabase && supabaseClient) {
             syncCloudDataToLocal().then(() => {
               updateDynamicTitles();
               buildSidebar();
