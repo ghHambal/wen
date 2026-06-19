@@ -162,7 +162,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.32.4</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.32.5</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
           </div>
@@ -253,7 +253,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.32.4</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.32.5</div>
           </div>
         </aside>
 
@@ -356,7 +356,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.32.4</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.32.5</div>
         </div>
       </aside>
 
@@ -734,7 +734,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.32.4';
+    const APP_VERSION = '1.32.5';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -6842,6 +6842,27 @@
         }
       });
 
+      // Check if user is currently editing a form, has a modal open, or is on a settings/config page
+      function isUserActivelyEditing() {
+        // Any modal or full overlay (fixed + inset-0) that is currently visible (not hidden)
+        const openModal = document.querySelector('.fixed.inset-0:not(.hidden)');
+        if (openModal) return true;
+
+        // Any input, textarea, or select currently focused by the user
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
+          return true;
+        }
+
+        // Configuration or form pages that are highly interactive
+        const formPages = ['settings', 'profile-settings', 'memo'];
+        if (formPages.includes(currentPage)) {
+          return true;
+        }
+
+        return false;
+      }
+
       // Offline-first sync queue: ลองซิงค์อัตโนมัติเมื่อกลับมาออนไลน์ และทุก 30 วินาที
       window.addEventListener('online', processPendingSyncQueue);
       setInterval(processPendingSyncQueue, 30000);
@@ -6852,9 +6873,16 @@
           try {
             console.log("Auto background sync initiated...");
             await syncCloudDataToLocal();
-            updateDynamicTitles();
-            buildSidebar();
-            if (typeof renderPage === 'function') renderPage(currentPage);
+            
+            // Only update UI if the user is not actively editing to prevent form resetting or focus loss
+            if (!isUserActivelyEditing()) {
+              updateDynamicTitles();
+              buildSidebar();
+              if (typeof renderPage === 'function') renderPage(currentPage);
+              console.log("UI updated post background sync.");
+            } else {
+              console.log("Background sync completed. UI refresh skipped because user is actively editing.");
+            }
           } catch (e) {
             console.warn("Auto background sync failed:", e);
           }
