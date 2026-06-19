@@ -145,6 +145,11 @@
           <span class="font-bold text-sm tracking-wide" id="mobile-header-school">ร.ร.มูลนิธิอาซิซสถาน</span>
         </div>
         <div class="flex items-center gap-2">
+          <!-- Mobile Sync Button -->
+          <button onclick="triggerManualSync()" id="sync-btn-mobile" class="p-1.5 hover:bg-white/10 rounded-lg transition" title="ดึงข้อมูลล่าสุด">
+            <i data-lucide="refresh-cw" class="w-4 h-4 text-white" id="sync-icon-mobile"></i>
+          </button>
+
           <!-- Database status indicator on mobile header -->
           <button onclick="openSqlModal()" id="db-status-mobile" class="text-[10px] px-2 py-0.5 rounded-full font-bold border"></button>
           <span id="pending-sync-badge-mobile" class="hidden text-[9px] px-1.5 py-0.5 rounded-full font-bold border border-amber-400/50 bg-amber-500/20 text-amber-200"></span>
@@ -196,6 +201,11 @@
             <h2 id="page-title" class="font-bold text-lg text-brand-900">Dashboard</h2>
             
             <div class="flex items-center gap-4">
+              <!-- Desktop Sync Button -->
+              <button onclick="triggerManualSync()" id="sync-btn-desktop" class="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 hover:text-slate-800 rounded-lg text-xs font-semibold transition border border-slate-200" title="ดึงข้อมูลล่าสุดจากคลาวด์">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="sync-icon-desktop"></i>
+                <span>🔄 ดึงข้อมูลล่าสุด</span>
+              </button>
               <!-- Live Notification Panel Toggle -->
               <div class="relative">
                 <button onclick="toggleNotificationPanel()" class="p-2 hover:bg-slate-100 rounded-full text-slate-500 relative transition">
@@ -661,6 +671,44 @@
       updateDatabaseStatusUI();
     }
 
+    let isManualSyncing = false;
+    async function triggerManualSync() {
+      if (isManualSyncing) return;
+      
+      const iconD = document.getElementById('sync-icon-desktop');
+      const iconM = document.getElementById('sync-icon-mobile');
+      
+      if (iconD) iconD.classList.add('animate-spin');
+      if (iconM) iconM.classList.add('animate-spin');
+      
+      isManualSyncing = true;
+      showToast('กำลังดาวน์โหลดข้อมูลล่าสุดจากคลาวด์...', 'info');
+      
+      try {
+        if (useSupabase && supabaseClient) {
+          await syncCloudDataToLocal();
+          updateDynamicTitles();
+          buildSidebar();
+          renderPage(currentPage);
+          showToast('ปรับปรุงข้อมูลล่าสุดจากคลาวด์เรียบร้อยแล้ว!', 'success');
+        } else {
+          // ลองเชื่อมต่อคลาวด์ใหม่อีกรอบเผื่อเน็ตกลับมาใช้ได้
+          await initSupabase();
+          if (useSupabase) {
+            showToast('เชื่อมต่อคลาวด์สำเร็จและปรับปรุงข้อมูลแล้ว!', 'success');
+          } else {
+            showToast('ไม่สามารถเชื่อมต่อคลาวด์ได้ ระบบอยู่ในโหมดออฟไลน์', 'warning');
+          }
+        }
+      } catch (err) {
+        console.error("Manual sync failed:", err);
+        showToast('การดึงข้อมูลขัดข้อง กรุณาตรวจสอบอินเทอร์เน็ต', 'error');
+      } finally {
+        isManualSyncing = false;
+        if (iconD) iconD.classList.remove('animate-spin');
+        if (iconM) iconM.classList.remove('animate-spin');
+      }
+    }
 
     // Sync cloud tables to cache
     async function syncCloudDataToLocal() {
@@ -6557,6 +6605,21 @@
       // Offline-first sync queue: ลองซิงค์อัตโนมัติเมื่อกลับมาออนไลน์ และทุก 30 วินาที
       window.addEventListener('online', processPendingSyncQueue);
       setInterval(processPendingSyncQueue, 30000);
+
+      // ดึงข้อมูลล่าสุดจากคลาวด์มาบันทึกในแคชทุกๆ 60 วินาที เพื่อให้ข้อมูลหน้าจอทันสมัยเสมอเมื่อออนไลน์
+      setInterval(async () => {
+        if (useSupabase && supabaseClient && currentUser && !isSyncing && !isManualSyncing) {
+          try {
+            console.log("Auto background sync initiated...");
+            await syncCloudDataToLocal();
+            updateDynamicTitles();
+            buildSidebar();
+            if (typeof renderPage === 'function') renderPage(currentPage);
+          } catch (e) {
+            console.warn("Auto background sync failed:", e);
+          }
+        }
+      }, 60000);
     });
 
     // Handle touch coordinate actions in Canvas signature drawing modal
