@@ -162,7 +162,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.32.3</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.32.4</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
           </div>
@@ -253,7 +253,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.32.3</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.32.4</div>
           </div>
         </aside>
 
@@ -356,7 +356,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.32.3</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.32.4</div>
         </div>
       </aside>
 
@@ -642,10 +642,45 @@
       };
     }
 
+    // Memory cache to bypass 5MB localStorage limit for heavy base64 data
+    window.cloudTeachersFullList = null;
+    window.cloudReportsFullList = null;
+
     // Local DB backup
     const db = {
-      getTeachers: () => JSON.parse(localStorage.getItem('wen_teachers')) || defaultTeachers,
-      saveTeachers: (data) => localStorage.setItem('wen_teachers', JSON.stringify(data)),
+      getTeachers: () => {
+        if (window.cloudTeachersFullList && window.cloudTeachersFullList.length > 0) {
+          return window.cloudTeachersFullList;
+        }
+        return JSON.parse(localStorage.getItem('wen_teachers')) || defaultTeachers;
+      },
+      saveTeachers: (data) => {
+        if (!data || !Array.isArray(data)) return;
+        window.cloudTeachersFullList = data;
+        
+        // Find self ID to avoid pruning the logged-in user's signature/avatar
+        const loginIdEl = document.getElementById('login-id');
+        const currentLoginId = loginIdEl ? loginIdEl.value.trim().toLowerCase() : '';
+        
+        const pruned = data.map(t => {
+          const isSelf = (currentUser && t.id === currentUser.id) || 
+                         (currentLoginId && (t.id.toLowerCase() === currentLoginId || t.phone === currentLoginId));
+          if (isSelf) {
+            return t; // Keep current user's profile complete
+          }
+          return {
+            ...t,
+            avatar: null,      // Prune base64 avatar
+            signature: null    // Prune base64 signature
+          };
+        });
+        
+        try {
+          localStorage.setItem('wen_teachers', JSON.stringify(pruned));
+        } catch (err) {
+          console.error("Failed to write wen_teachers to localStorage:", err);
+        }
+      },
       getDutyPoints: () => {
         const raw = JSON.parse(localStorage.getItem('wen_dutyPoints'));
         if (!raw || !Array.isArray(raw)) return defaultDutyPoints;
@@ -653,11 +688,29 @@
       },
       saveDutyPoints: (data) => localStorage.setItem('wen_dutyPoints', JSON.stringify(data)),
       getReports: () => {
+        if (window.cloudReportsFullList && window.cloudReportsFullList.length > 0) {
+          return window.cloudReportsFullList;
+        }
         const raw = JSON.parse(localStorage.getItem('wen_reports'));
         if (!raw || !Array.isArray(raw)) return defaultReports;
         return raw.map(mapReportFromDB);
       },
-      saveReports: (data) => localStorage.setItem('wen_reports', JSON.stringify(data)),
+      saveReports: (data) => {
+        if (!data || !Array.isArray(data)) return;
+        window.cloudReportsFullList = data;
+        
+        const pruned = data.map(r => ({
+          ...r,
+          photo: null,      // Prune base64 photo
+          signature: null    // Prune base64 signature
+        }));
+        
+        try {
+          localStorage.setItem('wen_reports', JSON.stringify(pruned));
+        } catch (err) {
+          console.error("Failed to write wen_reports to localStorage:", err);
+        }
+      },
       getSettings: () => {
         const raw = JSON.parse(localStorage.getItem('wen_settings'));
         if (!raw) return defaultSettings;
@@ -681,7 +734,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.32.3';
+    const APP_VERSION = '1.32.4';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
