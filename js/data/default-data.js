@@ -1521,7 +1521,8 @@
       systemLogo: '',
       systemTitle: 'ระบบบันทึกและติดตามการปฏิบัติเวร',
       systemColor: '#14532d',
-      headsOfDay: {}
+      headsOfDay: {},
+      ikhlasConfirmText: 'ท่านขอยืนยันด้วยความสัตย์จริงต่อตนเองและอัลลอฮฺ (ซ.บ.) ว่า ผู้ร่วมปฏิบัติหน้าที่เวรที่เพิ่มเข้ามาในรายงานนี้ ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่า 20 นาที ตามเงื่อนไขของระบบ'
     };
 
     // SQL code block template string
@@ -1587,7 +1588,8 @@ CREATE TABLE IF NOT EXISTS settings (
   system_logo TEXT,
   system_title TEXT,
   system_color TEXT,
-  heads_of_day TEXT DEFAULT '{}'
+  heads_of_day TEXT DEFAULT '{}',
+  ikhlas_confirm_text TEXT
 );
 
 -- 4.1 สร้างตารางคำขอลา
@@ -1872,8 +1874,9 @@ ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_logo TEXT;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_title TEXT;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_color TEXT;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS heads_of_day TEXT DEFAULT '{}';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS ikhlas_confirm_text TEXT;
 
-INSERT INTO settings (id, school_name, head_name, director_name, line_token, telegram_token, telegram_chat_id, auto_notify_minutes, duty_day, duty_group, default_radius, center_lat, center_lng, system_logo, system_title, system_color, heads_of_day) VALUES
-('config', 'โรงเรียนมูลนิธิอาซิซสถาน', 'นาย ฮัมบาลี วาจิ', 'ดร.มูฮัมหมัด ซากี', '', '', '', 15, 'อังคาร', 'ครูชาย', 50, 6.787680, 101.408120, NULL, 'ระบบบันทึกและติดตามการปฏิบัติเวร', '#14532d', '{}')
+INSERT INTO settings (id, school_name, head_name, director_name, line_token, telegram_token, telegram_chat_id, auto_notify_minutes, duty_day, duty_group, default_radius, center_lat, center_lng, system_logo, system_title, system_color, heads_of_day, ikhlas_confirm_text) VALUES
+('config', 'โรงเรียนมูลนิธิอาซิซสถาน', 'นาย ฮัมบาลี วาจิ', 'ดร.มูฮัมหมัด ซากี', '', '', '', 15, 'อังคาร', 'ครูชาย', 50, 6.787680, 101.408120, NULL, 'ระบบบันทึกและติดตามการปฏิบัติเวร', '#14532d', '{}', 'ท่านขอยืนยันด้วยความสัตย์จริงต่อตนเองและอัลลอฮฺ (ซ.บ.) ว่า ผู้ร่วมปฏิบัติหน้าที่เวรที่เพิ่มเข้ามาในรายงานนี้ ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่า 20 นาที ตามเงื่อนไขของระบบ')
 ON CONFLICT (id) DO NOTHING;
 `;

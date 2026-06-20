@@ -162,7 +162,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.32.8</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.32.9</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
           </div>
@@ -253,7 +253,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.32.8</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.32.9</div>
           </div>
         </aside>
 
@@ -356,7 +356,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.32.8</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.32.9</div>
         </div>
       </aside>
 
@@ -611,7 +611,8 @@
         headsOfDay: parsedHeads,
         headMenuPermissions: parsedHeadPerms,
         dutyOperationsHeadId: dbSett.duty_operations_head_id || dbSett.dutyOperationsHeadId || local.dutyOperationsHeadId || '',
-        appreciationDuaText: dbSett.appreciation_dua_text || dbSett.appreciationDuaText || local.appreciationDuaText || 'ขออัลลอฮฺทรงตอบแทนความดีงามแก่ท่าน (ญะซากัลลอฮุ ค็อยร็อน) ที่มุ่งมั่นในการปฏิบัติหน้าที่ด้วยความอิคลาส และขอพระองค์ทรงให้ท่านยืนหยัดคงไว้ซึ่งความดีงามนี้ตลอดไป'
+        appreciationDuaText: dbSett.appreciation_dua_text || dbSett.appreciationDuaText || local.appreciationDuaText || 'ขออัลลอฮฺทรงตอบแทนความดีงามแก่ท่าน (ญะซากัลลอฮุ ค็อยร็อน) ที่มุ่งมั่นในการปฏิบัติหน้าที่ด้วยความอิคลาส และขอพระองค์ทรงให้ท่านยืนหยัดคงไว้ซึ่งความดีงามนี้ตลอดไป',
+        ikhlasConfirmText: dbSett.ikhlas_confirm_text || dbSett.ikhlasConfirmText || local.ikhlasConfirmText || DEFAULT_IKHLAS_CONFIRM_TEXT
       };
     }
 
@@ -640,7 +641,8 @@
         heads_of_day: jsSett.headsOfDay ? (typeof jsSett.headsOfDay === 'object' ? JSON.stringify(jsSett.headsOfDay) : jsSett.headsOfDay) : '{}',
         head_menu_permissions: jsSett.headMenuPermissions ? JSON.stringify(jsSett.headMenuPermissions) : JSON.stringify(adminMenus.map(m => m.id)),
         duty_operations_head_id: jsSett.dutyOperationsHeadId || null,
-        appreciation_dua_text: jsSett.appreciationDuaText || ''
+        appreciation_dua_text: jsSett.appreciationDuaText || '',
+        ikhlas_confirm_text: jsSett.ikhlasConfirmText || DEFAULT_IKHLAS_CONFIRM_TEXT
       };
     }
 
@@ -736,7 +738,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.32.8';
+    const APP_VERSION = '1.32.9';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1199,6 +1201,8 @@
     let modalMapMarker2 = null; // marker for บริเวณที่ 2 (lat2/lng2)
     let modalPickerTarget = 'primary'; // 'primary' | 'secondary' - บริเวณที่กำลังเลือกจากแผนที่
 
+    const DEFAULT_IKHLAS_CONFIRM_TEXT = 'ท่านขอยืนยันด้วยความสัตย์จริงต่อตนเองและอัลลอฮฺ (ซ.บ.) ว่า ผู้ร่วมปฏิบัติหน้าที่เวรที่เพิ่มเข้ามาในรายงานนี้ ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่า 20 นาที ตามเงื่อนไขของระบบ';
+
     const adminMenus = [
       { id: 'dashboard', icon: 'layout-dashboard', label: 'Dashboard' },
       { id: 'executive-overview', icon: 'award', label: 'ภาพรวมผู้บริหาร' },
@@ -1247,7 +1251,19 @@
 
     // ผู้ดูแลระบบเต็มสิทธิ์ (ไม่ใช่หัวหน้าเวรที่ถูกแต่งตั้งตามวัน) - ใช้แยกว่าควรถูกจำกัดเมนู/วันหรือไม่
     function isFullAdmin(user) {
-      return !!user && (user.role === 'admin' || user.role === 'chief' || user.role === 'director');
+      if (!user) return false;
+      const role = String(user.role || '').toLowerCase();
+      const id = String(user.id || '').toLowerCase();
+      return ['admin', 'chief', 'director'].includes(role) || ['admin', 'chief', 'director'].includes(id) || user.isAdmin === true;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
     }
 
     // หัวหน้างานเวร (คนเดียว) ที่ดูแลภาพรวมจุดเวรทั้งหมดทั้งชาย+หญิง และกำหนดช่วงเวลาแต่ละจุด
@@ -5095,6 +5111,15 @@
                 </div>
               </div>
 
+              <!-- ข้อความยืนยันความบริสุทธิ์ใจในรายงานร่วม -->
+              <div class="border-t pt-4 space-y-3">
+                <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="shield-check" class="w-4 h-4 text-brand-700"></i>ข้อความป๊อปอัพยืนยันความบริสุทธิ์ใจ</h4>
+                <p class="text-[10px] text-slate-400">ข้อความนี้จะแสดงในป๊อปอัพก่อนส่งรายงานที่มีผู้เข้าร่วมเวร ทั้งฟอร์มจริงและหน้าจำลอง โดยระบบจะแสดงรายชื่อผู้ร่วมเวรต่อท้ายข้อความนี้อัตโนมัติ</p>
+                <div>
+                  <textarea id="sett-ikhlas-confirm-text" rows="4" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 leading-relaxed">${escapeHtml(settings.ikhlasConfirmText || DEFAULT_IKHLAS_CONFIRM_TEXT)}</textarea>
+                </div>
+              </div>
+
               <!-- สิทธิ์การเข้าถึงเมนูของหัวหน้าเวร -->
               <div class="border-t pt-4 space-y-3">
                 <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="shield-check" class="w-4 h-4 text-brand-700"></i>สิทธิ์การเข้าถึงเมนูของหัวหน้าเวร</h4>
@@ -5172,7 +5197,8 @@
 
         // หัวหน้างานเวร (ผู้อนุมัติลำดับสุดท้าย)
         dutyOperationsHeadId: document.getElementById('sett-duty-operations-head') ? document.getElementById('sett-duty-operations-head').value : (current.dutyOperationsHeadId || ''),
-        appreciationDuaText: document.getElementById('sett-appreciation-dua-text') ? document.getElementById('sett-appreciation-dua-text').value.trim() : (current.appreciationDuaText || '')
+        appreciationDuaText: document.getElementById('sett-appreciation-dua-text') ? document.getElementById('sett-appreciation-dua-text').value.trim() : (current.appreciationDuaText || ''),
+        ikhlasConfirmText: document.getElementById('sett-ikhlas-confirm-text') ? (document.getElementById('sett-ikhlas-confirm-text').value.trim() || DEFAULT_IKHLAS_CONFIRM_TEXT) : (current.ikhlasConfirmText || DEFAULT_IKHLAS_CONFIRM_TEXT)
       };
 
       await saveSettingsDB(settings);
@@ -5225,6 +5251,8 @@
     function renderMyDutyView() {
       myDutyMaps = {}; // Reset mini-maps on re-render
       myDutyRenderedDate = getTodayISODate();
+      const settings = db.getSettings();
+      const ikhlasConfirmText = escapeHtml(settings.ikhlasConfirmText || DEFAULT_IKHLAS_CONFIRM_TEXT);
       const todayDay = getTodayThaiDayName();
       const myPoints = getMyDutyPoints();
       const reports = db.getReports().filter(r => r.date === getTodayISODate() && r.teacherId === currentUser.id);
@@ -5709,7 +5737,7 @@
               </div>
             </div>
             <div class="p-6 space-y-4 text-slate-700 text-[11px] leading-relaxed">
-              <p>ท่านขอยืนยันด้วยความสัตย์จริงต่อตนเองและอัลลอฮฺ (ซ.บ.) ว่า ผู้ร่วมปฏิบัติหน้าที่เวรที่เพิ่มเข้ามาในรายงาน ได้แก่:</p>
+              <p>${ikhlasConfirmText}</p>
               
               <div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 space-y-1.5 font-bold text-amber-900" id="ikhlas-co-reporters-list">
                 <!-- Will be dynamically populated -->
@@ -6471,6 +6499,8 @@
     }
 
     function renderSandboxReportWorkflowModals() {
+      const settings = db.getSettings();
+      const ikhlasConfirmText = escapeHtml(settings.ikhlasConfirmText || DEFAULT_IKHLAS_CONFIRM_TEXT);
       return `
         <div id="sandbox-report-modal" class="fixed inset-0 bg-black/60 z-[200] hidden flex items-center justify-center p-3 sm:p-4">
           <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border">
@@ -6574,9 +6604,7 @@
               <h4 class="font-bold text-xs">ยืนยันความบริสุทธิ์ใจในการรายงานร่วม</h4>
             </div>
             <div class="p-6 space-y-4 text-slate-700 text-[11px] leading-relaxed">
-              <p class="font-semibold">
-                ครูเจ้าของเครื่องขอยืนยันด้วยความบริสุทธิ์ใจว่า ผู้เข้าร่วมเวรที่เพิ่มในรายงานจำลองนี้ได้อยู่ร่วมปฏิบัติหน้าที่จริง ณ จุดเวรตามเงื่อนไขที่กำหนด
-              </p>
+              <p class="font-semibold">${ikhlasConfirmText}</p>
 
               <div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 space-y-1.5 font-bold text-amber-900" id="sandbox-ikhlas-co-reporters-list"></div>
 
@@ -6782,12 +6810,7 @@
     }
 
     function escapeSandboxText(value) {
-      return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+      return escapeHtml(value);
     }
 
     function renderSandboxCoReporterList() {
