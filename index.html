@@ -162,7 +162,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.32.9</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.33.0</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
           </div>
@@ -253,7 +253,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.32.9</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.33.0</div>
           </div>
         </aside>
 
@@ -356,7 +356,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.32.9</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.33.0</div>
         </div>
       </aside>
 
@@ -738,7 +738,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.32.9';
+    const APP_VERSION = '1.33.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1233,6 +1233,10 @@
     let currentScheduleViewDay = null;
     let activeRoleMode = 'teacher';
     let currentExecutiveGroupFilter = 'all'; // 'all', 'ชาย', 'หญิง'
+    let currentExecutivePeriodMode = 'week'; // 'week' | 'month' | 'semester'
+    let currentExecutiveWeek = null;
+    let currentExecutiveMonth = null; // YYYY-MM
+    let currentExecutiveDutyGroupTab = 'ครูชาย';
     let currentDutyPointsGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าตั้งค่าพิกัด
     let currentScheduleGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าจัดการตารางเวร
     let currentDocumentsDate = null; // วันที่เลือกในหน้าเอกสารรายงานทางการ (YYYY-MM-DD)
@@ -2424,61 +2428,141 @@
     }
 
     function getExecutiveStats() {
-      const teachers = db.getTeachers().filter(t => t.id !== 'admin' && t.id !== 'chief' && t.id !== 'director');
-      let reports = db.getReports();
-      
-      let isMocked = false;
-      if (reports.length === 0) {
-        isMocked = true;
-        reports = [];
-        const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
-        const points = db.getDutyPoints();
-        
-        for (let week = 0; week < 2; week++) {
-          days.forEach(day => {
-            points.forEach(p => {
-              const assignedList = p.assignedTo || p.assigned_to || [];
-              const dayTeachers = [];
-              assignedList.forEach(item => {
-                if (item.includes(':')) {
-                  const [itemDay, itemTeacherId] = item.split(':');
-                  if (itemDay === day) dayTeachers.push(itemTeacherId);
-                }
-              });
-              
-              dayTeachers.forEach(teacherId => {
-                if (Math.random() < 0.92) {
-                  const isLate = Math.random() < 0.15;
-                  const isProblem = Math.random() < 0.05;
-                  reports.push({
-                    id: `mock-${week}-${day}-${p.id}-${teacherId}`,
-                    pointId: p.id,
-                    teacherId: teacherId,
-                    date: `2026-06-0${week * 5 + 1}`,
-                    time: p.time.split('-')[0],
-                    status: isProblem ? 'problem' : 'reported',
-                    isLate: isLate,
-                    lat: p.lat + (Math.random() - 0.5) * 0.0001,
-                    lng: p.lng + (Math.random() - 0.5) * 0.0001,
-                    distance: Math.random() * 30
-                  });
-                }
-              });
-            });
-          });
-        }
-      }
-      
-      return { reports, isMocked };
+      return { reports: db.getReports(), isMocked: false };
     }
 
     function changeExecutiveGroupFilter(val) {
       currentExecutiveGroupFilter = val;
+      rerenderExecutiveOverview();
+    }
+
+    function changeExecutivePeriodMode(val) {
+      currentExecutivePeriodMode = val;
+      rerenderExecutiveOverview();
+    }
+
+    function changeExecutiveWeek(val) {
+      currentExecutiveWeek = parseInt(val) || currentExecutiveWeek;
+      rerenderExecutiveOverview();
+    }
+
+    function changeExecutiveMonth(val) {
+      currentExecutiveMonth = val || getCurrentMonthValue();
+      rerenderExecutiveOverview();
+    }
+
+    function changeExecutiveDutyGroupTab(val) {
+      currentExecutiveDutyGroupTab = val;
+      rerenderExecutiveOverview();
+    }
+
+    function rerenderExecutiveOverview() {
       const mc = document.getElementById('main-content');
       if (mc) {
         mc.innerHTML = renderExecutiveOverviewView();
         lucide.createIcons();
       }
+    }
+
+    const EXEC_FIRST_SYSTEM_WEEK = 7;
+
+    function formatDateISO(date) {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function getCurrentMonthValue() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function getWeekOneStartDate(settings) {
+      if (settings && settings.weekStartDate) return new Date(settings.weekStartDate + 'T00:00:00');
+      const today = new Date(getTodayISODate() + 'T00:00:00');
+      const dayOffset = (today.getDay() + 6) % 7;
+      today.setDate(today.getDate() - dayOffset - ((EXEC_FIRST_SYSTEM_WEEK - 1) * 7));
+      return today;
+    }
+
+    function getSemesterWeekRange(weekNum, settings) {
+      const start = getWeekOneStartDate(settings);
+      start.setDate(start.getDate() + ((weekNum - 1) * 7));
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      return { start, end, startISO: formatDateISO(start), endISO: formatDateISO(end) };
+    }
+
+    function getCurrentSemesterWeek(settings) {
+      return getSemesterWeekNumberForDate(getTodayISODate(), settings) || EXEC_FIRST_SYSTEM_WEEK;
+    }
+
+    function getSemesterWeekNumberForDate(dateStr, settings) {
+      const configuredWeek = getWeekNumber(dateStr, settings);
+      if (configuredWeek) return configuredWeek;
+      const start = getWeekOneStartDate(settings);
+      const target = new Date(dateStr + 'T00:00:00');
+      const diffDays = Math.floor((target - start) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0) return null;
+      const weekNum = Math.floor(diffDays / 7) + 1;
+      const totalWeeks = settings.totalWeeks || 20;
+      return weekNum <= totalWeeks ? weekNum : null;
+    }
+
+    function getExecutiveSelectedWeeks(settings) {
+      const totalWeeks = settings.totalWeeks || 20;
+      const currentWeek = Math.min(getCurrentSemesterWeek(settings), totalWeeks);
+      if (!currentExecutiveWeek) currentExecutiveWeek = currentWeek;
+      if (!currentExecutiveMonth) currentExecutiveMonth = getCurrentMonthValue();
+
+      if (currentExecutivePeriodMode === 'week') {
+        return [Math.max(1, Math.min(totalWeeks, currentExecutiveWeek))];
+      }
+
+      if (currentExecutivePeriodMode === 'semester') {
+        return Array.from({ length: currentWeek }, (_, idx) => idx + 1);
+      }
+
+      const [year, month] = currentExecutiveMonth.split('-').map(Number);
+      const monthStart = new Date(year, month - 1, 1);
+      const monthEnd = new Date(year, month, 0);
+      return Array.from({ length: currentWeek }, (_, idx) => idx + 1).filter(weekNum => {
+        const range = getSemesterWeekRange(weekNum, settings);
+        return range.start <= monthEnd && range.end >= monthStart;
+      });
+    }
+
+    function getExecutivePeriodLabel(selectedWeeks, settings) {
+      if (selectedWeeks.length === 0) return 'ยังไม่มีสัปดาห์ในช่วงที่เลือก';
+      if (currentExecutivePeriodMode === 'week') {
+        const range = getSemesterWeekRange(selectedWeeks[0], settings);
+        return `สัปดาห์ที่ ${selectedWeeks[0]} (${getTodayThaiFullDate(range.startISO)} - ${getTodayThaiFullDate(range.endISO)})`;
+      }
+      if (currentExecutivePeriodMode === 'month') {
+        const [year, month] = currentExecutiveMonth.split('-').map(Number);
+        const label = new Date(year, month - 1, 1).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+        return `${label} • รวม ${selectedWeeks.length} สัปดาห์`;
+      }
+      return `ภาคเรียนสะสมถึงสัปดาห์ที่ ${selectedWeeks[selectedWeeks.length - 1]} • รวม ${selectedWeeks.length} สัปดาห์`;
+    }
+
+    function isReportInSelectedWeeks(report, selectedWeekSet, settings) {
+      const reportWeek = getSemesterWeekNumberForDate(report.date, settings);
+      return !!reportWeek && selectedWeekSet.has(reportWeek);
+    }
+
+    function getWeeklyDutiesCountForDay(teacherIds, dayName) {
+      const teacherSet = new Set(teacherIds);
+      let count = 0;
+      db.getDutyPoints().forEach(p => {
+        (p.assignedTo || p.assigned_to || []).forEach(item => {
+          const itemDay = item.includes(':') ? item.split(':')[0] : (db.getSettings().dutyDay || 'อังคาร');
+          const teacherId = item.includes(':') ? item.split(':')[1] : item;
+          if (itemDay === dayName && teacherSet.has(teacherId)) count++;
+        });
+      });
+      return count;
     }
 
     function getWeeklyDutiesCount(teacherId) {
@@ -2721,11 +2805,10 @@
     }
 
     function renderExecutiveOverviewView() {
-      const { reports, isMocked } = getExecutiveStats();
+      const { reports } = getExecutiveStats();
       const teachers = db.getTeachers();
       const settings = db.getSettings();
 
-      // หัวหน้าเวร (ที่ไม่ใช่แอดมิน) ถูกล็อกให้เห็นเฉพาะภาพรวมของคณะ (ชาย/หญิง) และวันที่ตนเองได้รับแต่งตั้งเป็นหัวหน้า
       let lockedExecGenders = null;
       let lockedExecDay = null;
       if (activeRoleMode === 'head' && !isFullAdmin(currentUser)) {
@@ -2739,6 +2822,15 @@
         }
       }
 
+      const selectedWeeks = getExecutiveSelectedWeeks(settings);
+      const selectedWeekSet = new Set(selectedWeeks);
+      const baselineWeeks = selectedWeeks.filter(w => w < EXEC_FIRST_SYSTEM_WEEK).length;
+      const periodLabel = getExecutivePeriodLabel(selectedWeeks, settings);
+
+      const weekOptions = Array.from({ length: Math.min(getCurrentSemesterWeek(settings), settings.totalWeeks || 20) }, (_, idx) => idx + 1)
+        .map(weekNum => `<option value="${weekNum}" ${weekNum === currentExecutiveWeek ? 'selected' : ''}>สัปดาห์ที่ ${weekNum}</option>`)
+        .join('');
+
       const activeTeachers = teachers.filter(t => {
         if (t.id === 'admin' || t.id === 'chief' || t.id === 'director') return false;
         if (currentExecutiveGroupFilter === 'all') return true;
@@ -2747,16 +2839,24 @@
 
       const teacherStats = activeTeachers.map(t => {
         const weeklyDuties = getWeeklyDutiesCount(t.id);
-        const tReports = reports.filter(r => r.teacherId === t.id && isReportCountableForScoring(r));
-        const checkins = tReports.length;
-        const lates = tReports.filter(r => r.isLate).length;
-        const ontimes = checkins - lates;
-        
-        const scheduledCount = weeklyDuties * 2 || 1; 
-        const complianceScore = Math.min(100, Math.round((checkins / scheduledCount) * 100));
+        const baselineCredit = weeklyDuties * baselineWeeks;
+        const actualReports = reports.filter(r =>
+          r.teacherId === t.id &&
+          isReportCountableForScoring(r) &&
+          isReportInSelectedWeeks(r, selectedWeekSet, settings) &&
+          (getSemesterWeekNumberForDate(r.date, settings) || 0) >= EXEC_FIRST_SYSTEM_WEEK
+        );
+        const actualCheckins = actualReports.length;
+        const lates = actualReports.filter(r => r.isLate).length;
+        const actualOntimes = actualCheckins - lates;
+
+        const scheduledCount = weeklyDuties * selectedWeeks.length;
+        const checkins = baselineCredit + actualCheckins;
+        const ontimes = baselineCredit + actualOntimes;
+        const complianceScore = scheduledCount > 0 ? Math.min(100, Math.round((checkins / scheduledCount) * 100)) : 100;
         const punctualityScore = checkins > 0 ? Math.max(0, Math.round((ontimes / checkins) * 100)) : 100;
         const totalScore = Math.round((complianceScore * 0.6) + (punctualityScore * 0.4));
-        
+
         let grade = 'D';
         let gradeClass = 'bg-red-100 text-red-800';
         if (totalScore >= 90) {
@@ -2774,189 +2874,202 @@
           id: t.id,
           name: t.name,
           dept: t.department || t.group || 'ทั่วไป',
+          weeklyDuties,
           scheduled: scheduledCount,
-          checkins: checkins,
-          lates: lates,
-          ontimes: ontimes,
+          checkins,
+          actualCheckins,
+          baselineCredit,
+          lates,
+          ontimes,
           compliance: complianceScore,
           punctuality: punctualityScore,
           score: totalScore,
-          grade: grade,
-          gradeClass: gradeClass,
+          grade,
+          gradeClass,
           gender: getTeacherGender(t)
         };
-      });
+      }).filter(t => t.scheduled > 0);
 
-      teacherStats.sort((a, b) => b.score - a.score);
+      teacherStats.sort((a, b) => b.score - a.score || b.checkins - a.checkins);
 
       const totalScheduled = teacherStats.reduce((sum, t) => sum + t.scheduled, 0) || 1;
       const totalCheckins = teacherStats.reduce((sum, t) => sum + t.checkins, 0);
+      const totalOntimes = teacherStats.reduce((sum, t) => sum + t.ontimes, 0);
       const totalLates = teacherStats.reduce((sum, t) => sum + t.lates, 0);
-      const countableReports = reports.filter(isReportCountableForScoring);
-      const problemsCount = countableReports.filter(r => r.status === 'problem').length;
-
+      const filteredReports = reports.filter(r => isReportCountableForScoring(r) && isReportInSelectedWeeks(r, selectedWeekSet, settings));
+      const problemsCount = filteredReports.filter(r => r.status === 'problem').length;
       const complianceRate = Math.min(100, Math.round((totalCheckins / totalScheduled) * 100));
-      const punctualityRate = totalCheckins > 0 ? Math.round(((totalCheckins - totalLates) / totalCheckins) * 100) : 100;
-
+      const punctualityRate = totalCheckins > 0 ? Math.round((totalOntimes / totalCheckins) * 100) : 100;
       const topPerformers = teacherStats.filter(t => t.grade === 'A').slice(0, 3);
 
+      const activeTeacherIds = activeTeachers.map(t => t.id);
       const dayLabels = (lockedExecDay ? [lockedExecDay] : ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์']).filter(d => ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'].includes(d));
       const dayStats = dayLabels.map(day => {
-        const dayReports = reports.filter(r => r.id.includes(day) && isReportCountableForScoring(r));
-        const checkins = dayReports.length;
-        const lates = dayReports.filter(r => r.isLate).length;
-        const rate = checkins > 0 ? Math.round(((checkins - lates) / checkins) * 100) : 90;
+        const weeklyDayDuties = getWeeklyDutiesCountForDay(activeTeacherIds, day);
+        const baselineDayCredit = weeklyDayDuties * baselineWeeks;
+        const dayReports = filteredReports.filter(r => getThaiDayNameForDate(r.date) === day && (getSemesterWeekNumberForDate(r.date, settings) || 0) >= EXEC_FIRST_SYSTEM_WEEK);
+        const checkins = baselineDayCredit + dayReports.length;
+        const ontimes = baselineDayCredit + dayReports.filter(r => !r.isLate).length;
+        const rate = checkins > 0 ? Math.round((ontimes / checkins) * 100) : 100;
         return { day, rate };
       });
 
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      const todayDay = getTodayThaiDayName();
+      const currentDutyPoints = db.getDutyPoints()
+        .filter(p => (p.dutyGroup || 'ครูชาย') === currentExecutiveDutyGroupTab)
+        .filter(p => {
+          const range = parseTimeRange(p.time);
+          return nowMin >= range.startMin && nowMin <= range.endMin;
+        })
+        .map(p => {
+          const assigned = (p.assignedTo || p.assigned_to || [])
+            .filter(item => isAssignedOnDay(item, todayDay))
+            .map(item => item.includes(':') ? item.split(':')[1] : item);
+          return { point: p, assigned };
+        })
+        .filter(item => item.assigned.length > 0);
+
       return `
         <div class="fade-in space-y-6 text-xs">
-          <!-- Page Header -->
-          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b pb-4 gap-4 no-print">
+          <div class="flex flex-col lg:flex-row lg:justify-between lg:items-start border-b pb-4 gap-4 no-print">
             <div>
               <p class="text-xs text-slate-500 flex items-center gap-1.5"><i data-lucide="award" class="w-4 h-4 text-brand-700"></i> สรุปผลงานและระดับเกรดการปฎิบัติงานเวร</p>
               <h3 class="text-lg font-bold text-slate-900 mt-1">รายงานสรุปผู้บริหาร (Executive Report Card)</h3>
+              <p class="text-[10px] text-slate-500 mt-1">ช่วงข้อมูล: ${periodLabel}</p>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="inline-flex bg-slate-100 border rounded-xl p-1">
+                ${[
+                  { id: 'week', label: 'รายสัปดาห์' },
+                  { id: 'month', label: 'รายเดือน' },
+                  { id: 'semester', label: 'ภาคเรียน' }
+                ].map(item => `
+                  <button type="button" onclick="changeExecutivePeriodMode('${item.id}')" class="px-3 py-1.5 rounded-lg font-bold transition ${currentExecutivePeriodMode === item.id ? 'bg-white text-brand-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}">${item.label}</button>
+                `).join('')}
+              </div>
+              ${currentExecutivePeriodMode === 'week' ? `
+                <select onchange="changeExecutiveWeek(this.value)" class="border rounded-lg px-3 py-2 font-bold text-slate-700 bg-white">
+                  ${weekOptions}
+                </select>
+              ` : currentExecutivePeriodMode === 'month' ? `
+                <input type="month" value="${currentExecutiveMonth || getCurrentMonthValue()}" onchange="changeExecutiveMonth(this.value)" class="border rounded-lg px-3 py-2 font-bold text-slate-700 bg-white">
+              ` : ''}
               <button onclick="window.print()" class="bg-white border border-slate-250 text-slate-700 text-xs px-3 py-2 rounded-lg hover:bg-slate-50 transition flex items-center gap-1 font-bold shadow-sm">
-                <i data-lucide="printer" class="w-4 h-4"></i> พิมพ์ใบรายงานผล
+                <i data-lucide="printer" class="w-4 h-4"></i> พิมพ์
               </button>
             </div>
           </div>
 
-          <!-- Group Filter Selector Tabs -->
           <div class="flex border-b border-slate-200 overflow-x-auto no-scrollbar py-1 gap-1 -mx-4 px-4 sm:mx-0 sm:px-0 no-print">
             ${(lockedExecGenders
-              ? lockedExecGenders.map(g => ({ val: g, label: g === 'หญิง' ? 'เวรคณะครูหญิง (Female)' : 'เวรคณะครูชาย (Male)' }))
+              ? lockedExecGenders.map(g => ({ val: g, label: g === 'หญิง' ? 'เวรคณะครูหญิง' : 'เวรคณะครูชาย' }))
               : [
                 { val: 'all', label: 'แสดงรวมทั้งหมด' },
-                { val: 'ชาย', label: 'เวรคณะครูชาย (Male)' },
-                { val: 'หญิง', label: 'เวรคณะครูหญิง (Female)' }
+                { val: 'ชาย', label: 'เวรคณะครูชาย' },
+                { val: 'หญิง', label: 'เวรคณะครูหญิง' }
               ]
             ).map(item => {
               const isActive = currentExecutiveGroupFilter === item.val;
-              return `
-                <button onclick="changeExecutiveGroupFilter('${item.val}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
-                  isActive 
-                    ? 'bg-brand-900 text-white border-brand-900 shadow-sm' 
-                    : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
-                }">
-                  ${item.label}
-                </button>
-              `;
+              return `<button onclick="changeExecutiveGroupFilter('${item.val}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isActive ? 'bg-brand-900 text-white border-brand-900 shadow-sm' : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'}">${item.label}</button>`;
             }).join('')}
           </div>
 
-          <!-- Mock Demo Indicator Alert -->
-          ${isMocked ? `
-            <div class="bg-amber-50 border border-amber-250 rounded-xl p-3 flex items-start gap-2.5 text-amber-800 shadow-sm no-print">
-              <i data-lucide="info" class="w-4.5 h-4.5 text-amber-600 flex-shrink-0 mt-0.5"></i>
-              <div>
-                <p class="font-bold">แนะนำการใช้งานสำหรับผู้บริหาร:</p>
-                <p class="text-[10px] mt-0.5 text-amber-700">เนื่องจากพึ่งเริ่มระบบและยังไม่มีข้อมูลการบันทึกรายงานจริงจากครู ระบบจึงทำการ **จำลองข้อมูลย้อนหลัง 2 สัปดาห์** เพื่อสาธิตแผงวิเคราะห์และเกรดของครูให้ดูเป็นแนวทาง เมื่อครูเริ่มส่งรายงานจริง แผงนี้จะอัปเดตเป็นข้อมูลจริงโดยอัตโนมัติ</p>
-              </div>
-            </div>
-          ` : ''}
+          <div class="bg-green-50/70 border border-green-200 rounded-xl p-3 flex items-start gap-2 text-green-900">
+            <i data-lucide="badge-check" class="w-4 h-4 text-green-700 mt-0.5"></i>
+            <p class="leading-relaxed"><span class="font-bold">กติกาคะแนนเริ่มระบบ:</span> สัปดาห์ที่ 1-6 ให้เครดิตเต็มอัตโนมัติทุกคน เพราะเปิดใช้งานจริงในสัปดาห์ที่ ${EXEC_FIRST_SYSTEM_WEEK}; ตั้งแต่สัปดาห์ที่ ${EXEC_FIRST_SYSTEM_WEEK} เป็นต้นไปใช้ข้อมูลรายงานจริง</p>
+          </div>
 
-          <!-- KPI Cards Grid -->
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="bg-white border rounded-xl p-4 shadow-sm flex flex-col justify-between">
-              <div class="flex items-center justify-between">
-                <span class="text-[10px] text-slate-500 font-bold">อัตราความรับผิดชอบเวร</span>
-                <span class="w-7 h-7 rounded bg-green-50 text-green-700 flex items-center justify-center font-bold text-xs"><i data-lucide="clipboard-check" class="w-4 h-4"></i></span>
-              </div>
-              <div class="mt-2.5">
-                <h4 class="text-xl font-black text-slate-900">${complianceRate}%</h4>
-                <p class="text-[9px] text-slate-400 mt-0.5">ครูเวรมาลงชื่อเข้าจุดครบตามรับมอบหมาย</p>
-              </div>
+            <div class="bg-white border rounded-xl p-4 shadow-sm">
+              <p class="text-[10px] text-slate-500 font-bold">อัตราความรับผิดชอบเวร</p>
+              <h4 class="text-xl font-black text-slate-900 mt-1">${complianceRate}%</h4>
+              <p class="text-[9px] text-slate-400 mt-0.5">ส่งรายงาน ${totalCheckins}/${totalScheduled} ครั้ง</p>
             </div>
-
-            <div class="bg-white border rounded-xl p-4 shadow-sm flex flex-col justify-between">
-              <div class="flex items-center justify-between">
-                <span class="text-[10px] text-slate-500 font-bold">อัตราการมาตรงเวลา</span>
-                <span class="w-7 h-7 rounded bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-xs"><i data-lucide="clock" class="w-4 h-4"></i></span>
-              </div>
-              <div class="mt-2.5">
-                <h4 class="text-xl font-black text-slate-900">${punctualityRate}%</h4>
-                <p class="text-[9px] text-slate-400 mt-0.5">ลงชื่อตรงเวลา (ไม่เกินเกณฑ์สายของโรงเรียน)</p>
-              </div>
+            <div class="bg-white border rounded-xl p-4 shadow-sm">
+              <p class="text-[10px] text-slate-500 font-bold">อัตราการมาตรงเวลา</p>
+              <h4 class="text-xl font-black text-slate-900 mt-1">${punctualityRate}%</h4>
+              <p class="text-[9px] text-slate-400 mt-0.5">มาสาย ${totalLates} ครั้ง</p>
             </div>
-
-            <div class="bg-white border rounded-xl p-4 shadow-sm flex flex-col justify-between">
-              <div class="flex items-center justify-between">
-                <span class="text-[10px] text-slate-500 font-bold">แจ้งพบจุดเสี่ยง/ปัญหา</span>
-                <span class="w-7 h-7 rounded bg-red-50 text-red-700 flex items-center justify-center font-bold text-xs"><i data-lucide="alert-triangle" class="w-4 h-4"></i></span>
-              </div>
-              <div class="mt-2.5">
-                <h4 class="text-xl font-black text-slate-900">${problemsCount} ครั้ง</h4>
-                <p class="text-[9px] text-slate-400 mt-0.5">จำนวนรายงานที่มีการระบุปัญหาพบจุดเสี่ยง</p>
-              </div>
+            <div class="bg-white border rounded-xl p-4 shadow-sm">
+              <p class="text-[10px] text-slate-500 font-bold">แจ้งพบจุดเสี่ยง/ปัญหา</p>
+              <h4 class="text-xl font-black text-slate-900 mt-1">${problemsCount} ครั้ง</h4>
+              <p class="text-[9px] text-slate-400 mt-0.5">ตามช่วงข้อมูลที่เลือก</p>
             </div>
-
-            <div class="bg-gradient-to-br from-brand-900 to-brand-850 text-white rounded-xl p-4 shadow-sm flex flex-col justify-between">
-              <div class="flex items-center justify-between">
-                <span class="text-[10px] text-brand-200 font-bold">ผู้นำคะแนนสูงสุด (Grade A)</span>
-                <span class="w-7 h-7 rounded bg-white/20 text-white flex items-center justify-center font-bold text-xs"><i data-lucide="trophy" class="w-4 h-4"></i></span>
-              </div>
-              <div class="mt-2.5">
-                <h4 class="text-sm font-bold truncate">${teacherStats[0] ? teacherStats[0].name : 'ไม่มี'}</h4>
-                <p class="text-[9px] text-brand-100 mt-0.5">ปฏิบัติหน้าที่ครบตรงพิกัดและตรงต่อเวลา 100%</p>
-              </div>
+            <div class="bg-gradient-to-br from-brand-900 to-brand-850 text-white rounded-xl p-4 shadow-sm">
+              <p class="text-[10px] text-brand-200 font-bold">ผู้นำคะแนนสูงสุด</p>
+              <h4 class="text-sm font-bold truncate mt-2">${teacherStats[0] ? teacherStats[0].name : 'ไม่มี'}</h4>
+              <p class="text-[9px] text-brand-100 mt-0.5">${teacherStats[0] ? `${teacherStats[0].score} คะแนน • Grade ${teacherStats[0].grade}` : 'ยังไม่มีข้อมูล'}</p>
             </div>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- 1. Weekly Performance Chart -->
             <div class="bg-white border rounded-xl p-5 shadow-sm space-y-4 md:col-span-2">
-              <h4 class="font-bold text-slate-800 flex items-center gap-1.5"><i data-lucide="trending-up" class="w-4 h-4 text-brand-700"></i>อัตราความตรงต่อเวลาและการปฏิบัติงานเฉลี่ยในสัปดาห์</h4>
+              <h4 class="font-bold text-slate-800 flex items-center gap-1.5"><i data-lucide="trending-up" class="w-4 h-4 text-brand-700"></i>อัตราความตรงต่อเวลาเฉลี่ยตามวันเวร</h4>
               <div class="space-y-3 pt-2">
-                ${dayStats.map(ds => {
-                  return `
-                    <div class="space-y-1">
-                      <div class="flex justify-between items-center text-[10px] text-slate-600 font-bold">
-                        <span>วัน${ds.day}</span>
-                        <span>${ds.rate}%</span>
-                      </div>
-                      <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden flex">
-                        <div class="bg-brand-900 h-full rounded-full" style="width: ${ds.rate}%"></div>
-                      </div>
+                ${dayStats.map(ds => `
+                  <div class="space-y-1">
+                    <div class="flex justify-between items-center text-[10px] text-slate-600 font-bold">
+                      <span>วัน${ds.day}</span>
+                      <span>${ds.rate}%</span>
                     </div>
-                  `;
-                }).join('')}
+                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden flex">
+                      <div class="bg-brand-900 h-full rounded-full" style="width: ${ds.rate}%"></div>
+                    </div>
+                  </div>
+                `).join('')}
               </div>
             </div>
 
-            <!-- 2. Leaderboard: Top Performers -->
             <div class="bg-white border rounded-xl p-5 shadow-sm space-y-4">
-              <h4 class="font-bold text-slate-800 flex items-center gap-1.5"><i data-lucide="award" class="w-4.5 h-4.5 text-amber-500"></i>รายนามคณะครูดีเด่นเวรสีขาว</h4>
+              <h4 class="font-bold text-slate-800 flex items-center gap-1.5"><i data-lucide="award" class="w-4.5 h-4.5 text-amber-500"></i>รายนามคณะครูดีเด่น</h4>
               <div class="space-y-3 divide-y divide-slate-100 pt-1">
-                ${topPerformers.length === 0 ? `
-                  <p class="text-center text-slate-400 py-6">อยู่ระหว่างบันทึกสถิติเพื่อเก็บสะสมระดับ A</p>
-                ` : topPerformers.map((tp, idx) => {
-                  const medals = ['🥇', '🥈', '🥉'];
-                  return `
-                    <div class="flex items-center justify-between py-2 ${idx > 0 ? 'border-t' : ''}">
-                      <div class="flex items-center gap-2">
-                        <span class="text-base">${medals[idx]}</span>
-                        <div>
-                          <p class="font-bold text-slate-800">${tp.name}</p>
-                          <p class="text-[9px] text-slate-400">รหัสครู: ${tp.id} • ${tp.dept}</p>
-                        </div>
-                      </div>
-                      <span class="font-bold text-brand-850 bg-brand-50 px-2 py-0.5 rounded text-[10px]">${tp.score} คะแนน</span>
+                ${topPerformers.length === 0 ? `<p class="text-center text-slate-400 py-6">อยู่ระหว่างบันทึกสถิติ</p>` : topPerformers.map((tp, idx) => `
+                  <div class="flex items-center justify-between py-2 ${idx > 0 ? 'border-t' : ''}">
+                    <div>
+                      <p class="font-bold text-slate-800">${idx + 1}. ${tp.name}</p>
+                      <p class="text-[9px] text-slate-400">รหัสครู: ${tp.id} • ${tp.gender}</p>
                     </div>
-                  `;
-                }).join('')}
+                    <span class="font-bold text-brand-850 bg-brand-50 px-2 py-0.5 rounded text-[10px]">${tp.score}</span>
+                  </div>
+                `).join('')}
               </div>
             </div>
           </div>
 
-          <!-- Roster details with grades -->
+          <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div>
+                <span class="font-bold text-slate-950">ผู้รับผิดชอบเวร ณ เวลาปัจจุบัน</span>
+                <p class="text-[9px] text-slate-400 mt-0.5">แสดงตามเวลาปัจจุบันของเครื่อง และแยกตามกลุ่มเวร</p>
+              </div>
+              <div class="inline-flex bg-white border rounded-lg p-1">
+                ${['ครูชาย', 'ครูหญิง'].map(group => `
+                  <button onclick="changeExecutiveDutyGroupTab('${group}')" class="px-3 py-1.5 rounded-md font-bold ${currentExecutiveDutyGroupTab === group ? 'bg-brand-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}">${group}</button>
+                `).join('')}
+              </div>
+            </div>
+            <div class="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              ${currentDutyPoints.length === 0 ? `
+                <div class="md:col-span-2 xl:col-span-3 text-center text-slate-400 py-6">ขณะนี้ไม่มีจุดเวรของ${currentExecutiveDutyGroupTab}ที่อยู่ในช่วงเวลาปฏิบัติ</div>
+              ` : currentDutyPoints.map(({ point, assigned }) => `
+                <div class="border rounded-lg p-3 bg-slate-50">
+                  <p class="font-bold text-slate-800">จุดที่ ${getDutyPointDisplayNumber(point)}: ${point.name}</p>
+                  <p class="text-[10px] text-slate-500 mt-0.5">${point.time} น.</p>
+                  <div class="mt-2 flex flex-wrap gap-1.5">
+                    ${assigned.map(id => `<span class="bg-white border text-slate-700 rounded-full px-2 py-0.5 font-bold text-[10px]">${getTeacherName(id)}</span>`).join('')}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
           <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
             <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
               <div>
                 <span class="font-bold text-slate-950">ตารางวิเคราะห์สถิติจิตพิสัยการเข้าเวรของคณะครู</span>
-                <p class="text-[9px] text-slate-400 mt-0.5">ตารางเกรดความรับผิดชอบคำนวณตามการปฏิบัติงาน (แสดงรายชื่อที่มีการมอบหมายงานเวร)</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">จำนวนเวรสะสมและคะแนนเปลี่ยนตามช่วงข้อมูลที่เลือก</p>
               </div>
               <div class="relative no-print">
                 <i data-lucide="search" class="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400"></i>
@@ -2964,7 +3077,7 @@
               </div>
             </div>
             <div class="overflow-x-auto">
-              <table class="w-full text-left min-w-[700px]">
+              <table class="w-full text-left min-w-[780px]">
                 <thead class="bg-slate-100 border-b">
                   <tr>
                     <th class="px-4 py-2.5">รหัส</th>
@@ -2972,6 +3085,7 @@
                     <th class="px-4 py-2.5">เพศ</th>
                     <th class="px-4 py-2.5 text-center">จำนวนเวรสะสม</th>
                     <th class="px-4 py-2.5 text-center">ส่งรายงาน</th>
+                    <th class="px-4 py-2.5 text-center">เครดิตก่อนระบบ</th>
                     <th class="px-4 py-2.5 text-center">มาสาย</th>
                     <th class="px-4 py-2.5 text-center">ความตรงเวลา</th>
                     <th class="px-4 py-2.5 text-center">คะแนนรวม</th>
@@ -2979,30 +3093,27 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y" id="executive-overview-table-body">
-                  ${teacherStats.filter(t => t.scheduled > 0).map(t => {
-                    return `
-                      <tr class="hover:bg-slate-50 transition exec-table-row" data-teacher-name="${t.name}" data-teacher-dept="${t.dept}">
-                        <td class="px-4 py-2.5 font-mono text-slate-500 font-bold">${t.id}</td>
-                        <td class="px-4 py-2.5 font-bold text-slate-800">${t.name}</td>
-                        <td class="px-4 py-2.5 font-bold text-slate-600">${t.gender}</td>
-                        <td class="px-4 py-2.5 text-center font-bold text-slate-700">${t.scheduled} ครั้ง</td>
-                        <td class="px-4 py-2.5 text-center font-bold text-green-700">${t.checkins} ครั้ง</td>
-                        <td class="px-4 py-2.5 text-center font-bold ${t.lates > 0 ? 'text-red-650' : 'text-slate-400'}">${t.lates} ครั้ง</td>
-                        <td class="px-4 py-2.5 text-center">
-                          <div class="flex items-center justify-center gap-1.5">
-                            <span class="font-bold font-mono">${t.punctuality}%</span>
-                            <div class="w-12 bg-slate-100 rounded-full h-1 overflow-hidden hidden sm:block">
-                              <div class="${t.punctuality >= 80 ? 'bg-green-600' : 'bg-amber-500'} h-full" style="width: ${t.punctuality}%"></div>
-                            </div>
+                  ${teacherStats.map(t => `
+                    <tr class="hover:bg-slate-50 transition exec-table-row" data-teacher-name="${escapeHtml(t.name)}" data-teacher-dept="${escapeHtml(t.dept)}">
+                      <td class="px-4 py-2.5 font-mono text-slate-500 font-bold">${t.id}</td>
+                      <td class="px-4 py-2.5 font-bold text-slate-800">${escapeHtml(t.name)}</td>
+                      <td class="px-4 py-2.5 font-bold text-slate-600">${t.gender}</td>
+                      <td class="px-4 py-2.5 text-center font-bold text-slate-700">${t.scheduled} ครั้ง</td>
+                      <td class="px-4 py-2.5 text-center font-bold text-green-700">${t.checkins} ครั้ง</td>
+                      <td class="px-4 py-2.5 text-center font-bold text-brand-700">${t.baselineCredit} ครั้ง</td>
+                      <td class="px-4 py-2.5 text-center font-bold ${t.lates > 0 ? 'text-red-650' : 'text-slate-400'}">${t.lates} ครั้ง</td>
+                      <td class="px-4 py-2.5 text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                          <span class="font-bold font-mono">${t.punctuality}%</span>
+                          <div class="w-12 bg-slate-100 rounded-full h-1 overflow-hidden hidden sm:block">
+                            <div class="${t.punctuality >= 80 ? 'bg-green-600' : 'bg-amber-500'} h-full" style="width: ${t.punctuality}%"></div>
                           </div>
-                        </td>
-                        <td class="px-4 py-2.5 text-center font-black text-brand-950 font-mono text-xs">${t.score}</td>
-                        <td class="px-4 py-2.5 text-center">
-                          <span class="${t.gradeClass} px-2 py-0.5 rounded font-black text-xs font-mono">${t.grade}</span>
-                        </td>
-                      </tr>
-                    `;
-                  }).join('')}
+                        </div>
+                      </td>
+                      <td class="px-4 py-2.5 text-center font-black text-brand-950 font-mono text-xs">${t.score}</td>
+                      <td class="px-4 py-2.5 text-center"><span class="${t.gradeClass} px-2 py-0.5 rounded font-black text-xs font-mono">${t.grade}</span></td>
+                    </tr>
+                  `).join('')}
                 </tbody>
               </table>
             </div>
