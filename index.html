@@ -162,7 +162,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.33.3</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.33.4</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
           </div>
@@ -253,7 +253,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.33.3</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.33.4</div>
           </div>
         </aside>
 
@@ -356,7 +356,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.33.3</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.33.4</div>
         </div>
       </aside>
 
@@ -685,11 +685,20 @@
         const existingById = new Map(existingRaw.map(t => [t.id, t]));
         const merged = data.map(t => {
           const existing = existingById.get(t.id) || {};
+          const signaturePresent = t.signaturePresent !== undefined
+            ? t.signaturePresent
+            : (t.signature_present !== undefined ? t.signature_present : (t.signature !== undefined ? !!t.signature : existing.signaturePresent));
+          const avatarPresent = t.avatarPresent !== undefined
+            ? t.avatarPresent
+            : (t.avatar_present !== undefined ? t.avatar_present : (t.avatar !== undefined ? !!t.avatar : existing.avatarPresent));
           return {
             ...existing,
             ...t,
             avatar: t.avatar !== undefined ? t.avatar : existing.avatar,
-            signature: t.signature !== undefined ? t.signature : existing.signature
+            signature: t.signature !== undefined ? t.signature : existing.signature,
+            signaturePresent: signaturePresent === undefined ? false : !!signaturePresent,
+            avatarPresent: avatarPresent === undefined ? false : !!avatarPresent,
+            mediaPresenceLoaded: t.mediaPresenceLoaded !== undefined ? !!t.mediaPresenceLoaded : !!existing.mediaPresenceLoaded
           };
         });
         window.cloudTeachersFullList = merged;
@@ -784,7 +793,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.33.3';
+    const APP_VERSION = '1.33.4';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1000,12 +1009,54 @@
         const columns = isFullAdminDownload ? '*' : TEACHER_LIGHT_COLUMNS;
         const teachers = await supabaseClient.from('teachers').select(columns);
         if (teachers.data && teachers.data.length > 0) db.saveTeachers(teachers.data);
+        if (!isFullAdminDownload && currentUser && isUserAdminOrHead()) {
+          await syncTeacherMediaPresenceFromCloud();
+        }
         if (mode === 'full' && !isUserAdminOrHead() && currentUser) {
           await loadTeacherHeavyFields(currentUser.id);
         }
       } catch (err) {
         console.warn("Failed to sync teachers table:", err);
       }
+    }
+
+    async function syncTeacherMediaPresenceFromCloud() {
+      if (!useSupabase || !supabaseClient || !navigator.onLine) return;
+      try {
+        const [signatureResult, avatarResult] = await Promise.all([
+          supabaseClient.from('teachers').select('id').not('signature', 'is', null),
+          supabaseClient.from('teachers').select('id').not('avatar', 'is', null)
+        ]);
+        if (signatureResult.error) throw signatureResult.error;
+        if (avatarResult.error) throw avatarResult.error;
+
+        const signatureIds = new Set((signatureResult.data || []).map(t => t.id));
+        const avatarIds = new Set((avatarResult.data || []).map(t => t.id));
+        const teachers = db.getTeachers().map(t => ({
+          ...t,
+          signaturePresent: signatureIds.has(t.id),
+          avatarPresent: avatarIds.has(t.id),
+          mediaPresenceLoaded: true
+        }));
+        db.saveTeachers(teachers);
+      } catch (err) {
+        console.warn("Failed to sync teacher media presence:", err);
+      }
+    }
+
+    function ensureTeacherMediaPresenceForAdminView() {
+      if (!currentUser || !isUserAdminOrHead() || !useSupabase || !supabaseClient || !navigator.onLine || teacherMediaPresenceSyncing) return;
+      const needsPresence = db.getTeachers().some(t => !t.mediaPresenceLoaded);
+      if (!needsPresence) return;
+
+      teacherMediaPresenceSyncing = true;
+      syncTeacherMediaPresenceFromCloud()
+        .then(() => {
+          if (currentPage === 'teachers') renderTeachersListOnly();
+        })
+        .finally(() => {
+          teacherMediaPresenceSyncing = false;
+        });
     }
 
     async function syncDutyPointsFromCloud() {
@@ -1130,7 +1181,9 @@
 
         const teachers = db.getTeachers();
         const idx = teachers.findIndex(t => t.id === teacherId);
-        const merged = idx > -1 ? { ...teachers[idx], ...data[0], heavyProfileLoaded: true } : { ...data[0], heavyProfileLoaded: true };
+        const merged = idx > -1
+          ? { ...teachers[idx], ...data[0], heavyProfileLoaded: true, mediaPresenceLoaded: true, signaturePresent: !!data[0].signature, avatarPresent: !!data[0].avatar }
+          : { ...data[0], heavyProfileLoaded: true, mediaPresenceLoaded: true, signaturePresent: !!data[0].signature, avatarPresent: !!data[0].avatar };
         if (idx > -1) teachers[idx] = merged;
         else teachers.push(merged);
         db.saveTeachers(teachers);
@@ -1392,6 +1445,7 @@
     let coReporterOtherIds = []; // teacher_id ที่ assign จุดนี้วันนี้ (ไม่รวม currentUser)
     let coReporterBannerAnswered = false; // ตอบ banner เริ่มต้นแล้วหรือยัง
     let coReporterRows = []; // [{rowId, status:'input'|'needsSig', teacherId, name, error}] แถวที่กำลังกรอก/รอเซ็น
+    let teacherMediaPresenceSyncing = false; // กันการดึงสถานะรูป/ลายเซ็นซ้ำซ้อน
     let myDutyTimerInterval = null;
     let myDutyRenderedDate = null; // วันที่ (ISO) ที่ตอนแสดงหน้า "เวรของฉัน" ล่าสุด ใช้ตรวจวันเปลี่ยนข้ามเที่ยงคืน
     let currentMapInstance = null; // Leaflet map reference
@@ -3818,6 +3872,7 @@
 
     // C. TEACHERS VIEW (Admin View)
     function renderTeachersView() {
+      setTimeout(ensureTeacherMediaPresenceForAdminView, 0);
       // หัวหน้าเวรประจำวันเห็นเฉพาะครูที่ถูกมอบหมายในตารางเวรของวัน/กลุ่มที่ตนรับผิดชอบ
       const isDailyHeadTeacherView = activeRoleMode === 'head' && !isFullAdmin(currentUser) && !isOpsHead(currentUser);
       const lockedTeacherScope = isDailyHeadTeacherView ? getHeadTeacherVisibilityScope(currentUser.id) : null;
@@ -3870,11 +3925,11 @@
               <select onchange="handleTeachersFilter('signature', this.value)" class="border rounded-lg p-2.5 bg-white outline-none focus:ring-1 focus:ring-brand-500 text-xs font-semibold">
                 <option value="all" ${teachersFilterSignature === 'all' ? 'selected' : ''}>ลายเซ็น (ทั้งหมด)</option>
                 <option value="signed" ${teachersFilterSignature === 'signed' ? 'selected' : ''}>ลงชื่อแล้ว</option>
-                <option value="unsigned" ${teachersFilterSignature === 'unsigned' ? 'selected' : ''}>โหลดแล้วแต่ไม่มีลายเซ็น</option>
+                <option value="unsigned" ${teachersFilterSignature === 'unsigned' ? 'selected' : ''}>ตรวจสอบแล้วแต่ไม่มีลายเซ็น</option>
               </select>
 
-              <button type="button" onclick="loadVisibleTeachersMedia()" class="border border-brand-200 bg-brand-50 hover:bg-brand-100 text-brand-850 rounded-lg p-2.5 text-xs font-bold transition inline-flex items-center gap-1" title="โหลดรูปโปรไฟล์และลายเซ็นเฉพาะรายชื่อที่แสดงอยู่">
-                <i data-lucide="images" class="w-3.5 h-3.5"></i> โหลดรูป/ลายเซ็นที่แสดง
+              <button type="button" onclick="loadVisibleTeachersMedia()" class="border border-slate-200 bg-white hover:bg-slate-50 text-slate-650 rounded-lg p-2.5 text-xs font-bold transition inline-flex items-center gap-1" title="ใช้เฉพาะเมื่อต้องตรวจรูปจริง เพราะจะดึงรูปโปรไฟล์และลายเซ็นจาก Supabase">
+                <i data-lucide="images" class="w-3.5 h-3.5"></i> โหลดรูปจริงที่แสดง
               </button>
 
               <!-- View Switcher -->
@@ -3974,13 +4029,37 @@
       // Signature Filter
       if (teachersFilterSignature !== 'all') {
         filtered = filtered.filter(t => {
-          const hasSig = !!t.signature;
-          const mediaLoaded = !!(t.heavyProfileLoaded || t.signature || t.avatar);
-          return teachersFilterSignature === 'signed' ? hasSig : (mediaLoaded && !hasSig);
+          const mediaStatus = getTeacherMediaStatus(t);
+          return teachersFilterSignature === 'signed'
+            ? mediaStatus.hasSignature
+            : (mediaStatus.presenceKnown && !mediaStatus.hasSignature);
         });
       }
 
       return filtered;
+    }
+
+    function getTeacherMediaStatus(t) {
+      const hasSignature = !!(t.signature || t.signaturePresent || t.signature_present);
+      const hasAvatar = !!(t.avatar || t.avatarPresent || t.avatar_present);
+      const presenceKnown = !!(t.mediaPresenceLoaded || t.heavyProfileLoaded || t.signature || t.avatar);
+      const fullLoaded = !!(t.heavyProfileLoaded || t.signature || t.avatar);
+      return { hasSignature, hasAvatar, presenceKnown, fullLoaded };
+    }
+
+    function getTeacherPlaceholderAvatar(t, classes = "w-10 h-10 rounded-full object-cover shadow-inner") {
+      return getTeacherAvatar({ ...t, avatar: null }, classes);
+    }
+
+    function renderTeacherMediaBadge(state, yesLabel, noLabel, unknownLabel = 'ยังไม่ทราบสถานะ') {
+      const classes = state === 'yes'
+        ? 'text-green-700 bg-green-50 border-green-200'
+        : state === 'no'
+          ? 'text-red-500 bg-red-50 border-red-200'
+          : 'text-slate-500 bg-slate-50 border-slate-200';
+      const mark = state === 'yes' ? '✓ ' : state === 'no' ? '× ' : '';
+      const label = state === 'yes' ? yesLabel : state === 'no' ? noLabel : unknownLabel;
+      return `<span class="${classes} border rounded px-2 py-1 text-center font-bold">${mark}${label}</span>`;
     }
 
     function renderTeachersListContainer() {
@@ -4002,15 +4081,15 @@
                       ? '<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">ผู้ดูแลระบบ</span>'
                       : '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">ครูเวรทั่วไป</span>';
 
-              const mediaLoaded = !!(t.heavyProfileLoaded || t.signature || t.avatar);
-              const hasSig = t.signature ? true : false;
-              const hasAvatar = t.avatar ? true : false;
+              const mediaStatus = getTeacherMediaStatus(t);
+              const sigState = mediaStatus.hasSignature ? 'yes' : mediaStatus.presenceKnown ? 'no' : 'unknown';
+              const avatarState = mediaStatus.hasAvatar ? 'yes' : mediaStatus.presenceKnown ? 'no' : 'unknown';
               
               return `
                 <div class="bg-white border rounded-xl p-4 shadow-sm space-y-4 hover:shadow-md transition">
                   <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full overflow-hidden shadow-inner flex-shrink-0">
-                      ${getTeacherAvatar(t, "w-full h-full object-cover")}
+                      ${getTeacherPlaceholderAvatar(t, "w-full h-full object-cover")}
                     </div>
                     <div>
                       <h4 class="font-bold text-slate-800 text-xs">${t.name}</h4>
@@ -4020,33 +4099,26 @@
                   
                   <div class="flex items-center justify-between border-t border-slate-100 pt-3 text-[10px]">
                     <div>${roleBadge}</div>
-                    <span class="font-bold ${hasSig ? 'text-green-700 bg-green-50 px-2 py-0.5 border border-green-200 rounded' : mediaLoaded ? 'text-red-500 bg-red-50 px-2 py-0.5 border border-red-200 rounded' : 'text-slate-500 bg-slate-50 px-2 py-0.5 border border-slate-200 rounded'}">
-                      ${hasSig ? '✓ มีลายเซ็น' : mediaLoaded ? '× ไม่มีลายเซ็น' : 'ยังไม่ได้โหลด'}
+                    <span class="font-bold ${sigState === 'yes' ? 'text-green-700 bg-green-50 px-2 py-0.5 border border-green-200 rounded' : sigState === 'no' ? 'text-red-500 bg-red-50 px-2 py-0.5 border border-red-200 rounded' : 'text-slate-500 bg-slate-50 px-2 py-0.5 border border-slate-200 rounded'}">
+                      ${sigState === 'yes' ? '✓ มีลายเซ็น' : sigState === 'no' ? '× ไม่มีลายเซ็น' : 'ยังไม่ทราบสถานะ'}
                     </span>
                   </div>
 
-                  ${hasSig ? `
-                    <div class="bg-slate-50 border rounded-lg p-2 flex flex-col items-center">
-                      <p class="text-[9px] text-slate-400 mb-1">รูปภาพตัวอย่างลายเซ็น:</p>
-                      <img src="${t.signature}" class="max-h-8 object-contain p-1 border rounded bg-white" alt="ลายเซ็น">
-                    </div>
-                    <div class="grid grid-cols-2 gap-1 text-[9px]">
-                      <span class="${hasAvatar ? 'text-green-700 bg-green-50 border-green-200' : 'text-red-500 bg-red-50 border-red-200'} border rounded px-2 py-1 text-center font-bold">${hasAvatar ? '✓ มีรูปโปรไฟล์' : '× ไม่มีรูปโปรไฟล์'}</span>
-                      <span class="text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 text-center font-bold">✓ โหลดแล้ว</span>
-                    </div>
+                  <div class="${mediaStatus.presenceKnown ? 'bg-slate-50 border-slate-200 text-slate-650' : 'bg-amber-50/60 border-amber-200 text-amber-800'} border border-dashed rounded-lg p-2.5 text-center text-[9px] leading-relaxed">
+                    ${mediaStatus.presenceKnown
+                      ? 'แสดงเฉพาะสถานะ ไม่โหลดรูปจริง เพื่อประหยัดโควตา Supabase'
+                      : 'ยังไม่ทราบสถานะรูปโปรไฟล์/ลายเซ็นจากคลาวด์'}
+                  </div>
+                  <div class="grid grid-cols-2 gap-1 text-[9px]">
+                    ${renderTeacherMediaBadge(sigState, 'มีลายเซ็น', 'ไม่มีลายเซ็น', 'ยังไม่ทราบลายเซ็น')}
+                    ${renderTeacherMediaBadge(avatarState, 'มีรูปโปรไฟล์', 'ไม่มีรูปโปรไฟล์', 'ยังไม่ทราบรูป')}
+                  </div>
+                  ${mediaStatus.fullLoaded ? `
+                    <div class="text-[9px] text-slate-400 text-center">โหลดรูปจริงไว้ในหน่วยความจำแล้ว แต่หน้านี้ซ่อนภาพจริงไว้</div>
                   ` : `
-                    <div class="${mediaLoaded ? 'bg-red-50/50 border-red-200 text-red-750' : 'bg-slate-50 border-slate-200 text-slate-600'} border border-dashed rounded-lg p-2.5 text-center text-[9px]">
-                      ${mediaLoaded ? 'โหลดข้อมูลแล้ว: คุณครูยังไม่มีลายเซ็นดิจิทัลในระบบ' : 'ยังไม่ได้โหลดรูปโปรไฟล์/ลายเซ็นของครูท่านนี้'}
-                    </div>
-                    ${mediaLoaded ? `
-                      <div class="grid grid-cols-2 gap-1 text-[9px]">
-                        <span class="${hasAvatar ? 'text-green-700 bg-green-50 border-green-200' : 'text-red-500 bg-red-50 border-red-200'} border rounded px-2 py-1 text-center font-bold">${hasAvatar ? '✓ มีรูปโปรไฟล์' : '× ไม่มีรูปโปรไฟล์'}</span>
-                        <span class="text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 text-center font-bold">✓ โหลดแล้ว</span>
-                      </div>
-                    ` : ''}
                     <div class="no-print">
-                      <button onclick="loadTeacherMedia('${t.id}')" class="w-full border border-brand-200 bg-brand-50 hover:bg-brand-100 text-brand-850 py-1.5 text-[10px] font-bold rounded-lg transition flex items-center justify-center gap-1">
-                        <i data-lucide="download-cloud" class="w-3.5 h-3.5"></i> โหลดรูป/ลายเซ็นครูท่านนี้
+                      <button onclick="loadTeacherMedia('${t.id}')" class="w-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-650 py-1.5 text-[10px] font-bold rounded-lg transition flex items-center justify-center gap-1" title="ใช้เฉพาะเมื่อต้องตรวจรูปจริง เพราะจะดึงข้อมูลรูป/ลายเซ็นจาก Supabase">
+                        <i data-lucide="download-cloud" class="w-3.5 h-3.5"></i> โหลดรูปจริงเมื่อต้องตรวจ
                       </button>
                     </div>
                   `}
@@ -4096,9 +4168,9 @@
                             ? '<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">ผู้ดูแลระบบ</span>'
                             : '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">ครูเวรทั่วไป</span>';
 
-                    const mediaLoaded = !!(t.heavyProfileLoaded || t.signature || t.avatar);
-                    const hasSig = t.signature ? true : false;
-                    const hasAvatar = t.avatar ? true : false;
+                    const mediaStatus = getTeacherMediaStatus(t);
+                    const sigState = mediaStatus.hasSignature ? 'yes' : mediaStatus.presenceKnown ? 'no' : 'unknown';
+                    const avatarState = mediaStatus.hasAvatar ? 'yes' : mediaStatus.presenceKnown ? 'no' : 'unknown';
                     const gender = getTeacherGender(t);
                     const genderBadge = gender === 'ชาย'
                       ? '<span class="bg-emerald-50 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded font-bold border border-emerald-150">ชาย (M)</span>'
@@ -4110,7 +4182,7 @@
                         <td class="p-3">
                           <div class="flex items-center gap-2">
                             <div class="w-8 h-8 rounded-full overflow-hidden shadow-inner flex-shrink-0">
-                              ${getTeacherAvatar(t, "w-full h-full object-cover")}
+                              ${getTeacherPlaceholderAvatar(t, "w-full h-full object-cover")}
                             </div>
                             <div class="font-bold text-slate-800">${t.name}</div>
                           </div>
@@ -4119,19 +4191,19 @@
                         <td class="p-3 font-medium text-slate-650">${t.phone || '-'}</td>
                         <td class="p-3">${roleBadge}</td>
                         <td class="p-3 text-center">
-                          ${hasSig ? `
-                            <div class="flex flex-col items-center gap-1">
-                              <span class="text-green-700 bg-green-50 px-1.5 py-0.5 text-[9px] border border-green-200 rounded font-bold">✓ มีลายเซ็น</span>
-                              <img src="${t.signature}" class="max-h-5 object-contain max-w-[80px]" alt="Signature">
-                              <span class="${hasAvatar ? 'text-green-700' : 'text-red-500'} text-[9px] font-bold">${hasAvatar ? 'มีรูป' : 'ไม่มีรูป'}</span>
-                            </div>
-                          ` : `
-                            <div class="flex flex-col items-center gap-1">
-                              <span class="${mediaLoaded ? 'text-red-500 bg-red-50 border-red-200' : 'text-slate-500 bg-slate-50 border-slate-200'} px-1.5 py-0.5 text-[9px] border rounded font-bold">${mediaLoaded ? '× ไม่มีลายเซ็น' : 'ยังไม่ได้โหลด'}</span>
-                              ${mediaLoaded ? `<span class="${hasAvatar ? 'text-green-700' : 'text-red-500'} text-[9px] font-bold">${hasAvatar ? 'มีรูป' : 'ไม่มีรูป'}</span>` : ''}
-                              <button onclick="loadTeacherMedia('${t.id}')" class="border border-brand-200 bg-brand-50 hover:bg-brand-100 text-brand-850 px-1.5 py-0.5 rounded text-[9px] font-bold transition no-print">โหลด</button>
-                            </div>
-                          `}
+                          <div class="flex flex-col items-center gap-1">
+                            <span class="${sigState === 'yes' ? 'text-green-700 bg-green-50 border-green-200' : sigState === 'no' ? 'text-red-500 bg-red-50 border-red-200' : 'text-slate-500 bg-slate-50 border-slate-200'} px-1.5 py-0.5 text-[9px] border rounded font-bold">
+                              ${sigState === 'yes' ? '✓ มีลายเซ็น' : sigState === 'no' ? '× ไม่มีลายเซ็น' : 'ยังไม่ทราบ'}
+                            </span>
+                            <span class="${avatarState === 'yes' ? 'text-green-700' : avatarState === 'no' ? 'text-red-500' : 'text-slate-500'} text-[9px] font-bold">
+                              ${avatarState === 'yes' ? 'มีรูปโปรไฟล์' : avatarState === 'no' ? 'ไม่มีรูปโปรไฟล์' : 'ยังไม่ทราบรูป'}
+                            </span>
+                            ${mediaStatus.fullLoaded ? `
+                              <span class="text-slate-400 text-[8px]">ซ่อนภาพจริง</span>
+                            ` : `
+                              <button onclick="loadTeacherMedia('${t.id}')" class="border border-slate-200 bg-white hover:bg-slate-50 text-slate-650 px-1.5 py-0.5 rounded text-[9px] font-bold transition no-print" title="ใช้เฉพาะเมื่อต้องตรวจรูปจริง เพราะจะดึงข้อมูลรูป/ลายเซ็นจาก Supabase">โหลดรูปจริง</button>
+                            `}
+                          </div>
                         </td>
                         <td class="p-3 text-center no-print">
                           <div class="flex gap-1.5 justify-center">
@@ -4175,13 +4247,13 @@
     }
 
     async function loadTeacherMedia(teacherId) {
-      showToast('กำลังโหลดรูปโปรไฟล์/ลายเซ็นของครูท่านนี้...', 'info');
+      showToast('กำลังโหลดรูปจริง/ลายเซ็นจริงของครูท่านนี้...', 'info');
       const loaded = await loadTeacherHeavyFields(teacherId);
       if (loaded) {
         renderTeachersListOnly();
-        showToast('โหลดข้อมูลรูปโปรไฟล์/ลายเซ็นเรียบร้อยแล้ว', 'success');
+        showToast('โหลดรูปจริง/ลายเซ็นจริงเรียบร้อยแล้ว', 'success');
       } else {
-        showToast('ยังโหลดข้อมูลรูปโปรไฟล์/ลายเซ็นไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือ Supabase', 'warning');
+        showToast('ยังโหลดรูปจริง/ลายเซ็นจริงไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือ Supabase', 'warning');
       }
     }
 
@@ -4191,20 +4263,20 @@
         showToast('ไม่มีรายชื่อครูในรายการที่แสดงอยู่', 'info');
         return;
       }
-      const notLoaded = visible.filter(t => !(t.heavyProfileLoaded || t.signature || t.avatar));
+      const notLoaded = visible.filter(t => !getTeacherMediaStatus(t).fullLoaded);
       if (notLoaded.length === 0) {
-        showToast('รายการที่แสดงอยู่โหลดข้อมูลรูป/ลายเซ็นแล้ว', 'success');
+        showToast('รายการที่แสดงอยู่โหลดรูปจริงไว้แล้ว', 'success');
         return;
       }
-      const ok = confirm(`ต้องการโหลดรูปโปรไฟล์/ลายเซ็นเฉพาะรายชื่อที่แสดงอยู่ ${notLoaded.length} คนหรือไม่?`);
+      const ok = confirm(`ต้องการโหลดรูปโปรไฟล์/ลายเซ็นจริงเฉพาะรายชื่อที่แสดงอยู่ ${notLoaded.length} คนหรือไม่?\n\nปกติไม่จำเป็นต้องโหลด เพราะหน้ารายชื่อแสดงสถานะเบาแล้ว การโหลดนี้จะใช้โควตา Supabase มากขึ้น`);
       if (!ok) return;
 
-      showToast(`กำลังโหลดข้อมูลรูป/ลายเซ็น ${notLoaded.length} คน...`, 'info');
+      showToast(`กำลังโหลดรูปจริง/ลายเซ็นจริง ${notLoaded.length} คน...`, 'info');
       for (const teacher of notLoaded) {
         await loadTeacherHeavyFields(teacher.id);
       }
       renderTeachersListOnly();
-      showToast('โหลดข้อมูลรูป/ลายเซ็นของรายการที่แสดงอยู่เรียบร้อยแล้ว', 'success');
+      showToast('โหลดรูปจริง/ลายเซ็นจริงของรายการที่แสดงอยู่เรียบร้อยแล้ว', 'success');
     }
 
     function switchTeachersViewType(type) {
