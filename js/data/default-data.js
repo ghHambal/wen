@@ -1513,6 +1513,7 @@
       telegramChatId: '',
       autoNotifyMinutes: 15,
       lateGraceMinutes: 15,
+      defaultDutyMinutes: 20,
       dutyDay: 'อังคาร',
       dutyGroup: 'ครูชาย',
       defaultRadius: 50,
@@ -1522,7 +1523,7 @@
       systemTitle: 'ระบบบันทึกและติดตามการปฏิบัติเวร',
       systemColor: '#14532d',
       headsOfDay: {},
-      ikhlasConfirmText: 'ท่านขอยืนยันด้วยความสัตย์จริงต่อตนเองและอัลลอฮฺ (ซ.บ.) ว่า ผู้ร่วมปฏิบัติหน้าที่เวรที่เพิ่มเข้ามาในรายงานนี้ ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่า 20 นาที ตามเงื่อนไขของระบบ'
+      ikhlasConfirmText: 'ท่านขอยืนยันด้วยความสัตย์จริงต่อตนเองและอัลลอฮฺ (ซ.บ.) ว่า ผู้ร่วมปฏิบัติหน้าที่เวรที่เพิ่มเข้ามาในรายงานนี้ ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่าระยะเวลาขั้นต่ำที่ระบบกำหนดสำหรับจุดเวรนั้น ตามเงื่อนไขของระบบ'
     };
 
     // SQL code block template string
@@ -1549,6 +1550,7 @@ CREATE TABLE IF NOT EXISTS duty_points (
   radius INTEGER NOT NULL DEFAULT 50,
   assigned_to TEXT[] NOT NULL DEFAULT '{}'::text[],
   duty_group TEXT NOT NULL DEFAULT 'ครูชาย',
+  min_duty_minutes INTEGER,
   lat2 DOUBLE PRECISION,
   lng2 DOUBLE PRECISION,
   radius2 INTEGER
@@ -1567,6 +1569,9 @@ CREATE TABLE IF NOT EXISTS reports (
   problem TEXT,
   solution TEXT,
   photo TEXT,
+  photo_thumb TEXT,
+  photo_path TEXT,
+  photo_thumb_path TEXT,
   signature TEXT
 );
 
@@ -1580,6 +1585,8 @@ CREATE TABLE IF NOT EXISTS settings (
   telegram_token TEXT,
   telegram_chat_id TEXT,
   auto_notify_minutes INTEGER NOT NULL DEFAULT 15,
+  late_grace_minutes INTEGER DEFAULT 15,
+  default_duty_minutes INTEGER DEFAULT 20,
   duty_day TEXT DEFAULT 'อังคาร',
   duty_group TEXT DEFAULT 'ครูชาย',
   default_radius INTEGER DEFAULT 50,
@@ -1623,9 +1630,50 @@ ALTER TABLE teachers ADD COLUMN IF NOT EXISTS avatar TEXT;
 
 -- อัปเกรดฐานข้อมูลเดิมเพิ่มคอลัมน์กลุ่มเวรและพิกัดบริเวณที่ 2 ในตาราง duty_points (ปลอดภัยกรณีตารางมีอยู่แล้ว)
 ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS duty_group TEXT NOT NULL DEFAULT 'ครูชาย';
+ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS min_duty_minutes INTEGER;
 ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS lat2 DOUBLE PRECISION;
 ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS lng2 DOUBLE PRECISION;
 ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS radius2 INTEGER;
+
+-- อัปเกรดตาราง reports เพื่อรองรับการเก็บรูปหลักฐานใน Supabase Storage และ thumbnail
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS photo_thumb TEXT;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS photo_path TEXT;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS photo_thumb_path TEXT;
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'wen-report-photos',
+  'wen-report-photos',
+  true,
+  1048576,
+  ARRAY['image/jpeg', 'image/png', 'image/webp']
+)
+ON CONFLICT (id) DO UPDATE
+SET public = true,
+    file_size_limit = 1048576,
+    allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp'];
+
+DROP POLICY IF EXISTS "wen_report_photos_select" ON storage.objects;
+CREATE POLICY "wen_report_photos_select"
+ON storage.objects
+FOR SELECT
+TO anon
+USING (bucket_id = 'wen-report-photos');
+
+DROP POLICY IF EXISTS "wen_report_photos_insert" ON storage.objects;
+CREATE POLICY "wen_report_photos_insert"
+ON storage.objects
+FOR INSERT
+TO anon
+WITH CHECK (bucket_id = 'wen-report-photos');
+
+DROP POLICY IF EXISTS "wen_report_photos_update" ON storage.objects;
+CREATE POLICY "wen_report_photos_update"
+ON storage.objects
+FOR UPDATE
+TO anon
+USING (bucket_id = 'wen-report-photos')
+WITH CHECK (bucket_id = 'wen-report-photos');
 
 INSERT INTO teachers (id, name, role, phone, signature, password) VALUES
 ('admin', 'แอดมินฝ่ายปกครอง', 'admin', '0811111100', NULL, '1234'),
@@ -1870,13 +1918,15 @@ ALTER TABLE settings ADD COLUMN IF NOT EXISTS duty_group TEXT DEFAULT 'ครู
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_radius INTEGER DEFAULT 50;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS center_lat DOUBLE PRECISION DEFAULT 6.787680;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS center_lng DOUBLE PRECISION DEFAULT 101.408120;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS late_grace_minutes INTEGER DEFAULT 15;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_duty_minutes INTEGER DEFAULT 20;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_logo TEXT;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_title TEXT;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_color TEXT;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS heads_of_day TEXT DEFAULT '{}';
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS ikhlas_confirm_text TEXT;
 
-INSERT INTO settings (id, school_name, head_name, director_name, line_token, telegram_token, telegram_chat_id, auto_notify_minutes, duty_day, duty_group, default_radius, center_lat, center_lng, system_logo, system_title, system_color, heads_of_day, ikhlas_confirm_text) VALUES
-('config', 'โรงเรียนมูลนิธิอาซิซสถาน', 'นาย ฮัมบาลี วาจิ', 'ดร.มูฮัมหมัด ซากี', '', '', '', 15, 'อังคาร', 'ครูชาย', 50, 6.787680, 101.408120, NULL, 'ระบบบันทึกและติดตามการปฏิบัติเวร', '#14532d', '{}', 'ท่านขอยืนยันด้วยความสัตย์จริงต่อตนเองและอัลลอฮฺ (ซ.บ.) ว่า ผู้ร่วมปฏิบัติหน้าที่เวรที่เพิ่มเข้ามาในรายงานนี้ ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่า 20 นาที ตามเงื่อนไขของระบบ')
+INSERT INTO settings (id, school_name, head_name, director_name, line_token, telegram_token, telegram_chat_id, auto_notify_minutes, late_grace_minutes, default_duty_minutes, duty_day, duty_group, default_radius, center_lat, center_lng, system_logo, system_title, system_color, heads_of_day, ikhlas_confirm_text) VALUES
+('config', 'โรงเรียนมูลนิธิอาซิซสถาน', 'นาย ฮัมบาลี วาจิ', 'ดร.มูฮัมหมัด ซากี', '', '', '', 15, 15, 20, 'อังคาร', 'ครูชาย', 50, 6.787680, 101.408120, NULL, 'ระบบบันทึกและติดตามการปฏิบัติเวร', '#14532d', '{}', 'ท่านขอยืนยันด้วยความสัตย์จริงต่อตนเองและอัลลอฮฺ (ซ.บ.) ว่า ผู้ร่วมปฏิบัติหน้าที่เวรที่เพิ่มเข้ามาในรายงานนี้ ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่าระยะเวลาขั้นต่ำที่ระบบกำหนดสำหรับจุดเวรนั้น ตามเงื่อนไขของระบบ')
 ON CONFLICT (id) DO NOTHING;
 `;
