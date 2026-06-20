@@ -162,7 +162,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.32.6</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.32.8</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
           </div>
@@ -253,7 +253,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.32.6</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.32.8</div>
           </div>
         </aside>
 
@@ -356,7 +356,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.32.6</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.32.8</div>
         </div>
       </aside>
 
@@ -736,7 +736,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.32.7';
+    const APP_VERSION = '1.32.8';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1180,7 +1180,10 @@
     let simSelectedPointId = 1; // Sandbox point selection
     let simCheckInState = 'none'; // Sandbox checkin status: 'none' | 'recent' | 'complete'
     let simGPSState = 'in'; // Sandbox GPS geofence simulation: 'in' | 'out'
-    let simReportTimeMode = 'on-time'; // Sandbox report time simulation: 'on-time' | 'late' | 'outside'
+    let simReportTimeMode = 'on-time'; // Sandbox report time simulation: 'on-time' | 'grace' | 'late'
+    let simReportPhotoBase64 = null; // รูปแนบในหน้าจำลองเท่านั้น ไม่บันทึกจริง
+    let simReportCoReporters = []; // รายชื่อผู้ร่วมเวรในหน้าจำลองเท่านั้น
+    let simSandboxIkhlasConfirmed = false; // ยืนยันความบริสุทธิ์ใจในหน้าจำลองแล้วหรือยัง
     let isSimulationMode = false; // Flag if report modal is in simulation mode
     let coReporterSigPads = {}; // rowId -> {canvas, ctx, drawing} สำหรับลายเซ็นชั่วคราวของครูร่วมเวร
     let syncQueueProcessing = false; // กันการประมวลผล wen_pending_sync ซ้ำซ้อน
@@ -2067,7 +2070,7 @@
         dashboard: 'แผงควบคุมหลัก (Dashboard)',
         'executive-overview': 'คะแนนการปฏิบัติหน้าที่ของครู (Executive Overview)',
         'today-report': 'ติดตามการปฏิบัติเวรวันนี้',
-        'duty-head-approvals': 'งานหัวหน้าเวร (อนุมัติการลา/เห็นชอบรายงานนอกเวลา)',
+        'duty-head-approvals': 'งานหัวหน้าเวร (อนุมัติการลา/อนุมัติรายงานสาย)',
         schedule: 'จัดการตารางเวรประจำวัน',
         'appoint-heads': 'แต่งตั้งหัวหน้าเวรประจำวัน',
         teachers: 'ข้อมูลครูผู้ปฏิบัติหน้าที่',
@@ -2131,7 +2134,7 @@
           mc.innerHTML = renderMemoView();
           break;
         case 'simulate-reporting':
-          mc.innerHTML = renderSimulateReportingView();
+          mc.innerHTML = renderSimulateReportingView() + renderSandboxReportWorkflowModals();
           break;
         case 'settings':
           mc.innerHTML = renderSettingsView();
@@ -2183,10 +2186,10 @@
       }
 
       const totalPoints = points.length;
-      const reportedCount = reports.filter(r => r.status === 'reported').length;
-      const problemCount = reports.filter(r => r.status === 'problem').length;
+      const reportedCount = reports.filter(r => r.status === 'reported' && isReportCountableForScoring(r)).length;
+      const problemCount = reports.filter(r => r.status === 'problem' && isReportCountableForScoring(r)).length;
       const leaveCount = reports.filter(r => r.status === 'leave').length;
-      const pendingCount = reports.filter(r => r.status === 'pending').length;
+      const pendingCount = reports.filter(r => r.status === 'pending' || isReportPendingLateApproval(r)).length;
       const totalActiveReported = reportedCount + problemCount + leaveCount + pendingCount;
 
       // จุดที่ยังไม่รายงาน แต่มีประกาศยกเว้นเวรครอบคลุมวันนี้/กลุ่มนี้ → ไม่นับเป็น "ขาดเวร"
@@ -2257,6 +2260,7 @@
                 <option value="all">ทุกสถานะรายงาน</option>
                 <option value="reported">รายงานแล้ว (ปกติ)</option>
                 <option value="problem">พบปัญหา</option>
+                <option value="pending">รออนุมัติรายงานสาย</option>
                 <option value="leave">🏖️ ลา</option>
                 <option value="not_reported">ยังไม่ได้รายงาน</option>
               </select>
@@ -2304,12 +2308,13 @@
                     return todayAssigned.map(item => {
                       const teacherId = item.includes(':') ? item.split(':')[1] : item;
                       const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
-                      const status = rep ? rep.status : 'not_reported';
+                      const status = rep ? (isReportPendingLateApproval(rep) ? 'pending' : rep.status) : 'not_reported';
                       
                       let badge = '';
                       if (status === 'reported') badge = '<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold">เรียบร้อย</span>';
                       else if (status === 'problem') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold animate-pulse">พบปัญหา!</span>';
                       else if (status === 'leave') badge = '<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">🏖️ ลา</span>';
+                      else if (status === 'pending') badge = '<span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-bold">รออนุมัติ</span>';
                       else badge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">ยังไม่ลงชื่อ</span>';
 
                       return `
@@ -2356,12 +2361,13 @@
                 return todayAssigned.map(item => {
                   const teacherId = item.includes(':') ? item.split(':')[1] : item;
                   const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
-                  const status = rep ? rep.status : 'not_reported';
+                  const status = rep ? (isReportPendingLateApproval(rep) ? 'pending' : rep.status) : 'not_reported';
                   
                   let badge = '';
                   if (status === 'reported') badge = '<span class="bg-green-150 text-green-800 px-2 py-0.5 rounded text-[10px] font-bold">เรียบร้อย</span>';
                   else if (status === 'problem') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-[10px] font-bold">พบปัญหา!</span>';
                   else if (status === 'leave') badge = '<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold">🏖️ ลา</span>';
+                  else if (status === 'pending') badge = '<span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-[10px] font-bold">รออนุมัติ</span>';
                   else badge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-bold">ยังไม่ส่งเวร</span>';
 
                   return `
@@ -2476,7 +2482,7 @@
       return count;
     }
 
-    // A2. DUTY HEAD APPROVALS VIEW (หัวหน้าเวร/หัวหน้างานเวร - อนุมัติการลา + เห็นชอบรายงานนอกเวลา)
+    // A2. DUTY HEAD APPROVALS VIEW (หัวหน้าเวร/หัวหน้างานเวร - อนุมัติการลา + อนุมัติรายงานสาย)
     function onDutyApprovalsTabChange(tab) {
       currentDutyApprovalsTab = tab;
       navigateTo('duty-head-approvals');
@@ -2537,7 +2543,7 @@
         <div class="fade-in space-y-5 text-xs">
           <div class="border-b pb-4">
             <h3 class="text-lg font-bold text-slate-900">งานหัวหน้าเวร</h3>
-            <p class="text-slate-500 mt-1">อนุมัติคำขอลา และเห็นชอบรายงานนอกเวลาของครูในความรับผิดชอบ</p>
+            <p class="text-slate-500 mt-1">อนุมัติคำขอลา และรับทราบ/อนุมัติรายงานสายของครูในความรับผิดชอบ</p>
           </div>
 
           <!-- เพิ่มลาแทนครู (กรณีแจ้งด้วยวาจา/ฉุกเฉิน) -->
@@ -2592,7 +2598,7 @@
               คำขอลา${myLeaveRequests.length > 0 ? ` <span class="ml-1 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">${myLeaveRequests.length}</span>` : ''}
             </button>
             <button onclick="onDutyApprovalsTabChange('late')" class="py-2 rounded-lg font-bold transition ${currentDutyApprovalsTab === 'late' ? 'bg-white shadow-sm text-brand-900' : 'text-slate-500'}">
-              รายงานนอกเวลา${myLateReports.length > 0 ? ` <span class="ml-1 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">${myLateReports.length}</span>` : ''}
+              รายงานสาย${myLateReports.length > 0 ? ` <span class="ml-1 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">${myLateReports.length}</span>` : ''}
             </button>
             ${canManageExemptions ? `
               <button onclick="onDutyApprovalsTabChange('exemption')" class="py-2 rounded-lg font-bold transition ${currentDutyApprovalsTab === 'exemption' ? 'bg-white shadow-sm text-brand-900' : 'text-slate-500'}">
@@ -2627,7 +2633,7 @@
           ` : currentDutyApprovalsTab === 'late' ? `
             <div class="bg-white border rounded-2xl shadow-sm overflow-hidden">
               ${myLateReports.length === 0 ? `
-                <div class="p-8 text-center text-slate-400">ไม่มีรายงานนอกเวลารอเห็นชอบ</div>
+                <div class="p-8 text-center text-slate-400">ไม่มีรายงานสายรออนุมัติ</div>
               ` : myLateReports.map(rep => {
                 const teacher = db.getTeachers().find(t => t.id === rep.teacherId);
                 const point = db.getDutyPoints().find(p => p.id === rep.pointId);
@@ -2639,8 +2645,8 @@
                       ${rep.result ? `<p class="text-slate-400 mt-0.5">บันทึก: ${rep.result}</p>` : ''}
                     </div>
                     <div class="flex gap-2 flex-shrink-0">
-                      <button onclick="onLateReportReviewAction('${rep.id}', 'approved')" class="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-2 rounded-lg transition">เห็นชอบ</button>
-                      <button onclick="onLateReportReviewAction('${rep.id}', 'rejected')" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-3 py-2 rounded-lg transition">ไม่เห็นชอบ</button>
+                      <button onclick="onLateReportReviewAction('${rep.id}', 'approved')" class="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-2 rounded-lg transition">อนุมัติ</button>
+                      <button onclick="onLateReportReviewAction('${rep.id}', 'rejected')" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-3 py-2 rounded-lg transition">ไม่อนุมัติ</button>
                     </div>
                   </div>
                 `;
@@ -2725,7 +2731,7 @@
 
       const teacherStats = activeTeachers.map(t => {
         const weeklyDuties = getWeeklyDutiesCount(t.id);
-        const tReports = reports.filter(r => r.teacherId === t.id);
+        const tReports = reports.filter(r => r.teacherId === t.id && isReportCountableForScoring(r));
         const checkins = tReports.length;
         const lates = tReports.filter(r => r.isLate).length;
         const ontimes = checkins - lates;
@@ -2770,7 +2776,8 @@
       const totalScheduled = teacherStats.reduce((sum, t) => sum + t.scheduled, 0) || 1;
       const totalCheckins = teacherStats.reduce((sum, t) => sum + t.checkins, 0);
       const totalLates = teacherStats.reduce((sum, t) => sum + t.lates, 0);
-      const problemsCount = reports.filter(r => r.status === 'problem').length;
+      const countableReports = reports.filter(isReportCountableForScoring);
+      const problemsCount = countableReports.filter(r => r.status === 'problem').length;
 
       const complianceRate = Math.min(100, Math.round((totalCheckins / totalScheduled) * 100));
       const punctualityRate = totalCheckins > 0 ? Math.round(((totalCheckins - totalLates) / totalCheckins) * 100) : 100;
@@ -2779,7 +2786,7 @@
 
       const dayLabels = (lockedExecDay ? [lockedExecDay] : ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์']).filter(d => ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'].includes(d));
       const dayStats = dayLabels.map(day => {
-        const dayReports = reports.filter(r => r.id.includes(day));
+        const dayReports = reports.filter(r => r.id.includes(day) && isReportCountableForScoring(r));
         const checkins = dayReports.length;
         const lates = dayReports.filter(r => r.isLate).length;
         const rate = checkins > 0 ? Math.round(((checkins - lates) / checkins) * 100) : 90;
@@ -4123,17 +4130,16 @@
     }
 
     // สร้างแถวตารางรายงานของจุดเวรกลุ่มที่กำหนด (ใช้เลขจุดแบบ per-group ผ่าน getDutyPointDisplayNumber)
-    // ป้าย "(สาย)" สำหรับรายงานที่บันทึกในช่วงเวลาผ่อนผัน (is_late)
-    // (Phase 4 จะขยายให้แสดงสถานะ "เห็นชอบ/ไม่เห็นชอบ" จากหัวหน้าเวร)
+    // ป้าย "(สาย)" สำหรับรายงานหลังหมดช่วงผ่อนผัน (is_late)
     function lateBadge(rep) {
       if (!rep || !rep.isLate) return '';
       if (rep.lateReviewStatus === 'approved') {
-        return ' <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-bold text-[9px] whitespace-nowrap">สาย - เห็นชอบแล้ว</span>';
+        return ' <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-bold text-[9px] whitespace-nowrap">สาย - อนุมัติแล้ว</span>';
       }
       if (rep.lateReviewStatus === 'rejected') {
-        return ' <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold text-[9px] whitespace-nowrap">สาย - ไม่เห็นชอบ</span>';
+        return ' <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold text-[9px] whitespace-nowrap">สาย - ไม่อนุมัติ</span>';
       }
-      return ' <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-bold text-[9px] whitespace-nowrap">สาย</span>';
+      return ' <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-bold text-[9px] whitespace-nowrap">สาย - รออนุมัติ</span>';
     }
 
     function renderDutyReportRows(groupPoints, docDay, reports, exemption) {
@@ -4145,7 +4151,7 @@
 
         return dayAssigned.map((item, tIdx) => {
           const teacherId = item.includes(':') ? item.split(':')[1] : item;
-          const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
+          const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId && isReportCountableForScoring(r));
           const teacher = db.getTeachers().find(t => t.id === teacherId);
 
           let resultText = '';
@@ -4933,9 +4939,9 @@
                   <input type="number" id="sett-minutes" value="${settings.autoNotifyMinutes}" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
                 </div>
                 <div>
-                  <label class="block text-slate-500 font-bold mb-1">ช่วงเวลาผ่อนผันรายงานสาย (นาที):</label>
+                  <label class="block text-slate-500 font-bold mb-1">ช่วงเวลาผ่อนผันหลังหมดเวลาเวร (นาที):</label>
                   <input type="number" id="sett-late-grace-minutes" min="0" value="${settings.lateGraceMinutes ?? 15}" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
-                  <p class="text-[10px] text-slate-400 mt-1">บวกต่อท้ายเวลาสิ้นสุดเวร ครูยังรายงานได้ในช่วงนี้แต่จะถูกบันทึกว่า "มาสาย"</p>
+                  <p class="text-[10px] text-slate-400 mt-1">บวกต่อท้ายเวลาสิ้นสุดเวร ครูยังรายงานได้ในช่วงนี้และยังไม่ถือว่าสาย หากเลยช่วงนี้จะต้องรอหัวหน้าเวรอนุมัติ</p>
                 </div>
               </div>
 
@@ -5067,10 +5073,10 @@
                 </div>
               </div>
 
-              <!-- หัวหน้างานเวร (ผู้อนุมัติ/เห็นชอบลำดับสุดท้าย) -->
+              <!-- หัวหน้างานเวร (ผู้อนุมัติลำดับสุดท้าย) -->
               <div class="border-t pt-4 space-y-3">
                 <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="user-check" class="w-4 h-4 text-brand-700"></i>หัวหน้างานเวร (ผู้อนุมัติลำดับสุดท้าย)</h4>
-                <p class="text-[10px] text-slate-400">เมื่อหัวหน้าเวรประจำวันคนใดคนหนึ่ง "แจ้งลา" หรือ "มาสาย" เอง ระบบจะส่งคำขออนุมัติ/เห็นชอบไปยังบุคคลนี้แทน</p>
+                <p class="text-[10px] text-slate-400">เมื่อหัวหน้าเวรประจำวันคนใดคนหนึ่ง "แจ้งลา" หรือ "มาสาย" เอง ระบบจะส่งคำขออนุมัติไปยังบุคคลนี้แทน</p>
                 <div>
                   <label class="block text-slate-500 font-bold mb-1">หัวหน้างานเวร:</label>
                   <select id="sett-duty-operations-head" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
@@ -5360,7 +5366,7 @@
                           : pointLeaveActive
                           ? '<span class="bg-amber-500/10 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-amber-500"></span>🏖️ แจ้งลาจุดนี้</span>'
                           : '<span class="bg-amber-500/10 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-amber-500"></span>⏳ รอบันทึก</span>'}
-                        ${isDone && rep.isLate ? '<span class="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center">⏰ มาสาย</span>' : ''}
+                        ${isDone && rep.isLate ? lateBadge(rep) : ''}
 
                         <!-- Real-time Countdown Badge -->
                         <span id="my-duty-countdown-${p.id}" class="hidden text-brand-700 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded-full font-bold text-[10px] items-center gap-1">
@@ -5789,15 +5795,14 @@
 
         const range = parseTimeRange(pt.reportWindow ? pt.reportWindow : pt.time);
         const graceMin = db.getSettings().lateGraceMinutes ?? 15;
-        if (simReportTimeMode === 'outside') {
-          const outsideTimeMin = range.endMin + graceMin + 5;
-          showToast(`ไม่อยู่ในช่วงเวลาที่รายงานได้ (${pt.reportWindow || pt.time} น.) (จำลองเวลาคืนนี้ ${minutesToTimeLabel(outsideTimeMin)})`, 'error');
-          return;
+        if (simReportTimeMode === 'grace') {
+          simulatedReportTimeMin = range.endMin + Math.min(Math.max(graceMin, 0), 1);
+        } else if (simReportTimeMode === 'late') {
+          simulatedReportTimeMin = range.endMin + graceMin + 5;
+        } else {
+          simulatedReportTimeMin = Math.max(range.startMin, range.endMin - 5);
         }
-        simulatedReportTimeMin = simReportTimeMode === 'late'
-          ? Math.min(range.endMin + Math.max(1, Math.min(5, graceMin)), range.endMin + graceMin)
-          : Math.max(range.startMin, range.endMin - 5);
-        isLate = simReportTimeMode === 'late';
+        isLate = getReportTimingDecision(pt, simulatedReportTimeMin).isLate;
       } else {
         // วันนี้มีประกาศยกเว้นเวรเหตุสุดวิสัยหรือไม่ → ห้ามรายงานเวร
         const myExemption = getExemptionForDate(getTodayISODate(), getTeacherDutyGroup(currentUser));
@@ -5829,20 +5834,15 @@
           }
         }
 
-        // เช็คช่วงเวลาที่รายงานได้ — ถ้า reportWindow กำหนดโดยหัวหน้างานเวร ใช้นั้นก่อน มิฉะนั้นใช้ p.time ทั้งช่วง
-        const settingsNow = db.getSettings();
-        const graceMin = settingsNow.lateGraceMinutes ?? 15;
-        const tRange = parseTimeRange(pt.time);
+        // เช็คช่วงเวลาที่รายงานได้ — ถ้าเลยช่วงผ่อนผันยังส่งได้ แต่ต้องรอหัวหน้าเวรอนุมัติ
         const nowDate = new Date();
         const nowMin = nowDate.getHours() * 60 + nowDate.getMinutes();
-        const reportRange = pt.reportWindow ? parseTimeRange(pt.reportWindow) : tRange;
-        const effectiveEndMin = reportRange.endMin + graceMin;
-        if (nowMin < reportRange.startMin || nowMin > effectiveEndMin) {
-          const windowDisplay = pt.reportWindow || pt.time;
-          showToast(`ไม่อยู่ในช่วงเวลาที่รายงานได้ (${windowDisplay} น.) ตามนโยบายหัวหน้างานเวร`, 'error');
+        const timingDecision = getReportTimingDecision(pt, nowMin);
+        if (timingDecision.status === 'too_early') {
+          showToast(`ยังไม่ถึงช่วงเวลาที่รายงานได้ (${timingDecision.windowDisplay} น.) ตามนโยบายหัวหน้างานเวร`, 'error');
           return;
         }
-        isLate = nowMin > reportRange.endMin;
+        isLate = timingDecision.isLate;
       }
 
       const statusSelect = document.getElementById('rep-status-select').value;
@@ -5906,6 +5906,9 @@
         alertMsg += `จุดเวร: จุดที่ ${getDutyPointDisplayNumber(pt)} (${pt.name})\n`;
         alertMsg += `ผู้ปฏิบัติ: ${currentUser.name}\n`;
         alertMsg += `เวลาบันทึก: ${timeNow} น.\n`;
+        if (isLate) {
+          alertMsg += `สถานะเวลา: รายงานสายหลังหมดช่วงผ่อนผัน (รอหัวหน้าเวรอนุมัติ)\n`;
+        }
         alertMsg += `สถานะ: ${statusSelect === 'problem' ? '⚠️ พบประเด็นขัดข้อง!' : '✅ ปกติเรียบร้อยดี'}\n`;
         if (statusSelect === 'problem') {
           alertMsg += `ปัญหาที่พบ: ${problemText}\nแนวทางดำเนินการ: ${solutionText}\n`;
@@ -5922,10 +5925,18 @@
       } else {
         // ในโหมดจำลอง: เคลียร์/อัปเดตสถานะจำลอง
         simCheckInState = 'none';
-        showToast('จำลองส่งรายงานผลปฏิบัติเวรสำเร็จ (ข้ามการบันทึกฐานข้อมูลจริงและแจ้งเตือน Line/Telegram)', 'success');
+        showToast(isLate
+          ? 'จำลองส่งรายงานสายเข้าสู่คิวหัวหน้าเวรแล้ว (ข้ามการบันทึกฐานข้อมูลจริงและแจ้งเตือน Line/Telegram)'
+          : 'จำลองส่งรายงานผลปฏิบัติเวรสำเร็จ (ข้ามการบันทึกฐานข้อมูลจริงและแจ้งเตือน Line/Telegram)',
+        isLate ? 'warning' : 'success');
       }
 
       closeReportForm(true);
+      if (!isSimulationMode && isLate) {
+        showToast('ส่งรายงานสายเข้าสู่คิวหัวหน้าเวรแล้ว ระบบจะนับผลหลังหัวหน้าเวรอนุมัติ', 'warning');
+        renderPage('my-duty');
+        return;
+      }
       showAppreciationDuaModal();
     }
 
@@ -6202,7 +6213,7 @@
       navigateTo('duty-head-approvals');
     }
 
-    // หัวหน้าเวร/หัวหน้างานเวร เห็นชอบ/ไม่เห็นชอบรายงานที่มาสาย (isLate=true, lateReviewStatus='pending')
+    // หัวหน้าเวร/หัวหน้างานเวร อนุมัติ/ไม่อนุมัติรายงานที่มาสาย (isLate=true, lateReviewStatus='pending')
     async function onLateReportReviewAction(reportId, decision) {
       const rep = db.getReports().find(r => r.id === reportId);
       if (!rep) return;
@@ -6214,7 +6225,7 @@
         lateReviewedAt: new Date().toISOString()
       }, true);
 
-      showToast(decision === 'approved' ? 'เห็นชอบรายงานนอกเวลาเรียบร้อยแล้ว' : 'ไม่เห็นชอบรายงานนอกเวลาเรียบร้อยแล้ว', 'success');
+      showToast(decision === 'approved' ? 'อนุมัติรายงานสายเรียบร้อยแล้ว' : 'ไม่อนุมัติรายงานสายเรียบร้อยแล้ว', 'success');
       navigateTo('duty-head-approvals');
     }
 
@@ -6441,10 +6452,10 @@
                 <label class="block text-slate-500 font-bold mb-1">4. สถานะเวลาการรายงาน:</label>
                 <select id="sim-time-select" onchange="simChangeReportTimeMode(this.value)" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-semibold">
                   <option value="on-time" ${simReportTimeMode === 'on-time' ? 'selected' : ''}>รายงานในช่วงเวลาปกติ</option>
-                  <option value="late" ${simReportTimeMode === 'late' ? 'selected' : ''}>รายงานสาย (ยังอยู่ในช่วงผ่อนผัน)</option>
-                  <option value="outside" ${simReportTimeMode === 'outside' ? 'selected' : ''}>รายงานนอกช่วงเวลาที่อนุญาต</option>
+                  <option value="grace" ${simReportTimeMode === 'grace' ? 'selected' : ''}>รายงานในช่วงเวลาผ่อนผัน (ยังไม่ถือว่าสาย)</option>
+                  <option value="late" ${simReportTimeMode === 'late' ? 'selected' : ''}>รายงานหลังหมดช่วงผ่อนผัน (ถือว่าสาย/รออนุมัติ)</option>
                 </select>
-                <p class="text-[10px] text-slate-500 mt-2">ระบบจำลองจะใช้สถานะนี้เพื่อทดสอบผลลัพธ์ของการส่งรายงานในช่วงเวลา, สาย, หรือนอกช่วงเวลา</p>
+                <p class="text-[10px] text-slate-500 mt-2">ระบบจำลองจะใช้สถานะนี้เพื่อทดสอบผลลัพธ์ของการส่งรายงานในช่วงเวลาปกติ ช่วงผ่อนผัน หรือหลังหมดช่วงผ่อนผัน</p>
               </div>
             </div>
             
@@ -6452,6 +6463,130 @@
               <label class="block text-slate-550 font-bold text-center">ตัวอย่างปุ่มแสดงบนหน้าจอของครูเวร:</label>
               <div class="max-w-xs mx-auto border rounded-2xl p-4 bg-slate-50 shadow-inner">
                 ${buttonHtml}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSandboxReportWorkflowModals() {
+      return `
+        <div id="sandbox-report-modal" class="fixed inset-0 bg-black/60 z-[200] hidden flex items-center justify-center p-3 sm:p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border">
+            <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
+              <h3 class="font-bold text-xs" id="sandbox-form-modal-title">หน้าจำลองรายงานผลการปฏิบัติหน้าที่</h3>
+              <button onclick="closeSandboxReportForm()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+
+            <div class="bg-amber-50 border-b border-amber-200 px-5 py-2.5 text-amber-800 font-bold flex items-center gap-2">
+              <i data-lucide="flask-conical" class="w-4 h-4 text-amber-600"></i>
+              <span>โหมดจำลองเท่านั้น - ไม่ใช้ฟอร์มจริง ไม่บันทึกฐานข้อมูล และไม่ส่งแจ้งเตือนจริง</span>
+            </div>
+            <div class="bg-slate-100 border-b border-slate-200 px-5 py-2.5 text-slate-700 flex items-center gap-2">
+              <i data-lucide="clock" class="w-4 h-4 text-slate-600"></i>
+              <span id="sandbox-simulation-time-text"></span>
+            </div>
+
+            <form onsubmit="submitSandboxReport(event)" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
+              <div id="sandbox-distance-alert" class="p-3 rounded-lg border font-bold flex items-center gap-2"></div>
+
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">ระบุสภาพความเรียบร้อย:</label>
+                <select id="sandbox-report-status-select" onchange="toggleSandboxReportProblemsInput()" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 font-bold text-slate-700">
+                  <option value="reported">ปฏิบัติเวรเรียบร้อย (ปกติ/ไม่พบปัญหา)</option>
+                  <option value="problem">⚠️ พบประเด็นความผิดปกติ หรืออุบัติเหตุ (แจ้งปัญหา)</option>
+                </select>
+              </div>
+
+              <div id="sandbox-report-result-section">
+                <label class="block text-slate-500 mb-1 font-bold">ผลการปฏิบัติงานโดยรวม:</label>
+                <textarea id="sandbox-report-result-text" rows="3" required placeholder="ระบุการปฏิบัติหน้าที่เวรเบื้องต้น..." class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 leading-relaxed"></textarea>
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                  <span class="text-[10px] text-slate-400 font-bold w-full">ตัวอย่างข้อความ (คลิกเพื่อเลือก):</span>
+                  <button type="button" onclick="setSandboxReportSuggestion('นักเรียนปฏิบัติตนเรียบร้อยดี ไม่พบปัญหาหรือเหตุผิดปกติ')" class="text-[10px] bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-800 rounded-full px-2.5 py-1 font-medium transition">นักเรียนปฏิบัติตนเรียบร้อยดี ไม่พบปัญหา</button>
+                  <button type="button" onclick="setSandboxReportSuggestion('นักเรียนเดินทางมาโรงเรียนตามปกติ ไม่พบเหตุผิดปกติ')" class="text-[10px] bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-800 rounded-full px-2.5 py-1 font-medium transition">นักเรียนเดินทางมาโรงเรียนตามปกติ</button>
+                  <button type="button" onclick="setSandboxReportSuggestion('บริเวณจุดเวรเรียบร้อยดี นักเรียนให้ความร่วมมือดี ไม่พบเหตุผิดปกติ')" class="text-[10px] bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-800 rounded-full px-2.5 py-1 font-medium transition">บริเวณจุดเวรเรียบร้อย นักเรียนให้ความร่วมมือดี</button>
+                </div>
+              </div>
+
+              <div id="sandbox-report-problem-fields" class="hidden grid grid-cols-1 gap-3 bg-red-50 border border-red-150 rounded-lg p-3">
+                <div>
+                  <label class="block text-red-800 font-bold mb-1">ปัญหาที่พบ:</label>
+                  <input type="text" id="sandbox-report-problem-text" placeholder="เช่น พบนักเรียนไม่ปฏิบัติตามระเบียบ" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-red-500 text-slate-750 font-medium">
+                </div>
+                <div>
+                  <label class="block text-brand-900 font-bold mb-1">แนวทางดำเนินการแก้ไขเบื้องต้น:</label>
+                  <input type="text" id="sandbox-report-solution-text" placeholder="เช่น ตักเตือนและแจ้งครูที่ปรึกษา" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-750 font-medium">
+                </div>
+              </div>
+
+              <div class="border-t pt-4 space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                  <label class="block text-slate-500 font-bold">ผู้เข้าร่วมเวรในรายงานจำลอง:</label>
+                  <span class="text-[9px] text-slate-400 font-semibold">เพิ่มเพื่อทดสอบหน้าจอเท่านั้น</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                  <input type="text" id="sandbox-co-reporter-name" placeholder="ชื่อผู้ร่วมเวร เช่น ครูอับดุลเลาะ" class="border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
+                  <button type="button" onclick="addSandboxCoReporter()" class="bg-brand-800 hover:bg-brand-700 text-white font-bold px-3 py-2.5 rounded-lg transition inline-flex items-center justify-center gap-1">
+                    <i data-lucide="user-plus" class="w-4 h-4"></i> เพิ่ม
+                  </button>
+                </div>
+                <div id="sandbox-co-reporter-list" class="flex flex-wrap gap-2"></div>
+              </div>
+
+              <div class="border-t pt-4">
+                <label class="block text-slate-500 mb-1 font-bold">แนบรูปภาพปฏิบัติเวร: <span class="text-red-500">*</span></label>
+                <div class="flex items-center gap-3">
+                  <input type="file" accept="image/*" id="sandbox-report-photo-input" onchange="previewSandboxReportPhoto(event)" class="hidden">
+                  <button type="button" onclick="document.getElementById('sandbox-report-photo-input').click()" class="border border-brand-300 hover:border-brand-500 text-brand-850 hover:bg-brand-50/50 py-2 px-3.5 rounded-lg font-bold transition flex items-center gap-1.5">
+                    <i data-lucide="camera" class="w-4 h-4"></i> อัปโหลดรูปภาพเวร
+                  </button>
+                  <span id="sandbox-report-photo-filename" class="text-[9px] text-red-400 font-bold">⚠ ยังไม่ได้แนบรูป (จำเป็น)</span>
+                </div>
+                <div id="sandbox-report-photo-preview-box" class="mt-2 border rounded-lg bg-slate-50 hidden overflow-hidden justify-center items-center max-h-32">
+                  <img id="sandbox-report-photo-preview" src="" class="object-contain max-h-32" alt="รูปพรีวิว">
+                </div>
+              </div>
+
+              <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+                <i data-lucide="shield-alert" class="w-4 h-4 text-amber-700 mt-0.5"></i>
+                <div>
+                  <p class="font-bold text-amber-900">หน้าจำลองนี้แยกจากฟอร์มรายงานจริงของครู</p>
+                  <p class="text-[9px] text-amber-700 mt-0.5">การเพิ่มผู้ร่วมเวรและแนบรูปในนี้ไม่แก้ข้อมูลรายงานจริง ไม่แตะลายเซ็น และไม่เขียนลงฐานข้อมูล</p>
+                </div>
+              </div>
+
+              <div class="flex gap-2 pt-2 border-t">
+                <button type="button" onclick="closeSandboxReportForm()" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ปิดหน้าต่าง</button>
+                <button type="submit" class="flex-1 bg-brand-850 hover:bg-brand-700 text-white font-bold py-2.5 rounded-lg shadow hover:shadow-md transition">
+                  บันทึกผลจำลอง
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div id="sandbox-ikhlas-confirm-modal" class="fixed inset-0 bg-black/70 z-[400] hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border fade-in">
+            <div class="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-4 flex items-center gap-2">
+              <i data-lucide="shield-check" class="w-5 h-5 text-amber-100"></i>
+              <h4 class="font-bold text-xs">ยืนยันความบริสุทธิ์ใจในการรายงานร่วม</h4>
+            </div>
+            <div class="p-6 space-y-4 text-slate-700 text-[11px] leading-relaxed">
+              <p class="font-semibold">
+                ครูเจ้าของเครื่องขอยืนยันด้วยความบริสุทธิ์ใจว่า ผู้เข้าร่วมเวรที่เพิ่มในรายงานจำลองนี้ได้อยู่ร่วมปฏิบัติหน้าที่จริง ณ จุดเวรตามเงื่อนไขที่กำหนด
+              </p>
+
+              <div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 space-y-1.5 font-bold text-amber-900" id="sandbox-ikhlas-co-reporters-list"></div>
+
+              <p class="text-slate-500 text-[10px] leading-normal">
+                การยืนยันนี้เป็นส่วนหนึ่งของหน้าจำลองเท่านั้น เพื่อให้เห็นขั้นตอนก่อนส่งรายงานร่วมกัน โดยไม่บันทึกข้อมูลจริงและไม่แตะฟอร์มรายงานจริงของคุณครู
+              </p>
+
+              <div class="flex gap-2 pt-2 border-t text-xs">
+                <button type="button" onclick="closeSandboxIkhlasConfirm()" class="flex-1 border border-slate-200 hover:bg-slate-50 py-2 rounded-lg text-slate-600 font-bold transition">ย้อนกลับไปแก้ไข</button>
+                <button type="button" onclick="confirmSandboxIkhlasAndSubmit()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-lg shadow transition">ยืนยันความบริสุทธิ์ใจ</button>
               </div>
             </div>
           </div>
@@ -6498,7 +6633,251 @@
         showToast('กรุณาจำลองการเช็คอินและรอให้สถานะเป็นพร้อมส่งรายงานก่อน (เช็คอินเกิน 20 นาที)', 'warning');
         return;
       }
-      openReportForm(simSelectedPointId, true);
+      openSandboxReportForm(simSelectedPointId);
+    }
+
+    function openSandboxReportForm(pointId) {
+      const modal = document.getElementById('sandbox-report-modal');
+      if (!modal) {
+        showToast('ไม่พบหน้าต่างจำลองรายงานเวร กรุณาโหลดหน้านี้ใหม่อีกครั้ง', 'error');
+        return;
+      }
+
+      const points = db.getDutyPoints();
+      const pt = points.find(p => p.id === pointId);
+      simReportPhotoBase64 = null;
+      simReportCoReporters = [];
+      simSandboxIkhlasConfirmed = false;
+
+      const titleEl = document.getElementById('sandbox-form-modal-title');
+      if (titleEl && pt) {
+        titleEl.textContent = `หน้าจำลองรายงานผลการปฏิบัติหน้าที่ - จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}`;
+      }
+
+      const statusSelect = document.getElementById('sandbox-report-status-select');
+      if (statusSelect) statusSelect.value = 'reported';
+      const resultText = document.getElementById('sandbox-report-result-text');
+      if (resultText) resultText.value = '';
+      const problemText = document.getElementById('sandbox-report-problem-text');
+      if (problemText) problemText.value = '';
+      const solutionText = document.getElementById('sandbox-report-solution-text');
+      if (solutionText) solutionText.value = '';
+      const coName = document.getElementById('sandbox-co-reporter-name');
+      if (coName) coName.value = '';
+
+      const fileLabel = document.getElementById('sandbox-report-photo-filename');
+      if (fileLabel) {
+        fileLabel.textContent = '⚠ ยังไม่ได้แนบรูป (จำเป็น)';
+        fileLabel.className = 'text-[9px] text-red-400 font-bold';
+      }
+      const photoInput = document.getElementById('sandbox-report-photo-input');
+      if (photoInput) photoInput.value = '';
+      const previewImg = document.getElementById('sandbox-report-photo-preview');
+      if (previewImg) previewImg.src = '';
+      const previewBox = document.getElementById('sandbox-report-photo-preview-box');
+      if (previewBox) {
+        previewBox.classList.add('hidden');
+        previewBox.classList.remove('flex');
+      }
+
+      updateSandboxReportTimeText();
+      updateSandboxDistanceAlert(pt);
+      toggleSandboxReportProblemsInput();
+      renderSandboxCoReporterList();
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeSandboxReportForm() {
+      const modal = document.getElementById('sandbox-report-modal');
+      if (modal) modal.classList.add('hidden');
+      closeSandboxIkhlasConfirm();
+      simReportPhotoBase64 = null;
+      simReportCoReporters = [];
+      simSandboxIkhlasConfirmed = false;
+    }
+
+    function updateSandboxReportTimeText() {
+      const textEl = document.getElementById('sandbox-simulation-time-text');
+      if (!textEl) return;
+      if (simReportTimeMode === 'grace') {
+        textEl.textContent = 'จำลองการรายงานในช่วงเวลาผ่อนผัน: ยังไม่ถือว่าสายและไม่ต้องรออนุมัติ';
+      } else if (simReportTimeMode === 'late') {
+        textEl.textContent = 'จำลองการรายงานหลังหมดช่วงผ่อนผัน: ถือว่าสายและรอหัวหน้าเวรอนุมัติก่อนนับผล';
+      } else {
+        textEl.textContent = 'จำลองการรายงานอยู่ในช่วงเวลาปกติ';
+      }
+    }
+
+    function updateSandboxDistanceAlert(pt) {
+      const alertEl = document.getElementById('sandbox-distance-alert');
+      if (!alertEl || !pt) return;
+      const inRadius = simGPSState === 'in';
+      const distance = inRadius ? 12.5 : 345.2;
+      const radiusVal = pt.radius || 100;
+      if (inRadius) {
+        alertEl.className = 'p-3 rounded-lg border font-bold flex items-center gap-2 bg-green-50 text-green-800 border-green-200';
+        alertEl.innerHTML = `
+          <i data-lucide="check-circle" class="w-4 h-4 text-green-650"></i>
+          <span>อยู่ในระยะลงชื่อปฏิบัติงาน (ห่างจากจุด ${distance.toFixed(1)} เมตร) [โหมดจำลอง]</span>
+        `;
+      } else {
+        alertEl.className = 'p-3 rounded-lg border font-bold flex items-center gap-2 bg-red-50 text-red-800 border-red-200';
+        alertEl.innerHTML = `
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-red-650"></i>
+          <span>อยู่นอกระยะปฏิบัติงาน (ห่างจากจุด ${distance.toFixed(1)} เมตร, รัศมีสูงสุด ${radiusVal} เมตร) [โหมดจำลอง]</span>
+        `;
+      }
+    }
+
+    function toggleSandboxReportProblemsInput() {
+      const select = document.getElementById('sandbox-report-status-select');
+      const problemFields = document.getElementById('sandbox-report-problem-fields');
+      const resultSection = document.getElementById('sandbox-report-result-section');
+      const resultText = document.getElementById('sandbox-report-result-text');
+      const problemText = document.getElementById('sandbox-report-problem-text');
+      const solutionText = document.getElementById('sandbox-report-solution-text');
+      if (!select || !problemFields || !resultSection || !resultText || !problemText || !solutionText) return;
+
+      if (select.value === 'problem') {
+        problemFields.classList.remove('hidden');
+        problemText.setAttribute('required', 'true');
+        solutionText.setAttribute('required', 'true');
+        resultSection.classList.add('hidden');
+        resultText.removeAttribute('required');
+      } else {
+        problemFields.classList.add('hidden');
+        problemText.removeAttribute('required');
+        solutionText.removeAttribute('required');
+        resultSection.classList.remove('hidden');
+        resultText.setAttribute('required', 'true');
+      }
+    }
+
+    function setSandboxReportSuggestion(text) {
+      const ta = document.getElementById('sandbox-report-result-text');
+      if (ta) {
+        ta.value = text;
+        ta.focus();
+      }
+    }
+
+    function addSandboxCoReporter() {
+      const input = document.getElementById('sandbox-co-reporter-name');
+      const name = input ? input.value.trim() : '';
+      if (!name) {
+        showToast('กรุณาระบุชื่อผู้ร่วมเวรในหน้าจำลอง', 'warning');
+        return;
+      }
+      if (!simReportCoReporters.includes(name)) {
+        simReportCoReporters.push(name);
+      }
+      if (input) input.value = '';
+      renderSandboxCoReporterList();
+    }
+
+    function removeSandboxCoReporter(index) {
+      simReportCoReporters.splice(index, 1);
+      renderSandboxCoReporterList();
+    }
+
+    function escapeSandboxText(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function renderSandboxCoReporterList() {
+      const list = document.getElementById('sandbox-co-reporter-list');
+      if (!list) return;
+      if (simReportCoReporters.length === 0) {
+        list.innerHTML = '<span class="text-[10px] text-slate-400 font-semibold">ยังไม่มีผู้ร่วมเวรในรายงานจำลองนี้</span>';
+      } else {
+        list.innerHTML = simReportCoReporters.map((name, index) => `
+          <span class="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-800 rounded-full px-2.5 py-1 font-bold text-[10px]">
+            <i data-lucide="user-check" class="w-3.5 h-3.5"></i>${escapeSandboxText(name)}
+            <button type="button" onclick="removeSandboxCoReporter(${index})" class="text-green-700 hover:text-red-600">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+          </span>
+        `).join('');
+      }
+      lucide.createIcons();
+    }
+
+    function showSandboxIkhlasConfirmModal() {
+      const modal = document.getElementById('sandbox-ikhlas-confirm-modal');
+      const listContainer = document.getElementById('sandbox-ikhlas-co-reporters-list');
+      if (!modal || !listContainer) return;
+      listContainer.innerHTML = simReportCoReporters.length
+        ? `<ul class="space-y-1">${simReportCoReporters.map(name => `<li>• ${escapeSandboxText(name)}</li>`).join('')}</ul>`
+        : '<p class="text-slate-500">ไม่มีผู้เข้าร่วมเวรเพิ่มเติม</p>';
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeSandboxIkhlasConfirm() {
+      const modal = document.getElementById('sandbox-ikhlas-confirm-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function confirmSandboxIkhlasAndSubmit() {
+      simSandboxIkhlasConfirmed = true;
+      closeSandboxIkhlasConfirm();
+      finishSandboxReportSubmission();
+    }
+
+    function previewSandboxReportPhoto(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const filenameEl = document.getElementById('sandbox-report-photo-filename');
+      if (filenameEl) {
+        filenameEl.textContent = file.name;
+        filenameEl.className = 'text-[9px] text-green-600 font-bold';
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        simReportPhotoBase64 = reader.result;
+        const preview = document.getElementById('sandbox-report-photo-preview');
+        if (preview) preview.src = reader.result;
+        const previewBox = document.getElementById('sandbox-report-photo-preview-box');
+        if (previewBox) {
+          previewBox.classList.remove('hidden');
+          previewBox.classList.add('flex');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function submitSandboxReport(e) {
+      e.preventDefault();
+      if (!simReportPhotoBase64) {
+        showToast('กรุณาแนบรูปภาพปฏิบัติเวรในหน้าจำลองก่อน', 'warning');
+        document.getElementById('sandbox-report-photo-input').click();
+        return;
+      }
+      if (simReportCoReporters.length > 0 && !simSandboxIkhlasConfirmed) {
+        showSandboxIkhlasConfirmModal();
+        return;
+      }
+      finishSandboxReportSubmission();
+    }
+
+    function finishSandboxReportSubmission() {
+      const coReporterCount = simReportCoReporters.length;
+      simCheckInState = 'none';
+      closeSandboxReportForm();
+      if (simReportTimeMode === 'late') {
+        showToast(`จำลองส่งรายงานสายเข้าสู่คิวหัวหน้าเวร${coReporterCount ? ` พร้อมผู้ร่วมเวร ${coReporterCount} คน` : ''} (ไม่บันทึกข้อมูลจริง)`, 'warning');
+      } else {
+        showToast(`จำลองบันทึกรายงานสำเร็จ${coReporterCount ? ` พร้อมผู้ร่วมเวร ${coReporterCount} คน` : ''} (ไม่บันทึกข้อมูลจริง)`, 'success');
+      }
+      renderPage('simulate-reporting');
     }
 
     // =========================================================================
@@ -6836,7 +7215,7 @@
       });
     }
 
-    // คืน teacher_id ของผู้มีสิทธิ์อนุมัติการลา/เห็นชอบรายงานนอกเวลาของครู teacherId ในวันที่ dateStr
+    // คืน teacher_id ของผู้มีสิทธิ์อนุมัติการลา/รายงานสายของครู teacherId ในวันที่ dateStr
     // - ปกติคือหัวหน้าเวรของกลุ่ม/วันนั้น (settings.headsOfDay[dayName][เพศ])
     // - ถ้าตัวครูเองคือหัวหน้าเวร (ลา/มาสายเอง) ให้ส่งต่อไปที่ "หัวหน้างานเวร" (dutyOperationsHeadId)
     function getDutyApproverId(teacherId, dateStr) {
@@ -6869,7 +7248,7 @@
       return teachers.filter(t => t.id !== currentUser.id && getDutyApproverId(t.id, dateStr) === currentUser.id);
     }
 
-    // จำนวนรายการรออนุมัติ/เห็นชอบทั้งหมดที่ currentUser ต้องดำเนินการ (สำหรับ badge ในเมนู "งานหัวหน้าเวร")
+    // จำนวนรายการรออนุมัติทั้งหมดที่ currentUser ต้องดำเนินการ (สำหรับ badge ในเมนู "งานหัวหน้าเวร")
     function getPendingDutyApprovalsCount() {
       if (!currentUser) return 0;
       const leaveCount = db.getLeaveRequests().filter(r => r.status === 'pending' && (r.approverId === currentUser.id || getDutyApproverId(r.teacherId, r.date) === currentUser.id || isFullAdmin(currentUser))).length;
@@ -7058,6 +7437,33 @@
       return `${hours.toString().padStart(2, '0')}.${minutes.toString().padStart(2, '0')}`;
     }
 
+    function getReportTimingDecision(point, currentMin) {
+      const settingsNow = db.getSettings();
+      const graceMin = settingsNow.lateGraceMinutes ?? 15;
+      const reportRange = point && point.reportWindow ? parseTimeRange(point.reportWindow) : parseTimeRange(point ? point.time : '');
+      const graceEndMin = reportRange.endMin + graceMin;
+      const windowDisplay = point && point.reportWindow ? point.reportWindow : (point ? point.time : '');
+
+      if (currentMin < reportRange.startMin) {
+        return { status: 'too_early', isLate: false, graceMin, reportRange, graceEndMin, windowDisplay };
+      }
+      if (currentMin <= reportRange.endMin) {
+        return { status: 'on_time', isLate: false, graceMin, reportRange, graceEndMin, windowDisplay };
+      }
+      if (currentMin <= graceEndMin) {
+        return { status: 'grace', isLate: false, graceMin, reportRange, graceEndMin, windowDisplay };
+      }
+      return { status: 'late', isLate: true, graceMin, reportRange, graceEndMin, windowDisplay };
+    }
+
+    function isReportPendingLateApproval(rep) {
+      return !!(rep && rep.isLate && rep.lateReviewStatus === 'pending');
+    }
+
+    function isReportCountableForScoring(rep) {
+      return !!rep && !(rep.isLate && (rep.lateReviewStatus === 'pending' || rep.lateReviewStatus === 'rejected'));
+    }
+
     function updateReportModalSimulationBanner() {
       const timeBanner = document.getElementById('modal-simulation-time-banner');
       if (!timeBanner) return;
@@ -7069,10 +7475,10 @@
       let text = '';
       if (simReportTimeMode === 'on-time') {
         text = 'จำลองการรายงานอยู่ในช่วงเวลาปกติ';
+      } else if (simReportTimeMode === 'grace') {
+        text = 'จำลองการรายงานในช่วงเวลาผ่อนผัน: ยังไม่ถือว่าสาย';
       } else if (simReportTimeMode === 'late') {
-        text = 'จำลองการรายงานสาย: ภายในช่วงผ่อนผัน (ระบบจะบันทึกเป็นมาสาย)';
-      } else if (simReportTimeMode === 'outside') {
-        text = 'จำลองการรายงานนอกช่วงเวลาที่อนุญาต: ส่งแล้วระบบจะปฏิเสธรายการ';
+        text = 'จำลองการรายงานหลังหมดช่วงผ่อนผัน: ถือว่าสายและรอหัวหน้าเวรอนุมัติ';
       }
 
       const textEl = document.getElementById('modal-simulation-time-text');
