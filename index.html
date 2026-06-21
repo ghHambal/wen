@@ -2650,7 +2650,16 @@
                           <td class="px-4 py-3 text-slate-500">${p.time} น.</td>
                           <td class="px-4 py-3 font-bold text-slate-800">${getTeacherName(teacherId)}</td>
                           <td class="px-4 py-3 text-center">${badge}</td>
-                          <td class="px-4 py-3 text-center font-bold text-slate-600">${rep && rep.status === 'leave' ? '-' : (rep ? rep.time + ' น.' + lateBadge(rep) : '-')}</td>
+                          <td class="px-4 py-3 text-center font-bold text-slate-600">
+                            ${rep && rep.status === 'leave' ? '-' : (rep ? rep.time + ' น.' + lateBadge(rep) : '-')}
+                            ${rep && rep.isLate && canReviewLateReport(rep) ? `
+                              <div class="mt-1 no-print">
+                                <button onclick="onLateReportReviewAction('${rep.id}', 'normalized')" class="bg-green-600 hover:bg-green-700 text-white text-[9px] px-1.5 py-0.5 rounded transition font-bold whitespace-nowrap">
+                                  ปรับเป็นปกติ
+                                </button>
+                              </div>
+                            ` : ''}
+                          </td>
                           <td class="px-4 py-3 text-center text-slate-500">${rep && rep.status !== 'leave' ? rep.distance.toFixed(1) + ' ม.' : '-'}</td>
                           <td class="px-4 py-3 text-center">
                             ${thumbSrc ? `<button onclick="viewReportDetails('${rep.id}')" class="inline-flex w-10 h-10 rounded-lg border bg-slate-50 overflow-hidden items-center justify-center hover:ring-2 hover:ring-brand-200 transition" title="ดูรูปหลักฐาน"><img src="${thumbSrc}" class="w-full h-full object-cover" alt="รูปหลักฐานย่อ"></button>` : '<span class="text-slate-300">-</span>'}
@@ -2675,14 +2684,14 @@
                 </tbody>
               </table>
             </div>
-
+ 
             <!-- Mobile List Card View (Displays on screen sizes below md) -->
             <div class="block md:hidden p-4 space-y-3 bg-slate-50" id="dashboard-mobile-list">
               ${points.flatMap(p => {
                 const assignedList = p.assignedTo || p.assigned_to || [];
                 const todayDay = getTodayThaiDayName();
                 const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
-
+ 
                 return todayAssigned.map(item => {
                   const teacherId = item.includes(':') ? item.split(':')[1] : item;
                   const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
@@ -2690,12 +2699,12 @@
                   const thumbSrc = rep && rep.status !== 'leave' ? resolveReportPhotoSrc(rep, true) : '';
                   
                   let badge = '';
-                  if (status === 'reported') badge = '<span class="bg-green-150 text-green-800 px-2 py-0.5 rounded text-[10px] font-bold">เรียบร้อย</span>';
+                  if (status === 'reported') badge = '<span class="bg-green-155 text-green-800 px-2 py-0.5 rounded text-[10px] font-bold">เรียบร้อย</span>';
                   else if (status === 'problem') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-[10px] font-bold">พบปัญหา!</span>';
                   else if (status === 'leave') badge = '<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold">🏖️ ลา</span>';
                   else if (status === 'pending') badge = '<span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-[10px] font-bold">รออนุมัติ</span>';
                   else badge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-bold">ยังไม่ส่งเวร</span>';
-
+ 
                   return `
                     <div class="bg-white border rounded-xl p-3 shadow-sm space-y-2 dash-row" data-point-id="${p.id}" data-status="${status}" data-teacher-name="${getTeacherName(teacherId)}">
                       <div class="flex justify-between items-center">
@@ -2709,14 +2718,21 @@
                         ${thumbSrc ? `<button onclick="viewReportDetails('${rep.id}')" class="mt-1 inline-flex w-16 h-12 rounded-lg border bg-slate-50 overflow-hidden items-center justify-center"><img src="${thumbSrc}" class="w-full h-full object-cover" alt="รูปหลักฐานย่อ"></button>` : ''}
                       </div>
                       <div class="border-t pt-1.5 flex justify-between items-center text-[10px]">
-                        <span class="text-slate-700 truncate max-w-[200px]">
+                        <span class="text-slate-700 truncate max-w-[150px]">
                           ${rep ? (rep.status === 'problem' ? `🚨 ปัญหา: ${rep.problem}` : rep.result) : 'ยังไม่ส่งรายงาน'}
                         </span>
-                        ${rep ? `
-                          <button onclick="viewReportDetails('${rep.id}')" class="text-brand-700 font-bold flex items-center gap-0.5">
-                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> รายละเอียด
-                          </button>
-                        ` : '<span class="text-slate-300">-</span>'}
+                        <div class="flex items-center gap-1.5 flex-shrink-0">
+                          ${rep && rep.isLate && canReviewLateReport(rep) ? `
+                            <button onclick="onLateReportReviewAction('${rep.id}', 'normalized')" class="bg-green-600 hover:bg-green-700 text-white text-[9px] px-2 py-1 rounded transition font-bold no-print">
+                              ปรับเป็นปกติ
+                            </button>
+                          ` : ''}
+                          ${rep ? `
+                            <button onclick="viewReportDetails('${rep.id}')" class="text-brand-700 font-bold flex items-center gap-0.5">
+                              <i data-lucide="eye" class="w-3.5 h-3.5"></i> รายละเอียด
+                            </button>
+                          ` : '<span class="text-slate-300">-</span>'}
+                        </div>
                       </div>
                     </div>
                   `;
@@ -3124,6 +3140,7 @@
                     </div>
                     <div class="flex gap-2 flex-shrink-0">
                       <button onclick="onLateReportReviewAction('${rep.id}', 'normalized')" class="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-2 rounded-lg transition">รับรองเป็นปกติ (คะแนนเต็ม)</button>
+                      <button onclick="onLateReportReviewAction('${rep.id}', 'approved')" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-2 rounded-lg transition">อนุมัติ (เป็นสาย)</button>
                       <button onclick="onLateReportReviewAction('${rep.id}', 'rejected')" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-3 py-2 rounded-lg transition">ไม่อนุมัติ</button>
                     </div>
                   </div>
@@ -6887,14 +6904,13 @@
       return isFullAdmin(currentUser) || getDutyApproverId(rep.teacherId, rep.date) === currentUser.id;
     }
 
-    // หัวหน้าเวรรับรองรายงานสายเป็นปกติ (คะแนนเต็ม) หรือไม่อนุมัติรายงาน
+    // หัวหน้าเวรรับรองรายงานสายเป็นปกติ (คะแนนเต็ม) หรืออนุมัติรายงาน (แต่ยังเป็นสาย) หรือไม่อนุมัติรายงาน
     async function onLateReportReviewAction(reportId, decision) {
       const rep = db.getReports().find(r => r.id === reportId);
       if (!rep) return;
 
-      if (!rep.isLate || rep.lateReviewStatus !== 'pending') {
-        showToast('รายงานนี้ไม่ได้อยู่ในสถานะรายงานสายที่รอตรวจสอบ', 'warning');
-        navigateTo('duty-head-approvals');
+      if (!rep.isLate && !rep.lateReviewStatus) {
+        showToast('รายงานนี้ไม่ได้อยู่ในสถานะที่สามารถอนุมัติได้', 'warning');
         return;
       }
       if (!canReviewLateReport(rep)) {
@@ -6906,6 +6922,9 @@
       if (normalizeToOnTime && !window.confirm('ยืนยันรับรองรายงานสายนี้เป็นรายงานปกติ และให้คะแนนเต็มเท่ากับผู้ที่รายงานตามเวลาใช่หรือไม่?')) {
         return;
       }
+      if (decision === 'approved' && !window.confirm('ยืนยันอนุมัติรายงานนี้ (แต่ยังนับเป็นสาย) ใช่หรือไม่?')) {
+        return;
+      }
 
       await saveReportDB({
         ...rep,
@@ -6915,8 +6934,16 @@
         lateReviewedAt: new Date().toISOString()
       }, true);
 
-      showToast(normalizeToOnTime ? 'รับรองรายงานเป็นปกติแล้ว ครูได้รับคะแนนเต็มเรียบร้อย' : 'ไม่อนุมัติรายงานสายเรียบร้อยแล้ว', 'success');
-      navigateTo('duty-head-approvals');
+      let msg = '';
+      if (decision === 'normalized') {
+        msg = 'รับรองรายงานเป็นปกติแล้ว ครูได้รับคะแนนเต็มเรียบร้อย';
+      } else if (decision === 'approved') {
+        msg = 'อนุมัติรายงาน (แต่ยังนับเป็นสาย) เรียบร้อยแล้ว';
+      } else {
+        msg = 'ไม่อนุมัติรายงานสายเรียบร้อยแล้ว';
+      }
+      showToast(msg, 'success');
+      navigateTo(currentPage);
     }
 
     // หัวหน้าเวร/หัวหน้างานเวร เพิ่มรายการลาแทนครู (กรณีแจ้งด้วยวาจา/ฉุกเฉิน) - อนุมัติทันทีโดยผู้บันทึกเอง
@@ -10363,6 +10390,32 @@
         ? new Date(rep.lateReviewedAt).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })
         : '';
 
+      let actionButtonsMarkup = '';
+      if (rep && (rep.isLate || rep.lateReviewStatus) && canReviewLateReport(rep)) {
+        actionButtonsMarkup = `
+          <div class="mt-4 border-t pt-3 space-y-2 no-print">
+            <span class="text-slate-400 block mb-1 text-center font-bold">จัดการสถานะรายงานสาย (สำหรับหัวหน้าเวร):</span>
+            <div class="flex flex-wrap gap-2 justify-center">
+              ${(rep.isLate || rep.lateReviewStatus !== 'normalized') ? `
+                <button onclick="onLateReportReviewAction('${rep.id}', 'normalized'); closeReportDetails();" class="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-2 rounded-lg transition text-[11px]">
+                  รับรองเป็นปกติ (คะแนนเต็ม)
+                </button>
+              ` : ''}
+              ${(rep.lateReviewStatus !== 'approved') ? `
+                <button onclick="onLateReportReviewAction('${rep.id}', 'approved'); closeReportDetails();" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-2 rounded-lg transition text-[11px]">
+                  อนุมัติรายงาน (แต่ยังเป็นสาย)
+                </button>
+              ` : ''}
+              ${rep.lateReviewStatus !== 'rejected' ? `
+                <button onclick="onLateReportReviewAction('${rep.id}', 'rejected'); closeReportDetails();" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-3 py-2 rounded-lg transition text-[11px]">
+                  ไม่อนุมัติรายงาน
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }
+
       let signatureMarkup = '';
       const sigSrc = rep.signature || (teacher ? teacher.signature : null);
       if (rep.status === 'leave') {
@@ -10443,6 +10496,7 @@
           ${signatureMarkup}
           <p class="text-[10px] text-slate-500 mt-1 font-semibold">(${teacher ? teacher.name : ''})</p>
         </div>
+        ${actionButtonsMarkup}
       `;
       document.getElementById('report-view-modal').classList.remove('hidden');
       lucide.createIcons();
