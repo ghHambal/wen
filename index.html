@@ -2510,21 +2510,57 @@
       }
 
       const totalPoints = points.length;
-      const reportedCount = reports.filter(r => r.status === 'reported' && isReportCountableForScoring(r)).length;
-      const problemCount = reports.filter(r => r.status === 'problem' && isReportCountableForScoring(r)).length;
-      const leaveCount = reports.filter(r => r.status === 'leave').length;
-      const pendingCount = reports.filter(r => r.status === 'pending' || isReportPendingLateApproval(r)).length;
-      const totalActiveReported = reportedCount + problemCount + leaveCount + pendingCount;
+      const todayDay = getTodayThaiDayName();
 
-      // จุดที่ยังไม่รายงาน แต่มีประกาศยกเว้นเวรครอบคลุมวันนี้/กลุ่มนี้ → ไม่นับเป็น "ขาดเวร"
-      const exemptedNotReportedCount = points.filter(p => {
-        if (reports.find(r => r.pointId === p.id)) return false;
-        return !!getExemptionForDate(getTodayISODate(), p.dutyGroup || 'ครูชาย');
-      }).length;
+      let reportedCount = 0;
+      let problemCount = 0;
+      let leaveCount = 0;
+      let notReportedCount = 0;
+      let exemptedPointsCount = 0;
+      let inactivePointsCount = 0;
 
-      const notReportedCount = totalPoints - totalActiveReported - exemptedNotReportedCount;
+      points.forEach(p => {
+        const assignedList = p.assignedTo || p.assigned_to || [];
+        const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
+        const teachersCount = todayAssigned.length;
 
-      const ratePercent = totalPoints > 0 ? Math.round((totalActiveReported / totalPoints) * 100) : 0;
+        // หากไม่มีครูได้รับมอบหมายในวันนี้
+        if (teachersCount === 0) {
+          inactivePointsCount++;
+          return;
+        }
+
+        const assignedTeacherIds = todayAssigned.map(item => item.includes(':') ? item.split(':')[1] : item);
+        
+        // กรองรายงานในจุดนี้ของคุณครูที่ได้รับการมอบหมาย (รวมรายงานปกติ, ปัญหา, สาย, ลา)
+        const pointReports = reports.filter(r => r.pointId === p.id && assignedTeacherIds.includes(r.teacherId));
+        const completedReportsCount = pointReports.length;
+
+        if (completedReportsCount === teachersCount) {
+          // รายงานครบทุกคนแล้ว
+          reportedCount++;
+
+          // เช็คสถานะย่อย
+          if (pointReports.some(r => r.status === 'problem')) {
+            problemCount++;
+          }
+          if (pointReports.every(r => r.status === 'leave')) {
+            leaveCount++;
+          }
+        } else {
+          // ยังรายงานไม่ครบ
+          const isExempted = !!getExemptionForDate(getTodayISODate(), p.dutyGroup || 'ครูชาย');
+          if (isExempted) {
+            exemptedPointsCount++;
+          } else {
+            notReportedCount++;
+          }
+        }
+      });
+
+      // อัตราการรายงาน (คิดจากจุดที่ปฏิบัติงานสำเร็จ หารด้วยจุดที่ต้องปฏิบัติงานทั้งหมด)
+      const activePointsCount = totalPoints - inactivePointsCount;
+      const ratePercent = activePointsCount > 0 ? Math.round((reportedCount / activePointsCount) * 100) : 0;
 
       return `
         <div class="fade-in space-y-6">
