@@ -3123,7 +3123,7 @@
                       ${rep.result ? `<p class="text-slate-400 mt-0.5">บันทึก: ${rep.result}</p>` : ''}
                     </div>
                     <div class="flex gap-2 flex-shrink-0">
-                      <button onclick="onLateReportReviewAction('${rep.id}', 'approved')" class="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-2 rounded-lg transition">อนุมัติ</button>
+                      <button onclick="onLateReportReviewAction('${rep.id}', 'normalized')" class="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-2 rounded-lg transition">รับรองเป็นปกติ (คะแนนเต็ม)</button>
                       <button onclick="onLateReportReviewAction('${rep.id}', 'rejected')" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-3 py-2 rounded-lg transition">ไม่อนุมัติ</button>
                     </div>
                   </div>
@@ -6672,8 +6672,8 @@
       }
 
       const reports = db.getReports();
-      // Clear older report for same point/teacher today
-      const cleanReports = reports.filter(r => !(r.date === getTodayISODate() && r.pointId === newReport.pointId && r.teacherId === newReport.teacherId));
+      // Replace the same teacher/point/date record, including historical reports reviewed by a duty head.
+      const cleanReports = reports.filter(r => !(r.date === newReport.date && r.pointId === newReport.pointId && r.teacherId === newReport.teacherId));
       cleanReports.push(newReport);
       db.saveReports(cleanReports);
 
@@ -6882,19 +6882,40 @@
       navigateTo('duty-head-approvals');
     }
 
-    // หัวหน้าเวร/หัวหน้างานเวร อนุมัติ/ไม่อนุมัติรายงานที่มาสาย (isLate=true, lateReviewStatus='pending')
+    function canReviewLateReport(rep) {
+      if (!currentUser || !rep) return false;
+      return isFullAdmin(currentUser) || getDutyApproverId(rep.teacherId, rep.date) === currentUser.id;
+    }
+
+    // หัวหน้าเวรรับรองรายงานสายเป็นปกติ (คะแนนเต็ม) หรือไม่อนุมัติรายงาน
     async function onLateReportReviewAction(reportId, decision) {
       const rep = db.getReports().find(r => r.id === reportId);
       if (!rep) return;
 
+      if (!rep.isLate || rep.lateReviewStatus !== 'pending') {
+        showToast('รายงานนี้ไม่ได้อยู่ในสถานะรายงานสายที่รอตรวจสอบ', 'warning');
+        navigateTo('duty-head-approvals');
+        return;
+      }
+      if (!canReviewLateReport(rep)) {
+        showToast('ท่านไม่มีสิทธิ์ตรวจรับรายงานนี้ เนื่องจากไม่ใช่หัวหน้าเวรของครูและวันที่ดังกล่าว', 'error');
+        return;
+      }
+
+      const normalizeToOnTime = decision === 'normalized';
+      if (normalizeToOnTime && !window.confirm('ยืนยันรับรองรายงานสายนี้เป็นรายงานปกติ และให้คะแนนเต็มเท่ากับผู้ที่รายงานตามเวลาใช่หรือไม่?')) {
+        return;
+      }
+
       await saveReportDB({
         ...rep,
+        isLate: normalizeToOnTime ? false : rep.isLate,
         lateReviewStatus: decision,
         lateReviewedBy: currentUser.id,
         lateReviewedAt: new Date().toISOString()
       }, true);
 
-      showToast(decision === 'approved' ? 'อนุมัติรายงานสายเรียบร้อยแล้ว' : 'ไม่อนุมัติรายงานสายเรียบร้อยแล้ว', 'success');
+      showToast(normalizeToOnTime ? 'รับรองรายงานเป็นปกติแล้ว ครูได้รับคะแนนเต็มเรียบร้อย' : 'ไม่อนุมัติรายงานสายเรียบร้อยแล้ว', 'success');
       navigateTo('duty-head-approvals');
     }
 
@@ -10336,6 +10357,11 @@
       const teacher = db.getTeachers().find(t => t.id === rep.teacherId || t.id === rep.teacher_id);
       const content = document.getElementById('report-view-content');
       const fullPhotoSrc = resolveReportPhotoSrc(rep, false);
+      const normalizedByHead = rep.lateReviewStatus === 'normalized';
+      const lateReviewer = normalizedByHead ? db.getTeachers().find(t => t.id === rep.lateReviewedBy) : null;
+      const normalizedAtText = normalizedByHead && rep.lateReviewedAt
+        ? new Date(rep.lateReviewedAt).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })
+        : '';
 
       let signatureMarkup = '';
       const sigSrc = rep.signature || (teacher ? teacher.signature : null);
@@ -10377,6 +10403,13 @@
             <span class="text-slate-850 font-bold">${rep.status === 'leave' ? '-' : rep.distance.toFixed(1) + ' เมตร'}</span>
           </div>
         </div>
+
+        ${normalizedByHead ? `
+          <div class="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-blue-800">
+            <p class="font-bold">✓ หัวหน้าเวรรับรองรายงานนี้เป็นรายงานปกติและให้คะแนนเต็ม</p>
+            <p class="text-[10px] mt-0.5">ผู้รับรอง: ${escapeHtml(lateReviewer ? lateReviewer.name : (rep.lateReviewedBy || '-'))}${normalizedAtText ? ` · ${escapeHtml(normalizedAtText)}` : ''}</p>
+          </div>
+        ` : ''}
 
         <div class="space-y-1 mt-3">
           <span class="text-slate-450 block">ผลการปฏิบัติงาน:</span>
