@@ -1428,6 +1428,7 @@
     let coReporterRowSeq = 0; // ตัวนับ id แถวกรอกครูร่วมเวร
     let pendingSubmitReportData = null; // Store report arguments during ikhlas confirmation
     let ikhlasConfirmed = false; // Flag to check if ikhlas confirmation is done
+    let reportSubmissionInProgress = false; // ป้องกันการกดส่งรายงานซ้ำระหว่างรอบันทึก
     let coReporterSigPads = {}; // rowId -> {canvas, ctx, drawing} สำหรับลายเซ็นชั่วคราวของครูร่วมเวร
     let syncQueueProcessing = false; // กันการประมวลผล wen_pending_sync ซ้ำซ้อน
     let coReporterOtherIds = []; // teacher_id ที่ assign จุดนี้วันนี้ (ไม่รวม currentUser)
@@ -6158,7 +6159,7 @@
           <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border">
             <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
               <h3 class="font-bold text-xs" id="form-modal-title">รายงานผลการปฏิบัติหน้าที่</h3>
-              <button onclick="closeReportForm()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+              <button id="btn-close-report-header" onclick="closeReportForm()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>
             
             <form onsubmit="handleReportSubmit(event)" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
@@ -6222,7 +6223,7 @@
 
               <!-- Button Actions -->
               <div class="flex gap-2 pt-2 border-t">
-                <button type="button" onclick="closeReportForm()" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ปิดหน้าต่าง</button>
+                <button type="button" id="btn-close-report" onclick="closeReportForm()" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ปิดหน้าต่าง</button>
                 <button type="submit" id="btn-submit-report" class="flex-1 bg-brand-850 hover:bg-brand-700 text-white font-bold py-2.5 rounded-lg shadow hover:shadow-md transition">
                   บันทึกส่งรายงานเวร
                 </button>
@@ -6314,7 +6315,7 @@
               
               <div class="flex gap-2 pt-2 border-t text-xs">
                 <button type="button" onclick="closeIkhlasConfirm()" class="flex-1 border border-slate-200 hover:bg-slate-50 py-2 rounded-lg text-slate-600 font-bold transition">ย้อนกลับไปแก้ไข</button>
-                <button type="button" onclick="confirmAndSubmitReport()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-lg shadow transition">ยืนยันด้วยความสัตย์จริง</button>
+                <button type="button" id="btn-confirm-submit-report" onclick="confirmAndSubmitReport()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-lg shadow transition">ยืนยันด้วยความสัตย์จริง</button>
               </div>
             </div>
           </div>
@@ -6353,9 +6354,76 @@
       };
     }
 
+    function buildDutyReportId(date, pointId, teacherId) {
+      const safePart = value => String(value ?? '').replace(/[^a-zA-Z0-9_-]/g, '_');
+      return `R_${safePart(date)}_${safePart(pointId)}_${safePart(teacherId)}`;
+    }
+
+    function setReportSubmissionBusy(isBusy) {
+      const submitBtn = document.getElementById('btn-submit-report');
+      const closeBtn = document.getElementById('btn-close-report');
+      const closeHeaderBtn = document.getElementById('btn-close-report-header');
+      const confirmBtn = document.getElementById('btn-confirm-submit-report');
+
+      if (submitBtn) {
+        submitBtn.disabled = isBusy;
+        submitBtn.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+        submitBtn.classList.toggle('opacity-70', isBusy);
+        submitBtn.classList.toggle('cursor-not-allowed', isBusy);
+        submitBtn.innerHTML = isBusy
+          ? '<span class="inline-flex items-center justify-center gap-2"><span class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>กำลังบันทึก กรุณารอสักครู่...</span>'
+          : 'บันทึกส่งรายงานเวร';
+      }
+      if (closeBtn) closeBtn.disabled = isBusy;
+      if (closeHeaderBtn) closeHeaderBtn.disabled = isBusy;
+      if (confirmBtn) {
+        confirmBtn.disabled = isBusy;
+        confirmBtn.classList.toggle('opacity-70', isBusy);
+        confirmBtn.classList.toggle('cursor-not-allowed', isBusy);
+        confirmBtn.textContent = isBusy ? 'กำลังบันทึก...' : 'ยืนยันด้วยความสัตย์จริง';
+      }
+    }
+
+    async function findExistingDutyReport(date, pointId, teacherId) {
+      const localReport = db.getReports().find(report =>
+        report.date === date &&
+        String(report.pointId) === String(pointId) &&
+        String(report.teacherId) === String(teacherId)
+      );
+      if (localReport) return localReport;
+
+      if (!useSupabase || !supabaseClient || !navigator.onLine) return null;
+      try {
+        const { data, error } = await supabaseClient
+          .from('reports')
+          .select('id,date,point_id,teacher_id')
+          .eq('date', date)
+          .eq('point_id', pointId)
+          .eq('teacher_id', teacherId)
+          .limit(1);
+        if (error) {
+          console.warn('Unable to check for an existing duty report:', error);
+          return null;
+        }
+        return data && data.length > 0 ? mapReportFromDB(data[0]) : null;
+      } catch (error) {
+        console.warn('Existing duty report check failed:', error);
+        return null;
+      }
+    }
+
     // Submit report and sync with Supabase
     async function handleReportSubmit(e) {
       if (e) e.preventDefault();
+
+      if (reportSubmissionInProgress) {
+        showToast('ระบบกำลังบันทึกรายงาน กรุณารอสักครู่และไม่ต้องกดซ้ำ', 'warning');
+        return;
+      }
+      reportSubmissionInProgress = true;
+      setReportSubmissionBusy(true);
+
+      try {
 
       const teacher = db.getTeachers().find(t => t.id === currentUser.id);
       if (!teacher || !teacher.signature) {
@@ -6424,14 +6492,23 @@
       const problemText = document.getElementById('rep-problem-text').value.trim();
       const solutionText = document.getElementById('rep-solution-text').value.trim();
 
-      const newReportId = 'R' + Date.now();
+      const reportDate = getTodayISODate();
+      const existingReport = await findExistingDutyReport(reportDate, pt.id, currentUser.id);
+      if (existingReport) {
+        showToast('วันนี้ท่านส่งรายงานสำหรับจุดเวรนี้เรียบร้อยแล้ว ระบบจึงไม่บันทึกซ้ำ', 'warning');
+        closeReportForm();
+        renderPage('my-duty');
+        return;
+      }
+
+      const newReportId = buildDutyReportId(reportDate, pt.id, currentUser.id);
       const timeNow = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
 
       const signature = teacher.signature;
 
       const newReport = {
         id: newReportId,
-        date: getTodayISODate(),
+        date: reportDate,
         pointId: pt.id,
         teacherId: currentUser.id,
         status: statusSelect,
@@ -6466,9 +6543,11 @@
 
       // รายงานแทนกันหลายคน: บันทึกรายงานเดียวกันให้ครูร่วมเวรที่ยืนยันตัวตนไว้ทุกคน
       for (const co of pendingCoReporters) {
+        const existingCoReport = await findExistingDutyReport(reportDate, pt.id, co.teacherId);
+        if (existingCoReport) continue;
         const coReport = {
           ...savedMainReport,
-          id: newReportId + '_' + co.teacherId,
+          id: buildDutyReportId(reportDate, pt.id, co.teacherId),
           teacherId: co.teacherId,
           signature: co.signature
         };
@@ -6504,6 +6583,10 @@
         return;
       }
       showAppreciationDuaModal(newReport._syncStatus || 'cloud');
+      } finally {
+        reportSubmissionInProgress = false;
+        setReportSubmissionBusy(false);
+      }
     }
 
     async function checkInTeacherPoint(pointId) {
@@ -6543,6 +6626,10 @@
     }
 
     async function confirmAndSubmitReport() {
+      if (reportSubmissionInProgress) {
+        showToast('ระบบกำลังบันทึกรายงาน กรุณารอสักครู่และไม่ต้องกดซ้ำ', 'warning');
+        return;
+      }
       if (!pendingSubmitReportData) return;
       
       ikhlasConfirmed = true;
