@@ -1514,6 +1514,7 @@
       autoNotifyMinutes: 15,
       lateGraceMinutes: 15,
       defaultDutyMinutes: 20,
+      enforceMinDutyMinutes: true,
       dutyDay: 'อังคาร',
       dutyGroup: 'ครูชาย',
       defaultRadius: 50,
@@ -1587,6 +1588,7 @@ CREATE TABLE IF NOT EXISTS settings (
   auto_notify_minutes INTEGER NOT NULL DEFAULT 15,
   late_grace_minutes INTEGER DEFAULT 15,
   default_duty_minutes INTEGER DEFAULT 20,
+  enforce_min_duty_minutes BOOLEAN NOT NULL DEFAULT TRUE,
   duty_day TEXT DEFAULT 'อังคาร',
   duty_group TEXT DEFAULT 'ครูชาย',
   default_radius INTEGER DEFAULT 50,
@@ -1920,6 +1922,7 @@ ALTER TABLE settings ADD COLUMN IF NOT EXISTS center_lat DOUBLE PRECISION DEFAUL
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS center_lng DOUBLE PRECISION DEFAULT 101.408120;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS late_grace_minutes INTEGER DEFAULT 15;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_duty_minutes INTEGER DEFAULT 20;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS enforce_min_duty_minutes BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_logo TEXT;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_title TEXT;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS system_color TEXT;

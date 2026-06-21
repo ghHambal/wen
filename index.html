@@ -162,7 +162,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.33.4</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.33.6</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
           </div>
@@ -245,15 +245,15 @@
           <div id="pending-sync-badge-sidebar" class="hidden px-3 py-1.5 border-b border-brand-850 bg-amber-500/10 text-amber-300 text-[10px] font-bold text-center"></div>
           <nav class="flex-1 p-3 space-y-1 overflow-y-auto" id="sidebar-nav"></nav>
           <div class="p-4 border-t border-brand-850 bg-brand-950/20">
-            <div class="flex items-center justify-between mb-3 text-xs text-brand-200">
-              <span>สถานะพิกัดจำลอง:</span>
-              <span id="gps-indicator" class="font-semibold text-green-400">ปกติ</span>
+            <div class="flex items-center justify-between gap-2 mb-3 text-xs text-brand-200">
+              <span>GPS โทรศัพท์:</span>
+              <button type="button" onclick="requestGPSPermission()" id="gps-indicator" class="font-semibold text-amber-300 hover:text-white text-right">รออนุญาต</button>
             </div>
             <button onclick="logout()" class="flex items-center gap-2 text-sm text-brand-200 hover:text-white w-full py-2 hover:bg-white/5 rounded px-2 transition">
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.33.4</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.33.6</div>
           </div>
         </aside>
 
@@ -289,15 +289,10 @@
                 </div>
               </div>
 
-              <!-- GPS Test Control Panel (Global Float/Bar) -->
+              <!-- Real phone GPS status -->
               <div class="border-l pl-4 flex items-center gap-2">
-                <span class="text-[11px] text-slate-500 font-semibold">📍 สภาพตำแหน่ง:</span>
-                <select id="gps-simulator" onchange="changeGPSSimulation()" class="text-xs bg-slate-100 border rounded-lg px-2.5 py-1.5 text-slate-700 outline-none">
-                  <option value="real" selected>🛰️ ใช้ GPS จริงผ่านโทรศัพท์</option>
-                  <option value="point1">📍 จำลองเวรจุดที่ 1 (ในขอบเขต)</option>
-                  <option value="point2">📍 จำลองเวรจุดที่ 2 (ในขอบเขต)</option>
-                  <option value="far">❌ จำลองอยู่นอกพื้นที่เวร</option>
-                </select>
+                <span class="text-[11px] text-slate-500 font-semibold">📍 ตำแหน่ง:</span>
+                <button type="button" onclick="requestGPSPermission()" id="gps-status-desktop" class="text-xs bg-slate-100 hover:bg-slate-200 border rounded-lg px-2.5 py-1.5 text-slate-700 font-bold">🛰️ แตะเพื่ออนุญาต GPS</button>
               </div>
 
               <div class="flex items-center gap-2 border-l pl-4">
@@ -312,15 +307,10 @@
             </div>
           </header>
 
-          <!-- Mobile GPS Status Bar (Only displays on smaller viewports) -->
+          <!-- Mobile real GPS status bar -->
           <div class="bg-brand-50 border-b px-4 py-2 flex lg:hidden items-center justify-between no-print flex-shrink-0 text-[10px]">
             <span class="text-slate-600 font-medium">📍 พิกัดปฏิบัติงาน:</span>
-            <select id="gps-simulator-mobile" onchange="syncGPSSimulationMobile(this)" class="bg-white border rounded px-1.5 py-1 text-slate-700 outline-none">
-              <option value="real" selected>🛰️ ใช้ GPS จริงผ่านโทรศัพท์</option>
-              <option value="point1">📍 จำลองเวรจุดที่ 1</option>
-              <option value="point2">📍 จำลองเวรจุดที่ 2</option>
-              <option value="far">❌ จำลองอยู่นอกพื้นที่</option>
-            </select>
+            <button type="button" onclick="requestGPSPermission()" id="gps-status-mobile" class="bg-white border rounded px-2 py-1 text-amber-700 font-bold">🛰️ แตะเพื่ออนุญาต GPS</button>
           </div>
 
           <!-- Main Content Area -->
@@ -356,7 +346,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.33.4</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.33.6</div>
         </div>
       </aside>
 
@@ -612,6 +602,7 @@
         autoNotifyMinutes: dbSett.auto_notify_minutes !== undefined && dbSett.auto_notify_minutes !== null ? dbSett.auto_notify_minutes : (dbSett.autoNotifyMinutes !== undefined && dbSett.autoNotifyMinutes !== null ? dbSett.autoNotifyMinutes : (local.autoNotifyMinutes || 15)),
         lateGraceMinutes: dbSett.late_grace_minutes !== undefined && dbSett.late_grace_minutes !== null ? dbSett.late_grace_minutes : (dbSett.lateGraceMinutes !== undefined && dbSett.lateGraceMinutes !== null ? dbSett.lateGraceMinutes : (local.lateGraceMinutes ?? 15)),
         defaultDutyMinutes: dbSett.default_duty_minutes !== undefined && dbSett.default_duty_minutes !== null ? dbSett.default_duty_minutes : (dbSett.defaultDutyMinutes !== undefined && dbSett.defaultDutyMinutes !== null ? dbSett.defaultDutyMinutes : (local.defaultDutyMinutes ?? 20)),
+        enforceMinDutyMinutes: dbSett.enforce_min_duty_minutes !== undefined && dbSett.enforce_min_duty_minutes !== null ? dbSett.enforce_min_duty_minutes : (dbSett.enforceMinDutyMinutes !== undefined && dbSett.enforceMinDutyMinutes !== null ? dbSett.enforceMinDutyMinutes : (local.enforceMinDutyMinutes ?? true)),
         defaultRadius: dbSett.default_radius !== undefined && dbSett.default_radius !== null ? dbSett.default_radius : (dbSett.defaultRadius !== undefined && dbSett.defaultRadius !== null ? dbSett.defaultRadius : (local.defaultRadius || 50)),
         centerLat: dbSett.center_lat !== undefined && dbSett.center_lat !== null ? dbSett.center_lat : (dbSett.centerLat !== undefined && dbSett.centerLat !== null ? dbSett.centerLat : (local.centerLat || 6.787680)),
         centerLng: dbSett.center_lng !== undefined && dbSett.center_lng !== null ? dbSett.center_lng : (dbSett.centerLng !== undefined && dbSett.centerLng !== null ? dbSett.centerLng : (local.centerLng || 101.408120)),
@@ -643,6 +634,7 @@
         auto_notify_minutes: jsSett.autoNotifyMinutes,
         late_grace_minutes: jsSett.lateGraceMinutes !== undefined && jsSett.lateGraceMinutes !== null ? jsSett.lateGraceMinutes : 15,
         default_duty_minutes: jsSett.defaultDutyMinutes !== undefined && jsSett.defaultDutyMinutes !== null ? jsSett.defaultDutyMinutes : 20,
+        enforce_min_duty_minutes: jsSett.enforceMinDutyMinutes !== false,
         default_radius: jsSett.defaultRadius !== undefined ? jsSett.defaultRadius : 50,
         center_lat: jsSett.centerLat !== undefined ? jsSett.centerLat : 6.787680,
         center_lng: jsSett.centerLng !== undefined ? jsSett.centerLng : 101.408120,
@@ -793,7 +785,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.33.4';
+    const APP_VERSION = '1.33.6';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1419,9 +1411,13 @@
     let dbInitPromise = null;
     let currentPage = 'dashboard';
     let sidebarOpen = false;
-    let mockLatitude = 6.787680;  // Default simulation coordinates
-    let mockLongitude = 101.408120;
+    let mockLatitude = null;  // Updated only from the phone's real GPS
+    let mockLongitude = null;
     let gpsWatcherId = null;       // Geolocation watcher ID
+    let realGPSReady = false;
+    let lastGPSTimestamp = 0;
+    let lastGPSAccuracy = null;
+    let gpsRequestInFlight = null;
     let signatureCanvas = null;
     let signatureCtx = null;
     let signatureDrawing = false;
@@ -1872,6 +1868,16 @@
     }
 
     function logout() {
+      if (gpsWatcherId !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(gpsWatcherId);
+        gpsWatcherId = null;
+      }
+      realGPSReady = false;
+      mockLatitude = null;
+      mockLongitude = null;
+      lastGPSTimestamp = 0;
+      lastGPSAccuracy = null;
+      updateRealGPSUI('idle');
       currentUser = null;
       document.getElementById('page-login').classList.remove('hidden');
       document.getElementById('page-main').classList.add('hidden');
@@ -2873,6 +2879,81 @@
       return !!reportWeek && selectedWeekSet.has(reportWeek);
     }
 
+    function getDutyGradeInfo(totalScore) {
+      if (totalScore >= 90) {
+        return {
+          grade: 'A',
+          gradeClass: 'bg-green-150 text-green-800',
+          badgeClass: 'bg-emerald-100 text-emerald-900 border-emerald-200',
+          watermarkClass: 'text-emerald-200/40',
+          label: 'ยอดเยี่ยม'
+        };
+      }
+      if (totalScore >= 75) {
+        return {
+          grade: 'B',
+          gradeClass: 'bg-blue-100 text-blue-800',
+          badgeClass: 'bg-sky-100 text-sky-900 border-sky-200',
+          watermarkClass: 'text-sky-200/35',
+          label: 'ดี'
+        };
+      }
+      if (totalScore >= 50) {
+        return {
+          grade: 'C',
+          gradeClass: 'bg-amber-100 text-amber-800',
+          badgeClass: 'bg-amber-100 text-amber-900 border-amber-200',
+          watermarkClass: 'text-amber-200/35',
+          label: 'พอใช้'
+        };
+      }
+      return {
+        grade: 'D',
+        gradeClass: 'bg-red-100 text-red-800',
+        badgeClass: 'bg-red-100 text-red-900 border-red-200',
+        watermarkClass: 'text-red-200/35',
+        label: 'ต้องติดตาม'
+      };
+    }
+
+    function calculateTeacherDutyPerformance(teacherOrId, selectedWeeks, settings, reports = db.getReports()) {
+      const teacherId = typeof teacherOrId === 'string' ? teacherOrId : teacherOrId.id;
+      const selectedWeekSet = new Set(selectedWeeks);
+      const baselineWeeks = selectedWeeks.filter(w => w < EXEC_FIRST_SYSTEM_WEEK).length;
+      const weeklyDuties = getWeeklyDutiesCount(teacherId);
+      const baselineCredit = weeklyDuties * baselineWeeks;
+      const actualReports = reports.filter(r =>
+        r.teacherId === teacherId &&
+        isReportCountableForScoring(r) &&
+        isReportInSelectedWeeks(r, selectedWeekSet, settings) &&
+        (getSemesterWeekNumberForDate(r.date, settings) || 0) >= EXEC_FIRST_SYSTEM_WEEK
+      );
+      const actualCheckins = actualReports.length;
+      const lates = actualReports.filter(r => r.isLate).length;
+      const actualOntimes = actualCheckins - lates;
+      const scheduled = weeklyDuties * selectedWeeks.length;
+      const checkins = baselineCredit + actualCheckins;
+      const ontimes = baselineCredit + actualOntimes;
+      const compliance = scheduled > 0 ? Math.min(100, Math.round((checkins / scheduled) * 100)) : 100;
+      const punctuality = checkins > 0 ? Math.max(0, Math.round((ontimes / checkins) * 100)) : 100;
+      const score = Math.round((compliance * 0.6) + (punctuality * 0.4));
+      const gradeInfo = getDutyGradeInfo(score);
+
+      return {
+        weeklyDuties,
+        scheduled,
+        checkins,
+        actualCheckins,
+        baselineCredit,
+        lates,
+        ontimes,
+        compliance,
+        punctuality,
+        score,
+        ...gradeInfo
+      };
+    }
+
     function getWeeklyDutiesCountForDay(teacherIds, dayName) {
       const teacherSet = new Set(teacherIds);
       let count = 0;
@@ -3159,55 +3240,14 @@
       });
 
       const teacherStats = activeTeachers.map(t => {
-        const weeklyDuties = getWeeklyDutiesCount(t.id);
-        const baselineCredit = weeklyDuties * baselineWeeks;
-        const actualReports = reports.filter(r =>
-          r.teacherId === t.id &&
-          isReportCountableForScoring(r) &&
-          isReportInSelectedWeeks(r, selectedWeekSet, settings) &&
-          (getSemesterWeekNumberForDate(r.date, settings) || 0) >= EXEC_FIRST_SYSTEM_WEEK
-        );
-        const actualCheckins = actualReports.length;
-        const lates = actualReports.filter(r => r.isLate).length;
-        const actualOntimes = actualCheckins - lates;
-
-        const scheduledCount = weeklyDuties * selectedWeeks.length;
-        const checkins = baselineCredit + actualCheckins;
-        const ontimes = baselineCredit + actualOntimes;
-        const complianceScore = scheduledCount > 0 ? Math.min(100, Math.round((checkins / scheduledCount) * 100)) : 100;
-        const punctualityScore = checkins > 0 ? Math.max(0, Math.round((ontimes / checkins) * 100)) : 100;
-        const totalScore = Math.round((complianceScore * 0.6) + (punctualityScore * 0.4));
-
-        let grade = 'D';
-        let gradeClass = 'bg-red-100 text-red-800';
-        if (totalScore >= 90) {
-          grade = 'A';
-          gradeClass = 'bg-green-150 text-green-800';
-        } else if (totalScore >= 75) {
-          grade = 'B';
-          gradeClass = 'bg-blue-100 text-blue-800';
-        } else if (totalScore >= 50) {
-          grade = 'C';
-          gradeClass = 'bg-amber-100 text-amber-800';
-        }
+        const performance = calculateTeacherDutyPerformance(t, selectedWeeks, settings, reports);
 
         return {
           id: t.id,
           name: t.name,
           dept: t.department || t.group || 'ทั่วไป',
-          weeklyDuties,
-          scheduled: scheduledCount,
-          checkins,
-          actualCheckins,
-          baselineCredit,
-          lates,
-          ontimes,
-          compliance: complianceScore,
-          punctuality: punctualityScore,
-          score: totalScore,
-          grade,
-          gradeClass,
-          gender: getTeacherGender(t)
+          gender: getTeacherGender(t),
+          ...performance
         };
       }).filter(t => t.scheduled > 0);
 
@@ -3481,16 +3521,6 @@
       filterDashboardTable();
       const table = document.getElementById('dashboard-table');
       if (table) table.closest('.bg-white')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    // Mobile GPS Sync Selector
-    function syncGPSSimulationMobile(selectEl) {
-      const val = selectEl.value;
-      const mainSelect = document.getElementById('gps-simulator');
-      if (mainSelect) {
-        mainSelect.value = val;
-        changeGPSSimulation();
-      }
     }
 
     // B. SCHEDULE VIEW (Admin View)
@@ -4372,7 +4402,7 @@
                     ` : ''}
                     <p class="flex items-center gap-1 text-slate-700">
                       <i data-lucide="timer" class="w-3.5 h-3.5 text-amber-500"></i>
-                      <span>ส่งรายงานได้หลังเช็คอินครบ ${getRequiredDutyMinutes(p)} นาที${p.minDutyMinutes !== undefined && p.minDutyMinutes !== null && p.minDutyMinutes !== '' ? ' (กำหนดเฉพาะจุด)' : ' (ใช้ค่ากลาง)'}</span>
+                      <span>${isMinDutyTimeEnabled() ? `ส่งรายงานได้หลังเช็คอินครบ ${getRequiredDutyMinutes(p)} นาที${p.minDutyMinutes !== undefined && p.minDutyMinutes !== null && p.minDutyMinutes !== '' ? ' (กำหนดเฉพาะจุด)' : ' (ใช้ค่ากลาง)'}` : 'ปิดการบังคับเวลาขั้นต่ำ — รายงานได้โดยไม่ต้องเช็คอินล่วงหน้า'}</span>
                     </p>
                     <p class="flex items-center gap-1"><i data-lucide="users" class="w-3.5 h-3.5 text-slate-400"></i> ผู้ดูแล: ${(() => {
                       let assigned = p.assignedTo || p.assigned_to || [];
@@ -5490,10 +5520,13 @@
                   <input type="number" id="sett-late-grace-minutes" min="0" value="${settings.lateGraceMinutes ?? 15}" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
                   <p class="text-[10px] text-slate-400 mt-1">บวกต่อท้ายเวลาสิ้นสุดเวร ครูยังรายงานได้ในช่วงนี้และยังไม่ถือว่าสาย หากเลยช่วงนี้จะต้องรอหัวหน้าเวรอนุมัติ</p>
                 </div>
-                <div>
-                  <label class="block text-slate-500 font-bold mb-1">เวลาปฏิบัติขั้นต่ำก่อนส่งรายงาน (นาที):</label>
-                  <input type="number" id="sett-default-duty-minutes" min="0" value="${settings.defaultDutyMinutes ?? 20}" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
-                  <p class="text-[10px] text-slate-400 mt-1">ใช้หลังครูกดเช็คอินเริ่มปฏิบัติงาน จุดเวรแต่ละจุดสามารถกำหนดทับได้ หากเว้นว่างที่จุดเวรจะใช้ค่านี้</p>
+                <div class="border rounded-lg p-3 bg-slate-50">
+                  <label class="flex items-center justify-between gap-3 text-slate-700 font-bold mb-2">
+                    <span>บังคับใช้เวลาปฏิบัติขั้นต่ำ</span>
+                    <input type="checkbox" id="sett-enforce-min-duty-minutes" ${settings.enforceMinDutyMinutes !== false ? 'checked' : ''} onchange="toggleMinDutyMinutesSetting()" class="w-5 h-5 accent-brand-700">
+                  </label>
+                  <input type="number" id="sett-default-duty-minutes" min="0" value="${settings.defaultDutyMinutes ?? 20}" ${settings.enforceMinDutyMinutes === false ? 'disabled' : ''} class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 disabled:bg-slate-200 disabled:text-slate-400">
+                  <p id="sett-min-duty-help" class="text-[10px] text-slate-400 mt-1">${settings.enforceMinDutyMinutes === false ? 'ปิดอยู่: ครูสามารถถ่ายรูปส่งรายงานได้ทันที โดยยังตรวจ GPS จริงและช่วงเวลารายงานตามปกติ' : 'เปิดอยู่: ครูต้องเช็คอินและรอครบเวลาที่กำหนด จุดเวรแต่ละจุดสามารถกำหนดทับค่านี้ได้'}</p>
                 </div>
               </div>
 
@@ -5711,6 +5744,7 @@
         autoNotifyMinutes: parseInt(document.getElementById('sett-minutes').value),
         lateGraceMinutes: document.getElementById('sett-late-grace-minutes') ? (parseInt(document.getElementById('sett-late-grace-minutes').value) || 0) : (current.lateGraceMinutes ?? 15),
         defaultDutyMinutes: document.getElementById('sett-default-duty-minutes') ? (parseNonNegativeMinutes(document.getElementById('sett-default-duty-minutes').value, 20)) : (current.defaultDutyMinutes ?? 20),
+        enforceMinDutyMinutes: document.getElementById('sett-enforce-min-duty-minutes') ? document.getElementById('sett-enforce-min-duty-minutes').checked : (current.enforceMinDutyMinutes ?? true),
 
         defaultRadius: parseInt(document.getElementById('sett-radius').value),
         centerLat: parseFloat(document.getElementById('sett-center-lat').value),
@@ -5741,13 +5775,19 @@
       await saveSettingsDB(settings);
     }
 
+    function toggleMinDutyMinutesSetting() {
+      const enabled = document.getElementById('sett-enforce-min-duty-minutes')?.checked !== false;
+      const input = document.getElementById('sett-default-duty-minutes');
+      const help = document.getElementById('sett-min-duty-help');
+      if (input) input.disabled = !enabled;
+      if (help) help.textContent = enabled
+        ? 'เปิดอยู่: ครูต้องเช็คอินและรอครบเวลาที่กำหนด จุดเวรแต่ละจุดสามารถกำหนดทับค่านี้ได้'
+        : 'ปิดอยู่: ครูสามารถถ่ายรูปส่งรายงานได้ทันที โดยยังตรวจ GPS จริงและช่วงเวลารายงานตามปกติ';
+    }
+
     async function saveSettingsDB(settings) {
       db.saveSettings(settings);
       
-      // Update global mock coordinates focus
-      mockLatitude = settings.centerLat || mockLatitude;
-      mockLongitude = settings.centerLng || mockLongitude;
-
       if (useSupabase) {
         const dbSettings = mapSettingsToDB(settings);
         const { error } = await supabaseClient.from('settings').upsert(dbSettings);
@@ -5789,10 +5829,16 @@
       myDutyMaps = {}; // Reset mini-maps on re-render
       myDutyRenderedDate = getTodayISODate();
       const settings = db.getSettings();
-      const ikhlasConfirmText = escapeHtml(settings.ikhlasConfirmText || DEFAULT_IKHLAS_CONFIRM_TEXT);
+      const ikhlasConfirmText = escapeHtml(isMinDutyTimeEnabled()
+        ? (settings.ikhlasConfirmText || DEFAULT_IKHLAS_CONFIRM_TEXT)
+        : 'ท่านขอยืนยันด้วยความสัตย์จริงต่อตนเองและอัลลอฮฺ (ซ.บ.) ว่า ผู้ร่วมปฏิบัติหน้าที่เวรที่เพิ่มเข้ามาในรายงานนี้ ได้ร่วมปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริง ตามที่ได้รายงานร่วมกันในวันนี้');
       const todayDay = getTodayThaiDayName();
       const myPoints = getMyDutyPoints();
       const reports = db.getReports().filter(r => r.date === getTodayISODate() && r.teacherId === currentUser.id);
+      const totalWeeks = settings.totalWeeks || 20;
+      const currentWeek = Math.min(getCurrentSemesterWeek(settings), totalWeeks);
+      const mySelectedWeeks = Array.from({ length: currentWeek }, (_, idx) => idx + 1);
+      const myPerformance = calculateTeacherDutyPerformance(currentUser, mySelectedWeeks, settings, db.getReports());
 
       const teacherDays = getTeacherDutyDays(currentUser.id);
       const teacherDaysLabel = teacherDays.length > 0 ? teacherDays.join(' และวัน') : todayDay;
@@ -5832,18 +5878,29 @@
       return `
         <div class="fade-in space-y-5 text-xs">
           <!-- Welcome Bar -->
-          <div class="bg-gradient-to-br from-brand-900 via-brand-800 to-brand-900 text-white rounded-2xl p-5 md:p-6 shadow-lg">
-            <div class="flex flex-row items-stretch gap-3 md:gap-5">
+          <div class="relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-800 to-brand-900 text-white rounded-2xl p-5 md:p-6 shadow-lg">
+            <div class="pointer-events-none absolute inset-y-0 right-0 z-0 flex w-28 sm:w-40 md:w-56 items-center justify-center pr-1 sm:pr-3">
+              <span class="${myPerformance.watermarkClass} select-none font-black font-mono leading-none text-[8rem] sm:text-[11rem] md:text-[14rem] tracking-normal">${myPerformance.grade}</span>
+            </div>
+            <div class="pointer-events-none absolute right-3 top-3 z-20 hidden sm:flex ${myPerformance.badgeClass} items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black shadow-sm">
+              <i data-lucide="award" class="w-3.5 h-3.5"></i>
+              เกรด ${myPerformance.grade} · ${myPerformance.score} คะแนน
+            </div>
+            <div class="relative z-10 flex flex-row items-stretch gap-3 md:gap-5">
               <div class="profile-glossy-frame w-20 sm:w-28 md:w-40 flex-shrink-0">
                 ${getTeacherAvatar(currentUser, "w-full h-full object-cover")}
               </div>
-              <div class="flex-1 space-y-1 md:space-y-2 w-full min-w-0 text-left">
+              <div class="flex-1 space-y-1 md:space-y-2 w-full min-w-0 text-left md:pr-32">
                 <div>
                   <p class="text-amber-300 text-[10px] sm:text-xs md:text-sm font-semibold">
                     ${getTeacherGender(currentUser) === 'ชาย' ? 'สวัสดีครับ' : 'สวัสดีค่ะ'} คุณครูผู้ปฏิบัติหน้าที่เวรประจำวัน${teacherDaysLabel} 👋
                   </p>
                   <h3 class="text-base sm:text-xl md:text-3xl font-extrabold mt-1 text-white truncate">${currentUser.name}</h3>
                   <p class="text-[10px] sm:text-xs md:text-sm text-brand-100 mt-1">รหัส: ${currentUser.id} &nbsp;·&nbsp; วันนี้มี <b>${myPoints.length}</b> จุดเวร (เวรวัน${todayDay})</p>
+                  <div class="mt-2 inline-flex sm:hidden ${myPerformance.badgeClass} items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black shadow-sm">
+                    <i data-lucide="award" class="w-3.5 h-3.5"></i>
+                    เกรด ${myPerformance.grade} · ${myPerformance.score} คะแนน
+                  </div>
                 </div>
                 <div class="bg-white/10 border border-white/20 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 flex items-center gap-2 sm:gap-3 max-w-full sm:max-w-sm">
                   <div class="bg-white/5 border border-emerald-400/40 rounded-full p-1.5 sm:p-2 flex-shrink-0">
@@ -6001,13 +6058,21 @@
                     ` : pointLeaveActive ? `
                       <span class="flex-1 flex items-center justify-center text-center">${leaveStatusBadge(pointLeave)}</span>
                     ` : (() => {
+                      if (!isMinDutyTimeEnabled()) {
+                        return `
+                          <button id="btn-report-point-${p.id}" onclick="triggerRipple(event, false); confirmReportPoint(${p.id})"
+                            class="ripple-btn scale-spring-active flex-1 bg-emerald-650 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl shadow-md transition inline-flex items-center justify-center gap-1.5 text-[11px]">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            ถ่ายรูปส่งรายงานเวร
+                          </button>`;
+                      }
                       const checkInKey = 'checkin_' + currentUser.id + '_' + p.id + '_' + getTodayISODate();
                       const checkInTime = localStorage.getItem(checkInKey);
                       
                       if (checkInTime) {
                         const elapsedMs = Date.now() - parseInt(checkInTime);
                         const elapsedMins = Math.floor(elapsedMs / 60000);
-                        const remainingMins = 20 - elapsedMins;
+                        const remainingMins = getRequiredDutyMinutes(p) - elapsedMins;
                         
                         if (remainingMins > 0) {
                           return `
@@ -6281,7 +6346,9 @@
               </div>
               
               <p class="text-slate-500 text-[10px] leading-normal">
-                <strong>ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่าระยะเวลาขั้นต่ำที่ระบบกำหนดสำหรับจุดเวรนี้</strong> ตามที่ได้รายงานร่วมกันในวันนี้
+                ${isMinDutyTimeEnabled()
+                  ? '<strong>ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่าระยะเวลาขั้นต่ำที่ระบบกำหนดสำหรับจุดเวรนี้</strong> ตามที่ได้รายงานร่วมกันในวันนี้'
+                  : '<strong>ได้ร่วมปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริง</strong> ตามที่ได้รายงานร่วมกันในวันนี้'}
                 <br><br>
                 <span class="text-red-500 font-semibold">*(การลงบันทึกข้อมูลที่เป็นจริงและเที่ยงตรง ถือเป็นเกียรติยศ ความอิคลาส และความรับผิดชอบอันสำคัญยิ่งต่อหน้าที่)*</span>
               </p>
@@ -6301,8 +6368,8 @@
               <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center animate-pulse">
                 <svg class="w-6 h-6 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
               </div>
-              <h4 class="font-extrabold text-sm tracking-wide">บันทึกส่งรายงานสำเร็จแล้ว</h4>
-              <p class="text-[10px] text-emerald-200">ระบบได้บันทึกรายงานเข้าสู่ระบบฐานข้อมูลแล้ว</p>
+              <h4 id="appreciation-save-title" class="font-extrabold text-sm tracking-wide">ส่งรายงานขึ้นคลาวด์สำเร็จแล้ว</h4>
+              <p id="appreciation-save-subtitle" class="text-[10px] text-emerald-200">ตรวจพบรายงานในระบบฐานข้อมูลเรียบร้อย</p>
             </div>
             <div class="p-6 space-y-4">
               <div id="appreciation-dua-content" class="text-slate-800 text-[11px] leading-relaxed font-semibold italic bg-slate-50 border border-slate-100 rounded-xl p-4 text-center">
@@ -6376,15 +6443,17 @@
           return;
         }
 
-        const geo = getDutyGeofenceDistance(pt, mockLatitude, mockLongitude);
+        const gpsPosition = await ensureRealGPSLocation({ showPrompt: true, requireFresh: true });
+        if (!gpsPosition) return;
+        const geo = getDutyGeofenceDistance(pt, gpsPosition.latitude, gpsPosition.longitude);
         distance = geo.distance;
         if (distance > geo.radius) {
           showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้', 'error');
           return;
         }
 
-        // เช็คว่าเช็คอินครบเวลาปฏิบัติขั้นต่ำของจุดเวรนี้หรือยัง (แอดมินยกเว้นได้สำหรับการทดสอบ)
-        if (currentUser.id !== 'admin') {
+        // บังคับเช็คอินเฉพาะเมื่อแอดมินเปิดใช้เวลาปฏิบัติขั้นต่ำ
+        if (currentUser.id !== 'admin' && isMinDutyTimeEnabled()) {
           const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
           const checkInTime = localStorage.getItem(checkInKey);
           if (!checkInTime) {
@@ -6455,6 +6524,7 @@
       if (!isSimulationMode) {
         // Save database (with Supabase sync)
         const savedMainReport = await saveReportDB(newReport);
+        newReport._syncStatus = savedMainReport._syncStatus || 'queued';
 
         // รายงานแทนกันหลายคน: บันทึกรายงานเดียวกันให้ครูร่วมเวรที่ยืนยันตัวตนไว้ทุกคน
         for (const co of pendingCoReporters) {
@@ -6506,15 +6576,17 @@
         renderPage('my-duty');
         return;
       }
-      showAppreciationDuaModal();
+      showAppreciationDuaModal(newReport._syncStatus || 'cloud');
     }
 
-    function checkInTeacherPoint(pointId) {
+    async function checkInTeacherPoint(pointId) {
       const points = db.getDutyPoints();
       const pt = points.find(p => p.id === pointId);
       if (!pt) return;
 
-      const geo = getDutyGeofenceDistance(pt, mockLatitude, mockLongitude);
+      const gpsPosition = await ensureRealGPSLocation({ showPrompt: true, requireFresh: true });
+      if (!gpsPosition) return;
+      const geo = getDutyGeofenceDistance(pt, gpsPosition.latitude, gpsPosition.longitude);
       if (geo.distance > geo.radius) {
         showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้ ไม่สามารถเช็คอินได้', 'error');
         return;
@@ -6558,11 +6630,16 @@
       await handleReportSubmit(null);
     }
 
-    function showAppreciationDuaModal() {
+    function showAppreciationDuaModal(syncStatus = 'cloud') {
       const modal = document.getElementById('appreciation-dua-modal');
       const content = document.getElementById('appreciation-dua-content');
+      const title = document.getElementById('appreciation-save-title');
+      const subtitle = document.getElementById('appreciation-save-subtitle');
       const settings = db.getSettings();
       if (modal && content) {
+        const cloudSaved = syncStatus === 'cloud';
+        if (title) title.textContent = cloudSaved ? 'ส่งรายงานขึ้นคลาวด์สำเร็จแล้ว' : 'บันทึกรายงานไว้ในโทรศัพท์แล้ว';
+        if (subtitle) subtitle.textContent = cloudSaved ? 'ตรวจพบรายงานในระบบฐานข้อมูลเรียบร้อย' : 'ยังไม่ขึ้นคลาวด์ ระบบจะซิงก์ให้อัตโนมัติเมื่อเชื่อมต่อสำเร็จ';
         content.textContent = settings.appreciationDuaText || 'ขออัลลอฮฺทรงตอบแทนความดีงามแก่ท่าน (ญะซากัลลอฮุ ค็อยร็อน) ที่มุ่งมั่นในการปฏิบัติหน้าที่ด้วยความอิคลาส และขอพระองค์ทรงให้ท่านยืนหยัดคงไว้ซึ่งความดีงามนี้ตลอดไป';
         modal.classList.remove('hidden');
       }
@@ -6595,12 +6672,13 @@
 
       if (!useSupabase || !navigator.onLine) {
         queuePendingSync('reports', dbReport);
+        newReport._syncStatus = 'offline';
         if (!silent) showToast('บันทึกออฟไลน์ในเครื่องเรียบร้อย รอซิงค์ขึ้นคลาวด์เมื่อมีอินเทอร์เน็ต', 'warning');
         return newReport;
       }
 
       try {
-        const { error } = await supabaseClient.from('reports').upsert(dbReport);
+        const { error } = await supabaseClient.from('reports').upsert(dbReport).select('id').single();
         if (error) {
           // อาจเป็นเพราะยังไม่ได้รัน migration (คอลัมน์ is_late/late_review_status ฯลฯ)
           // → ลองอัปเซิร์ตใหม่โดยตัดฟิลด์ใหม่ออก เพื่อให้ตัวรายงานยังซิงค์ขึ้นคลาวด์ได้
@@ -6609,20 +6687,24 @@
           if (!baseReport.photo && originalPhotoForFallback && originalPhotoForFallback.startsWith('data:')) {
             baseReport.photo = originalPhotoForFallback;
           }
-          const fallbackResult = await supabaseClient.from('reports').upsert(baseReport);
+          const fallbackResult = await supabaseClient.from('reports').upsert(baseReport).select('id').single();
           if (fallbackResult.error) {
             console.error("Supabase base report upsert failed, queueing for retry:", fallbackResult.error);
             queuePendingSync('reports', dbReport);
+            newReport._syncStatus = 'queued';
             if (!silent) showToast('บันทึกลงคลาวด์ไม่สำเร็จ บันทึกออฟไลน์ไว้แล้ว รอซิงค์อัตโนมัติ', 'warning');
           } else {
+            newReport._syncStatus = 'cloud';
             if (!silent) showToast('บันทึกรายงานขึ้นคลาวด์แล้ว (สถานะมาสายเก็บเฉพาะในเครื่องนี้ จนกว่าจะรัน migration)', 'warning');
           }
         } else {
+          newReport._syncStatus = 'cloud';
           if (!silent) showToast('บันทึกรายงานและซิงค์คลาวด์ Supabase สำเร็จ!', 'success');
         }
       } catch (err) {
         console.error("Supabase upsert threw, queueing for retry:", err);
         queuePendingSync('reports', dbReport);
+        newReport._syncStatus = 'queued';
         if (!silent) showToast('ไม่สามารถเชื่อมต่ออินเทอร์เน็ต บันทึกออฟไลน์ไว้แล้ว รอซิงค์อัตโนมัติ', 'warning');
       }
       return newReport;
@@ -8020,6 +8102,7 @@
     }
 
     function getRequiredDutyMinutes(point) {
+      if (!isMinDutyTimeEnabled()) return 0;
       const pointMinutes = point && point.minDutyMinutes !== undefined && point.minDutyMinutes !== null && point.minDutyMinutes !== ''
         ? parseNonNegativeMinutes(point.minDutyMinutes)
         : null;
@@ -8027,6 +8110,10 @@
 
       const settingsNow = db.getSettings() || {};
       return parseNonNegativeMinutes(settingsNow.defaultDutyMinutes, 20);
+    }
+
+    function isMinDutyTimeEnabled() {
+      return (db.getSettings() || {}).enforceMinDutyMinutes !== false;
     }
 
     function getReportTimingDecision(point, currentMin) {
@@ -8141,8 +8228,10 @@
         if (cardEl) {
           const isDone = cardEl.getAttribute('data-is-done') === 'true';
 
-          const geo = getDutyGeofenceDistance(p, mockLatitude, mockLongitude);
-          const inGeofence = geo.distance <= geo.radius;
+          const currentGeo = realGPSReady && Number.isFinite(mockLatitude) && Number.isFinite(mockLongitude)
+            ? getDutyGeofenceDistance(p, mockLatitude, mockLongitude)
+            : null;
+          const inGeofence = !!currentGeo && currentGeo.distance <= currentGeo.radius;
 
           if ((isWithinDuty || isGrace) && inGeofence && !isDone) {
             cardEl.classList.add('glowing-border-active');
@@ -8237,10 +8326,6 @@
     // 8. ON STARTUP & INITIAL EVENTS LOADING
     // =========================================================================
     window.addEventListener('load', () => {
-      const settings = db.getSettings();
-      mockLatitude = settings.centerLat || mockLatitude;
-      mockLongitude = settings.centerLng || mockLongitude;
-
       dbInitPromise = initSupabase().then(handleSsoLogin);
       updateDynamicTitles();
       renderQuickLogin();
@@ -8248,8 +8333,6 @@
       updateNotificationLogsUI();
       setupThaiToEnglishKeyboardConverter();
       updatePendingSyncBadge();
-
-      changeGPSSimulation();
 
       // Close dropdowns if user clicks outside
       document.addEventListener('click', (e) => {
@@ -8464,75 +8547,95 @@
       lucide.createIcons();
     }
 
-    function changeGPSSimulation() {
-      const val = document.getElementById('gps-simulator').value;
-      const ind = document.getElementById('gps-indicator');
-      const mobSelect = document.getElementById('gps-simulator-mobile');
-      
-      if (mobSelect) mobSelect.value = val;
-      const settings = db.getSettings();
-      const baseLat = settings.centerLat || 6.787680;
-      const baseLng = settings.centerLng || 101.408120;
-
-      // Clear any existing watch
-      if (gpsWatcherId !== null) {
-        navigator.geolocation.clearWatch(gpsWatcherId);
-        gpsWatcherId = null;
+    function updateRealGPSUI(state, message) {
+      const styles = {
+        ready: ['text-blue-300', 'GPS จริงพร้อมใช้งาน'],
+        loading: ['text-amber-300', 'กำลังค้นหาพิกัด...'],
+        error: ['text-red-300', 'GPS ยังไม่พร้อม'],
+        idle: ['text-amber-300', 'รออนุญาต']
+      };
+      const [colorClass, fallback] = styles[state] || styles.idle;
+      const text = message || fallback;
+      const indicator = document.getElementById('gps-indicator');
+      if (indicator) {
+        indicator.textContent = text;
+        indicator.className = `font-semibold ${colorClass} hover:text-white text-right`;
       }
+      ['gps-status-desktop', 'gps-status-mobile'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = state === 'ready' ? `🛰️ GPS จริง ±${Math.round(lastGPSAccuracy || 0)} ม.` : `🛰️ ${text}`;
+      });
+    }
 
-      if (val === 'real') {
-        if (navigator.geolocation) {
-          ind.textContent = "กำลังคำนวณสัญญาณดาวเทียม...";
-          ind.className = "font-bold text-amber-500";
-          
-          gpsWatcherId = navigator.geolocation.watchPosition(
-            (pos) => {
-              mockLatitude = pos.coords.latitude;
-              mockLongitude = pos.coords.longitude;
-              ind.textContent = "ใช้ GPS จริง";
-              ind.className = "font-bold text-blue-400";
-              
-              if (currentPage === 'my-duty') {
-                updateTeacherLocationStatus();
-              }
-            },
-            (err) => {
-              console.warn("Geolocation watchPosition error:", err);
-              showToast("ไม่สามารถเรียกดูพิกัดของโทรศัพท์ได้ เปลี่ยนกลับไปใช้โหมดจำลอง", "error");
-              document.getElementById('gps-simulator').value = 'point1';
-              if (mobSelect) mobSelect.value = 'point1';
-              changeGPSSimulation();
-            },
-            {
-              enableHighAccuracy: true,
-              timeout: 10000,
-              maximumAge: 0
-            }
-          );
-        } else {
-          showToast("อุปกรณ์ไม่รองรับการทำงาน GPS", "error");
-        }
-      } else {
-        if (val === 'point1') {
-          mockLatitude = baseLat;
-          mockLongitude = baseLng;
-          ind.textContent = "จำลองจุดเวรที่ 1";
-          ind.className = "font-bold text-green-400";
-        } else if (val === 'point2') {
-          mockLatitude = baseLat + 0.000420;
-          mockLongitude = baseLng + 0.000380;
-          ind.textContent = "จำลองจุดเวรที่ 2";
-          ind.className = "font-bold text-green-400";
-        } else {
-          mockLatitude = baseLat + 0.500000;
-          mockLongitude = baseLng + 0.500000;
-          ind.textContent = "นอกรัศมีควบคุม";
-          ind.className = "font-bold text-red-500";
-        }
-        if (currentPage === 'my-duty') {
-          updateTeacherLocationStatus();
-        }
+    function explainGPSFailure(err) {
+      if (err && err.code === 1) return 'ระบบยังไม่ได้รับอนุญาตให้ใช้ตำแหน่ง กรุณาเลือก “อนุญาตขณะใช้แอป” ในข้อความของโทรศัพท์ หากเคยกดไม่อนุญาต ให้เปิดการตั้งค่าเว็บไซต์/เบราว์เซอร์ แล้วเปิดสิทธิ์ตำแหน่งก่อนลองใหม่';
+      if (err && err.code === 2) return 'โทรศัพท์ค้นหาพิกัดไม่พบ กรุณาเปิด GPS/บริการตำแหน่ง ออกไปยังจุดที่รับสัญญาณได้ แล้วลองใหม่';
+      if (err && err.code === 3) return 'ค้นหาพิกัดใช้เวลานานเกินไป กรุณาตรวจว่าเปิด GPS แล้วลองใหม่อีกครั้ง';
+      return 'อุปกรณ์นี้ไม่สามารถอ่านพิกัดจริงได้ กรุณาเปิด GPS และอนุญาตตำแหน่งให้เบราว์เซอร์';
+    }
+
+    function applyRealGPSPosition(pos) {
+      mockLatitude = pos.coords.latitude;
+      mockLongitude = pos.coords.longitude;
+      lastGPSAccuracy = pos.coords.accuracy;
+      lastGPSTimestamp = Date.now();
+      realGPSReady = true;
+      updateRealGPSUI('ready');
+      if (currentPage === 'my-duty') updateTeacherLocationStatus();
+      return { latitude: mockLatitude, longitude: mockLongitude, accuracy: lastGPSAccuracy };
+    }
+
+    function startRealGPSWatch() {
+      if (gpsWatcherId !== null || !navigator.geolocation) return;
+      gpsWatcherId = navigator.geolocation.watchPosition(
+        applyRealGPSPosition,
+        err => console.warn('Real GPS watch error:', err),
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }
+      );
+    }
+
+    async function ensureRealGPSLocation({ showPrompt = true, requireFresh = false } = {}) {
+      if (realGPSReady && !requireFresh && Date.now() - lastGPSTimestamp < 30000) {
+        return { latitude: mockLatitude, longitude: mockLongitude, accuracy: lastGPSAccuracy };
       }
+      if (!window.isSecureContext && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+        const secureMessage = 'การใช้ GPS จริงต้องเปิดระบบผ่าน HTTPS เท่านั้น กรุณาใช้ลิงก์เว็บไซต์แบบ https:// แล้วลองใหม่';
+        updateRealGPSUI('error');
+        showToast(secureMessage, 'error');
+        if (showPrompt) alert(secureMessage);
+        return null;
+      }
+      if (!navigator.geolocation) {
+        updateRealGPSUI('error');
+        if (showPrompt) alert(explainGPSFailure(null));
+        return null;
+      }
+      if (gpsRequestInFlight) return gpsRequestInFlight;
+      updateRealGPSUI('loading');
+      gpsRequestInFlight = new Promise(resolve => {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            const coords = applyRealGPSPosition(pos);
+            startRealGPSWatch();
+            resolve(coords);
+          },
+          err => {
+            realGPSReady = false;
+            updateRealGPSUI('error');
+            console.warn('Real GPS permission/location error:', err);
+            const message = explainGPSFailure(err);
+            showToast(message, 'error');
+            if (showPrompt) alert(message);
+            resolve(null);
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+      }).finally(() => { gpsRequestInFlight = null; });
+      return gpsRequestInFlight;
+    }
+
+    async function requestGPSPermission() {
+      await ensureRealGPSLocation({ showPrompt: true, requireFresh: true });
     }
 
     function removeTeacherFromPoint(pointId, teacherId) {
@@ -9568,13 +9671,13 @@
       });
     }
 
-    function focusPickerMapOnCurrentLocation() {
-      if (modalMapInstance) {
-        modalMapInstance.setView([mockLatitude, mockLongitude], 18);
-        document.getElementById('point-form-lat').value = mockLatitude.toFixed(6);
-        document.getElementById('point-form-lng').value = mockLongitude.toFixed(6);
-        updateModalMapMarker(mockLatitude, mockLongitude);
-      }
+    async function focusPickerMapOnCurrentLocation() {
+      const gpsPosition = await ensureRealGPSLocation({ showPrompt: true, requireFresh: true });
+      if (!gpsPosition || !modalMapInstance) return;
+      modalMapInstance.setView([gpsPosition.latitude, gpsPosition.longitude], 18);
+      document.getElementById('point-form-lat').value = gpsPosition.latitude.toFixed(6);
+      document.getElementById('point-form-lng').value = gpsPosition.longitude.toFixed(6);
+      updateModalMapMarker(gpsPosition.latitude, gpsPosition.longitude);
     }
 
     function closeDutyPointModal() {
@@ -9892,13 +9995,13 @@
     function updateTeacherLocationStatus() {
       const statusBadge = document.getElementById('teacher-gps-status-badge');
       if (statusBadge) {
-        const gpsVal = document.getElementById('gps-simulator').value;
-        if (gpsVal === 'real') {
+        if (realGPSReady && Number.isFinite(mockLatitude) && Number.isFinite(mockLongitude)) {
           statusBadge.textContent = `🛰️ GPS จริง: ${mockLatitude.toFixed(6)}, ${mockLongitude.toFixed(6)}`;
           statusBadge.className = "bg-blue-900/40 text-blue-200 px-2.5 py-1 rounded border border-blue-500/30 font-bold";
         } else {
-          statusBadge.textContent = `📍 จำลอง: ${mockLatitude.toFixed(6)}, ${mockLongitude.toFixed(6)}`;
+          statusBadge.textContent = '🛰️ กรุณาแตะปุ่มเช็คอิน/รายงานเพื่ออนุญาต GPS จริง';
           statusBadge.className = "bg-amber-900/40 text-amber-200 px-2.5 py-1 rounded border border-amber-500/30 font-bold";
+          return;
         }
       }
 
@@ -9957,7 +10060,9 @@
     let pendingReportPointId = null;
 
     // เช็คว่าครูมีรูปโปรไฟล์หรือยังก่อนเปิดฟอร์มรายงานเวร ถ้ายังไม่มีให้เด้งเตือนอัปโหลดก่อน
-    function confirmReportPoint(pointId) {
+    async function confirmReportPoint(pointId) {
+      const gpsPosition = await ensureRealGPSLocation({ showPrompt: true, requireFresh: true });
+      if (!gpsPosition) return;
       if (activeRoleMode === 'teacher' && currentUser.id !== 'admin' && !currentUser.avatar) {
         pendingReportPointId = pointId;
         const preview = document.getElementById('avatar-reminder-preview');

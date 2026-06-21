@@ -10,6 +10,9 @@ ALTER TABLE settings
 ALTER TABLE settings
   ADD COLUMN IF NOT EXISTS default_duty_minutes INTEGER DEFAULT 20;
 
+ALTER TABLE settings
+  ADD COLUMN IF NOT EXISTS enforce_min_duty_minutes BOOLEAN NOT NULL DEFAULT TRUE;
+
 ALTER TABLE duty_points
   ADD COLUMN IF NOT EXISTS min_duty_minutes INTEGER;
 
