@@ -1,4 +1,4 @@
-    // Default Mock Data in case Supabase tables do not exist yet
+    // Default offline fallback data in case Supabase tables do not exist yet
     const defaultTeachers = [
   {
     "id": "admin",

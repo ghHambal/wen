@@ -180,7 +180,7 @@
             <label for="login-pass" class="block text-sm font-medium text-slate-700 mb-1">รหัสผ่าน</label>
             <div class="relative">
               <i data-lucide="lock" class="absolute left-3 top-3 w-5 h-5 text-slate-400"></i>
-              <input id="login-pass" type="password" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition" placeholder="กรอกรหัสผ่านใดๆ" inputmode="latin">
+              <input id="login-pass" type="password" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition" placeholder="กรอกรหัสผ่าน" inputmode="latin">
             </div>
           </div>
           <div class="flex items-center justify-between text-xs">
@@ -280,7 +280,7 @@
                 <!-- Quick notification list panel -->
                 <div id="notification-panel" class="absolute right-0 mt-2 w-80 bg-white border rounded-xl shadow-xl z-[100] hidden overflow-hidden">
                   <div class="p-3 bg-brand-900 text-white font-bold text-xs flex justify-between items-center">
-                    <span>ประวัติพุชการแจ้งเตือน (จำลอง)</span>
+                    <span>ประวัติการแจ้งเตือน</span>
                     <button onclick="clearNotificationLogs()" class="text-[10px] bg-brand-800 hover:bg-brand-700 px-2 py-0.5 rounded transition">ล้างประวัติ</button>
                   </div>
                   <div id="notification-list" class="max-h-60 overflow-y-auto divide-y text-xs">
@@ -1411,8 +1411,8 @@
     let dbInitPromise = null;
     let currentPage = 'dashboard';
     let sidebarOpen = false;
-    let mockLatitude = null;  // Updated only from the phone's real GPS
-    let mockLongitude = null;
+    let currentLatitude = null;  // Updated only from the phone's real GPS
+    let currentLongitude = null;
     let gpsWatcherId = null;       // Geolocation watcher ID
     let realGPSReady = false;
     let lastGPSTimestamp = 0;
@@ -1428,14 +1428,6 @@
     let coReporterRowSeq = 0; // ตัวนับ id แถวกรอกครูร่วมเวร
     let pendingSubmitReportData = null; // Store report arguments during ikhlas confirmation
     let ikhlasConfirmed = false; // Flag to check if ikhlas confirmation is done
-    let simSelectedPointId = 1; // Sandbox point selection
-    let simCheckInState = 'none'; // Sandbox checkin status: 'none' | 'recent' | 'complete'
-    let simGPSState = 'in'; // Sandbox GPS geofence simulation: 'in' | 'out'
-    let simReportTimeMode = 'on-time'; // Sandbox report time simulation: 'on-time' | 'grace' | 'late'
-    let simReportPhotoBase64 = null; // รูปแนบในหน้าจำลองเท่านั้น ไม่บันทึกจริง
-    let simReportCoReporters = []; // รายชื่อผู้ร่วมเวรในหน้าจำลองเท่านั้น
-    let simSandboxIkhlasConfirmed = false; // ยืนยันความบริสุทธิ์ใจในหน้าจำลองแล้วหรือยัง
-    let isSimulationMode = false; // Flag if report modal is in simulation mode
     let coReporterSigPads = {}; // rowId -> {canvas, ctx, drawing} สำหรับลายเซ็นชั่วคราวของครูร่วมเวร
     let syncQueueProcessing = false; // กันการประมวลผล wen_pending_sync ซ้ำซ้อน
     let coReporterOtherIds = []; // teacher_id ที่ assign จุดนี้วันนี้ (ไม่รวม currentUser)
@@ -1464,7 +1456,6 @@
       { id: 'duty-points', icon: 'map-pin', label: 'จุดเวรและพิกัด' },
       { id: 'documents', icon: 'file-text', label: 'เอกสารรายงาน' },
       { id: 'memo', icon: 'file-warning', label: 'บันทึกข้อความติดตาม' },
-      { id: 'simulate-reporting', icon: 'flask-conical', label: 'จำลองรายงานเวร (Sandbox)' },
       { id: 'settings', icon: 'settings', label: 'ตั้งค่าระบบ' },
       { id: 'profile-settings', icon: 'user-cog', label: 'ข้อมูลส่วนตัว' },
     ];
@@ -1863,7 +1854,7 @@
           showToast('รหัสผ่านแอดมินไม่ถูกต้อง', 'error');
         }
       } else {
-        showToast('ไม่พบข้อมูลผู้ใช้นี้ในระบบ กรุณาใช้รหัสครูจริง หรือ admin เพื่อจำลองระบบ', 'error');
+        showToast('ไม่พบข้อมูลผู้ใช้นี้ในระบบ กรุณาตรวจสอบรหัสผู้ใช้และรหัสผ่านอีกครั้ง', 'error');
       }
     }
 
@@ -1873,8 +1864,8 @@
         gpsWatcherId = null;
       }
       realGPSReady = false;
-      mockLatitude = null;
-      mockLongitude = null;
+      currentLatitude = null;
+      currentLongitude = null;
       lastGPSTimestamp = 0;
       lastGPSAccuracy = null;
       updateRealGPSUI('idle');
@@ -2012,11 +2003,6 @@
           (m.id === 'duty-head-approvals' && canAccessDutyHeadApprovals()) ||
           (m.id === 'duty-points' && isOpsHead(currentUser))
         );
-      }
-
-      // ซ่อนเมนูจำลองรายงานสำหรับผู้ที่ไม่ใช่แอดมินสูงสุด
-      if (!isFullAdmin(currentUser)) {
-        menus = menus.filter(m => m.id !== 'simulate-reporting');
       }
 
       // ซ่อนเมนู "งานหัวหน้าเวร" สำหรับผู้ที่ไม่ใช่หัวหน้าเวร/หัวหน้างานเวร/แอดมิน
@@ -2187,7 +2173,7 @@
             }
 
             // Current GPS position (blue pulsing dot)
-            const gpsMarker = L.circleMarker([mockLatitude, mockLongitude], {
+            const gpsMarker = L.circleMarker([currentLatitude, currentLongitude], {
               radius: 8,
               color: '#2563eb',
               fillColor: '#3b82f6',
@@ -2196,7 +2182,7 @@
             }).addTo(map).bindPopup('🔵 ตำแหน่งของคุณ');
 
             // Fit map to show both duty point and current GPS
-            const bounds = L.latLngBounds([[lat, lng], [mockLatitude, mockLongitude]]);
+            const bounds = L.latLngBounds([[lat, lng], [currentLatitude, currentLongitude]]);
             if (lat2 != null && lng2 != null) bounds.extend([lat2, lng2]);
             map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
 
@@ -2473,9 +2459,6 @@
         case 'memo':
           mc.innerHTML = renderMemoView();
           break;
-        case 'simulate-reporting':
-          mc.innerHTML = renderSimulateReportingView() + renderSandboxReportWorkflowModals();
-          break;
         case 'settings':
           mc.innerHTML = renderSettingsView();
           break;
@@ -2682,11 +2665,7 @@
                               <button onclick="viewReportDetails('${rep.id}')" class="text-brand-700 hover:text-brand-900 font-bold inline-flex items-center gap-0.5">
                                 <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                               </button>
-                            ` : `
-                              <button onclick="triggerSimulatedTeacherReport('${p.id}', '${teacherId}')" class="text-blue-650 hover:text-blue-850 font-bold inline-flex items-center gap-0.5" title="จำลองการลงทะเบียนเวร">
-                                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                              </button>
-                            `}
+                            ` : '<span class="text-slate-300">-</span>'}
                           </td>
                         </tr>
                       `;
@@ -2736,11 +2715,7 @@
                           <button onclick="viewReportDetails('${rep.id}')" class="text-brand-700 font-bold flex items-center gap-0.5">
                             <i data-lucide="eye" class="w-3.5 h-3.5"></i> รายละเอียด
                           </button>
-                        ` : `
-                          <button onclick="triggerSimulatedTeacherReport('${p.id}', '${teacherId}')" class="text-blue-650 font-bold flex items-center gap-0.5">
-                            <i data-lucide="pencil" class="w-3.5 h-3.5"></i> จำลอง
-                          </button>
-                        `}
+                        ` : '<span class="text-slate-300">-</span>'}
                       </div>
                     </div>
                   `;
@@ -2755,7 +2730,7 @@
     }
 
     function getExecutiveStats() {
-      return { reports: db.getReports(), isMocked: false };
+      return { reports: db.getReports() };
     }
 
     function changeExecutiveGroupFilter(val) {
@@ -4442,7 +4417,7 @@
 
             <!-- Leaflet Interactive Map Preview -->
             <div class="xl:col-span-2 bg-white border rounded-xl shadow-sm p-4 h-[420px] flex flex-col space-y-2">
-              <span class="text-[10px] font-bold text-slate-500">แผนผังจำลองขอบเขตรูปวงกลมรอบจุดเวรของโรงเรียน</span>
+              <span class="text-[10px] font-bold text-slate-500">แผนผังแสดงขอบเขตรูปวงกลมรอบจุดเวรของโรงเรียน</span>
               <div id="duty-map" class="w-full flex-1 rounded-lg border z-10"></div>
             </div>
           </div>
@@ -4525,7 +4500,7 @@
 
                   <div class="flex justify-between items-center text-[10px]">
                     <span class="text-slate-400 font-bold">คลิกตำแหน่งบนแผนที่ดาวเทียมเพื่อเลือกพิกัด</span>
-                    <button type="button" onclick="focusPickerMapOnCurrentLocation()" class="bg-blue-50 text-blue-750 border border-blue-200 hover:bg-blue-100 font-bold px-2 py-0.5 rounded transition flex items-center gap-0.5" title="เล็งแผนที่ไปที่ตำแหน่งจำลองปัจจุบัน">
+                    <button type="button" onclick="focusPickerMapOnCurrentLocation()" class="bg-blue-50 text-blue-750 border border-blue-200 hover:bg-blue-100 font-bold px-2 py-0.5 rounded transition flex items-center gap-0.5" title="เล็งแผนที่ไปที่ตำแหน่ง GPS ปัจจุบัน">
                       <i data-lucide="locate" class="w-3 h-3"></i> ไปยังพิกัดปัจจุบัน
                     </button>
                   </div>
@@ -5448,7 +5423,7 @@
       });
       db.saveNotificationLogs(logs);
       
-      // Trigger Telegram or Line OA Simulation
+      // Send through Telegram when it is configured.
       if (settings.telegramToken && settings.telegramChatId) {
         const url = `https://api.telegram.org/bot${settings.telegramToken}/sendMessage`;
         const payload = {
@@ -5473,7 +5448,7 @@
           showToast('การส่งข้อมูลแจ้งเตือนขัดข้อง ไม่สามารถเชื่อมต่อกับ Telegram API ได้', 'error');
         });
       } else {
-        showToast('จำลองส่งข้อความแจ้งเตือนเข้ากลุ่ม LINE OA เรียบร้อยแล้ว!', 'success');
+        showToast('ยังไม่ได้ตั้งค่า Telegram จึงบันทึกเฉพาะประวัติการแจ้งเตือนในระบบ', 'warning');
       }
     }
 
@@ -5639,22 +5614,16 @@
               </div>
 
               <div class="border-t pt-4 space-y-3">
-                <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="bell" class="w-4 h-4 text-brand-700"></i>การตั้งค่า LINE / Telegram Group API</h4>
+                <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="bell" class="w-4 h-4 text-brand-700"></i>การตั้งค่า Telegram Group API</h4>
                 
                 <div>
                   <label class="block text-slate-500 font-bold mb-1">Telegram Bot Token API:</label>
                   <input type="password" id="sett-tele-token" value="${settings.telegramToken}" placeholder="ตัวอย่าง: 1234567890:ABCdef..." class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-slate-500 font-bold mb-1">Telegram Group Chat ID:</label>
-                    <input type="text" id="sett-tele-chat" value="${settings.telegramChatId}" placeholder="เช่น -100xxxxxxxxxx" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
-                  </div>
-                  <div>
-                    <label class="block text-slate-500 font-bold mb-1">LINE OA Alert Token (จำลองพุชแจ้งเตือน):</label>
-                    <input type="password" id="sett-line-token" value="${settings.lineToken}" placeholder="ใส่ Token ของกลุ่มเวรเพื่อทำการจำลองแจ้งเตือน" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
-                  </div>
+                <div>
+                  <label class="block text-slate-500 font-bold mb-1">Telegram Group Chat ID:</label>
+                  <input type="text" id="sett-tele-chat" value="${settings.telegramChatId}" placeholder="เช่น -100xxxxxxxxxx" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
                 </div>
               </div>
 
@@ -5683,7 +5652,7 @@
               <!-- ข้อความยืนยันความบริสุทธิ์ใจในรายงานร่วม -->
               <div class="border-t pt-4 space-y-3">
                 <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="shield-check" class="w-4 h-4 text-brand-700"></i>ข้อความป๊อปอัพยืนยันความบริสุทธิ์ใจ</h4>
-                <p class="text-[10px] text-slate-400">ข้อความนี้จะแสดงในป๊อปอัพก่อนส่งรายงานที่มีผู้เข้าร่วมเวร ทั้งฟอร์มจริงและหน้าจำลอง โดยระบบจะแสดงรายชื่อผู้ร่วมเวรต่อท้ายข้อความนี้อัตโนมัติ</p>
+                <p class="text-[10px] text-slate-400">ข้อความนี้จะแสดงในป๊อปอัพก่อนส่งรายงานที่มีผู้เข้าร่วมเวร โดยระบบจะแสดงรายชื่อผู้ร่วมเวรต่อท้ายข้อความนี้อัตโนมัติ</p>
                 <div>
                   <textarea id="sett-ikhlas-confirm-text" rows="4" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 leading-relaxed">${escapeHtml(settings.ikhlasConfirmText || DEFAULT_IKHLAS_CONFIRM_TEXT)}</textarea>
                 </div>
@@ -5694,7 +5663,7 @@
                 <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="shield-check" class="w-4 h-4 text-brand-700"></i>สิทธิ์การเข้าถึงเมนูของหัวหน้าเวร</h4>
                 <p class="text-[10px] text-slate-400">เลือกเมนูที่จะให้ "หัวหน้าเวรประจำวัน" (ครูที่ได้รับการแต่งตั้งเป็นหัวหน้าเวรในแต่ละวัน ไม่ใช่แอดมิน) มองเห็นและเข้าถึงได้ในโหมดหัวหน้าเวร — เมนู "ข้อมูลส่วนตัว" จะแสดงให้ทุกคนเสมอ และเมนูที่มีตัวเลือก "วัน" (เช่น ตารางเวร) หัวหน้าเวรจะเห็นเฉพาะวันที่ตนเองได้รับการแต่งตั้งเท่านั้น</p>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  ${adminMenus.filter(m => m.id !== 'profile-settings' && m.id !== 'simulate-reporting').map(m => `
+                  ${adminMenus.filter(m => m.id !== 'profile-settings').map(m => `
                     <label class="flex items-center gap-2 border rounded-lg p-2.5 cursor-pointer hover:bg-slate-50 transition">
                       <input type="checkbox" id="sett-head-perm-${m.id}" ${currentHeadPerms.includes(m.id) ? 'checked' : ''} class="rounded border-slate-300 text-brand-700 focus:ring-brand-500">
                       <span class="flex items-center gap-1.5 text-slate-700 font-semibold"><i data-lucide="${m.icon}" class="w-3.5 h-3.5 text-brand-700"></i>${m.label}</span>
@@ -5717,7 +5686,7 @@
               <i data-lucide="alert-triangle" class="w-4 h-4"></i> จัดการพิกัดจุดปฏิบัติเวร (เครื่องมือแอดมิน)
             </h3>
             <p class="text-[10px] text-slate-500">
-              กรณีพิกัดจุดเวรคลาดเคลื่อนหรือย้อนกลับเป็นพิกัดเริ่มต้น (จำลอง) ท่านสามารถสั่งรีเซ็ตค่าพิกัดของจุดปฏิบัติเวรทั้งหมด (จุดที่ 1-41) ให้ย้ายมายังพิกัดศูนย์กลางของโรงเรียนที่ตั้งค่าไว้ (${settings.centerLat || 6.787680}, ${settings.centerLng || 101.408120}) จากนั้นจึงค่อยลากจัดตำแหน่งแต่ละจุดบนแผนที่ในหน้า "ตั้งค่าจุดเวรและพิกัด Geofence"
+              กรณีพิกัดจุดเวรคลาดเคลื่อน ท่านสามารถสั่งรีเซ็ตค่าพิกัดของจุดปฏิบัติเวรทั้งหมด (จุดที่ 1-41) ให้ย้ายมายังพิกัดศูนย์กลางของโรงเรียนที่ตั้งค่าไว้ (${settings.centerLat || 6.787680}, ${settings.centerLng || 101.408120}) จากนั้นจึงค่อยลากจัดตำแหน่งแต่ละจุดบนแผนที่ในหน้า "ตั้งค่าจุดเวรและพิกัด Geofence"
             </p>
             <div class="flex">
               <button type="button" onclick="resetAllPointsToSchoolCenter()" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold px-4 py-2.5 rounded-lg transition shadow-sm flex items-center gap-1">
@@ -5740,7 +5709,7 @@
         directorName: document.getElementById('sett-director').value.trim(),
         telegramToken: document.getElementById('sett-tele-token').value.trim(),
         telegramChatId: document.getElementById('sett-tele-chat').value.trim(),
-        lineToken: document.getElementById('sett-line-token').value.trim(),
+        lineToken: current.lineToken || '',
         autoNotifyMinutes: parseInt(document.getElementById('sett-minutes').value),
         lateGraceMinutes: document.getElementById('sett-late-grace-minutes') ? (parseInt(document.getElementById('sett-late-grace-minutes').value) || 0) : (current.lateGraceMinutes ?? 15),
         defaultDutyMinutes: document.getElementById('sett-default-duty-minutes') ? (parseNonNegativeMinutes(document.getElementById('sett-default-duty-minutes').value, 20)) : (current.defaultDutyMinutes ?? 20),
@@ -6192,16 +6161,6 @@
               <button onclick="closeReportForm()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>
             
-            <!-- Simulation Warning Banner -->
-            <div id="modal-simulation-banner" class="hidden bg-amber-50 border-b border-amber-200 px-5 py-2.5 text-amber-800 font-bold flex items-center gap-2">
-              <i data-lucide="flask-conical" class="w-4 h-4 text-amber-600 animate-pulse"></i>
-              <span>โหมดจำลองการทำงาน (Sandbox) - ข้อมูลนี้จะไม่ถูกบันทึกจริง</span>
-            </div>
-            <div id="modal-simulation-time-banner" class="hidden bg-slate-100 border-b border-slate-200 px-5 py-2.5 text-slate-700 flex items-center gap-2">
-              <i data-lucide="clock" class="w-4 h-4 text-slate-600"></i>
-              <span id="modal-simulation-time-text"></span>
-            </div>
-            
             <form onsubmit="handleReportSubmit(event)" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
               
               <!-- Target Point Status Alert -->
@@ -6399,7 +6358,7 @@
       if (e) e.preventDefault();
 
       const teacher = db.getTeachers().find(t => t.id === currentUser.id);
-      if (!isSimulationMode && (!teacher || !teacher.signature)) {
+      if (!teacher || !teacher.signature) {
         showToast('กรุณาทำการลงทะเบียนวาดลายมือชื่ออิเล็กทรอนิกส์ก่อนส่งรายงาน', 'error');
         return;
       }
@@ -6417,68 +6376,48 @@
       let distance = 0;
       let isLate = false;
 
-      let simulatedReportTimeMin = null;
-      if (isSimulationMode) {
-        distance = (simGPSState === 'in') ? 12.5 : 345.2;
-        if (simGPSState === 'out') {
-          showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้ (โหมดจำลอง)', 'error');
-          return;
-        }
-
-        const range = parseTimeRange(pt.reportWindow ? pt.reportWindow : pt.time);
-        const graceMin = db.getSettings().lateGraceMinutes ?? 15;
-        if (simReportTimeMode === 'grace') {
-          simulatedReportTimeMin = range.endMin + Math.min(Math.max(graceMin, 0), 1);
-        } else if (simReportTimeMode === 'late') {
-          simulatedReportTimeMin = range.endMin + graceMin + 5;
-        } else {
-          simulatedReportTimeMin = Math.max(range.startMin, range.endMin - 5);
-        }
-        isLate = getReportTimingDecision(pt, simulatedReportTimeMin).isLate;
-      } else {
-        // วันนี้มีประกาศยกเว้นเวรเหตุสุดวิสัยหรือไม่ → ห้ามรายงานเวร
-        const myExemption = getExemptionForDate(getTodayISODate(), getTeacherDutyGroup(currentUser));
-        if (myExemption) {
-          showToast(`วันนี้ได้รับการยกเว้นการปฏิบัติหน้าที่เวร เนื่องจาก: ${myExemption.reason}`, 'warning');
-          return;
-        }
-
-        const gpsPosition = await ensureRealGPSLocation({ showPrompt: true, requireFresh: true });
-        if (!gpsPosition) return;
-        const geo = getDutyGeofenceDistance(pt, gpsPosition.latitude, gpsPosition.longitude);
-        distance = geo.distance;
-        if (distance > geo.radius) {
-          showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้', 'error');
-          return;
-        }
-
-        // บังคับเช็คอินเฉพาะเมื่อแอดมินเปิดใช้เวลาปฏิบัติขั้นต่ำ
-        if (currentUser.id !== 'admin' && isMinDutyTimeEnabled()) {
-          const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
-          const checkInTime = localStorage.getItem(checkInKey);
-          if (!checkInTime) {
-            showToast('ผิดพลาด: ท่านยังไม่ได้ทำการเช็คอินเริ่มปฏิบัติงานสำหรับจุดนี้', 'error');
-            return;
-          }
-          const elapsedMs = Date.now() - parseInt(checkInTime);
-          const elapsedMins = Math.floor(elapsedMs / 60000);
-          const requiredDutyMins = getRequiredDutyMinutes(pt);
-          if (elapsedMins < requiredDutyMins) {
-            showToast(`ผิดพลาด: ท่านปฏิบัติหน้าที่ยังไม่ครบ ${requiredDutyMins} นาที (ขาดอีก ${requiredDutyMins - elapsedMins} นาที)`, 'error');
-            return;
-          }
-        }
-
-        // เช็คช่วงเวลาที่รายงานได้ — ถ้าเลยช่วงผ่อนผันยังส่งได้ แต่ต้องรอหัวหน้าเวรอนุมัติ
-        const nowDate = new Date();
-        const nowMin = nowDate.getHours() * 60 + nowDate.getMinutes();
-        const timingDecision = getReportTimingDecision(pt, nowMin);
-        if (timingDecision.status === 'too_early') {
-          showToast(`ยังไม่ถึงช่วงเวลาที่รายงานได้ (${timingDecision.windowDisplay} น.) ตามนโยบายหัวหน้างานเวร`, 'error');
-          return;
-        }
-        isLate = timingDecision.isLate;
+      // วันนี้มีประกาศยกเว้นเวรเหตุสุดวิสัยหรือไม่ → ห้ามรายงานเวร
+      const myExemption = getExemptionForDate(getTodayISODate(), getTeacherDutyGroup(currentUser));
+      if (myExemption) {
+        showToast(`วันนี้ได้รับการยกเว้นการปฏิบัติหน้าที่เวร เนื่องจาก: ${myExemption.reason}`, 'warning');
+        return;
       }
+
+      const gpsPosition = await ensureRealGPSLocation({ showPrompt: true, requireFresh: true });
+      if (!gpsPosition) return;
+      const geo = getDutyGeofenceDistance(pt, gpsPosition.latitude, gpsPosition.longitude);
+      distance = geo.distance;
+      if (distance > geo.radius) {
+        showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้', 'error');
+        return;
+      }
+
+      // บังคับเช็คอินเฉพาะเมื่อแอดมินเปิดใช้เวลาปฏิบัติขั้นต่ำ
+      if (currentUser.id !== 'admin' && isMinDutyTimeEnabled()) {
+        const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
+        const checkInTime = localStorage.getItem(checkInKey);
+        if (!checkInTime) {
+          showToast('ผิดพลาด: ท่านยังไม่ได้ทำการเช็คอินเริ่มปฏิบัติงานสำหรับจุดนี้', 'error');
+          return;
+        }
+        const elapsedMs = Date.now() - parseInt(checkInTime);
+        const elapsedMins = Math.floor(elapsedMs / 60000);
+        const requiredDutyMins = getRequiredDutyMinutes(pt);
+        if (elapsedMins < requiredDutyMins) {
+          showToast(`ผิดพลาด: ท่านปฏิบัติหน้าที่ยังไม่ครบ ${requiredDutyMins} นาที (ขาดอีก ${requiredDutyMins - elapsedMins} นาที)`, 'error');
+          return;
+        }
+      }
+
+      // เช็คช่วงเวลาที่รายงานได้ — ถ้าเลยช่วงผ่อนผันยังส่งได้ แต่ต้องรอหัวหน้าเวรอนุมัติ
+      const nowDate = new Date();
+      const nowMin = nowDate.getHours() * 60 + nowDate.getMinutes();
+      const timingDecision = getReportTimingDecision(pt, nowMin);
+      if (timingDecision.status === 'too_early') {
+        showToast(`ยังไม่ถึงช่วงเวลาที่รายงานได้ (${timingDecision.windowDisplay} น.) ตามนโยบายหัวหน้างานเวร`, 'error');
+        return;
+      }
+      isLate = timingDecision.isLate;
 
       const statusSelect = document.getElementById('rep-status-select').value;
       const resultText = document.getElementById('rep-result-text').value.trim();
@@ -6488,7 +6427,7 @@
       const newReportId = 'R' + Date.now();
       const timeNow = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
 
-      const signature = (teacher && teacher.signature) ? teacher.signature : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2050/svg" width="100" height="50"><text x="10" y="30" font-family="sans-serif" font-size="12" fill="red">Simulated Sig</text></svg>';
+      const signature = teacher.signature;
 
       const newReport = {
         id: newReportId,
@@ -6521,57 +6460,45 @@
       ikhlasConfirmed = false;
       pendingSubmitReportData = null;
 
-      if (!isSimulationMode) {
-        // Save database (with Supabase sync)
-        const savedMainReport = await saveReportDB(newReport);
-        newReport._syncStatus = savedMainReport._syncStatus || 'queued';
+      // Save database (with Supabase sync)
+      const savedMainReport = await saveReportDB(newReport);
+      newReport._syncStatus = savedMainReport._syncStatus || 'queued';
 
-        // รายงานแทนกันหลายคน: บันทึกรายงานเดียวกันให้ครูร่วมเวรที่ยืนยันตัวตนไว้ทุกคน
-        for (const co of pendingCoReporters) {
-          const coReport = {
-            ...savedMainReport,
-            id: newReportId + '_' + co.teacherId,
-            teacherId: co.teacherId,
-            signature: co.signature
-          };
-          await saveReportDB(coReport);
-        }
+      // รายงานแทนกันหลายคน: บันทึกรายงานเดียวกันให้ครูร่วมเวรที่ยืนยันตัวตนไว้ทุกคน
+      for (const co of pendingCoReporters) {
+        const coReport = {
+          ...savedMainReport,
+          id: newReportId + '_' + co.teacherId,
+          teacherId: co.teacherId,
+          signature: co.signature
+        };
+        await saveReportDB(coReport);
       }
       pendingCoReporters = [];
 
-      if (!isSimulationMode) {
-        // Simulated notification message
-        let alertMsg = `📢 แจ้งผลปฏิบัติเวร โรงเรียนมูลนิธิอาซิซสถาน \n`;
-        alertMsg += `จุดเวร: จุดที่ ${getDutyPointDisplayNumber(pt)} (${pt.name})\n`;
-        alertMsg += `ผู้ปฏิบัติ: ${currentUser.name}\n`;
-        alertMsg += `เวลาบันทึก: ${timeNow} น.\n`;
-        if (isLate) {
-          alertMsg += `สถานะเวลา: รายงานสายหลังหมดช่วงผ่อนผัน (รอหัวหน้าเวรอนุมัติ)\n`;
-        }
-        alertMsg += `สถานะ: ${statusSelect === 'problem' ? '⚠️ พบประเด็นขัดข้อง!' : '✅ ปกติเรียบร้อยดี'}\n`;
-        if (statusSelect === 'problem') {
-          alertMsg += `ปัญหาที่พบ: ${problemText}\nแนวทางดำเนินการ: ${solutionText}\n`;
-        } else {
-          alertMsg += `ผลตรวจเวร: ${resultText}\n`;
-        }
-        alertMsg += `GPS ตรวจสอบ: อยู่ห่าง ${distance.toFixed(1)} เมตร (ภายในรัศมี)`;
-
-        triggerTelegramNotification(alertMsg);
-
-        // เคลียร์ประวัติการเช็กอินในเครื่องของวันนี้สำหรับจุดนี้
-        const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
-        localStorage.removeItem(checkInKey);
-      } else {
-        // ในโหมดจำลอง: เคลียร์/อัปเดตสถานะจำลอง
-        simCheckInState = 'none';
-        showToast(isLate
-          ? 'จำลองส่งรายงานสายเข้าสู่คิวหัวหน้าเวรแล้ว (ข้ามการบันทึกฐานข้อมูลจริงและแจ้งเตือน Line/Telegram)'
-          : 'จำลองส่งรายงานผลปฏิบัติเวรสำเร็จ (ข้ามการบันทึกฐานข้อมูลจริงและแจ้งเตือน Line/Telegram)',
-        isLate ? 'warning' : 'success');
+      let alertMsg = `📢 แจ้งผลปฏิบัติเวร โรงเรียนมูลนิธิอาซิซสถาน \n`;
+      alertMsg += `จุดเวร: จุดที่ ${getDutyPointDisplayNumber(pt)} (${pt.name})\n`;
+      alertMsg += `ผู้ปฏิบัติ: ${currentUser.name}\n`;
+      alertMsg += `เวลาบันทึก: ${timeNow} น.\n`;
+      if (isLate) {
+        alertMsg += `สถานะเวลา: รายงานสายหลังหมดช่วงผ่อนผัน (รอหัวหน้าเวรอนุมัติ)\n`;
       }
+      alertMsg += `สถานะ: ${statusSelect === 'problem' ? '⚠️ พบประเด็นขัดข้อง!' : '✅ ปกติเรียบร้อยดี'}\n`;
+      if (statusSelect === 'problem') {
+        alertMsg += `ปัญหาที่พบ: ${problemText}\nแนวทางดำเนินการ: ${solutionText}\n`;
+      } else {
+        alertMsg += `ผลตรวจเวร: ${resultText}\n`;
+      }
+      alertMsg += `GPS ตรวจสอบ: อยู่ห่าง ${distance.toFixed(1)} เมตร (ภายในรัศมี)`;
 
-      closeReportForm(true);
-      if (!isSimulationMode && isLate) {
+      triggerTelegramNotification(alertMsg);
+
+      // เคลียร์ประวัติการเช็กอินในเครื่องของวันนี้สำหรับจุดนี้
+      const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
+      localStorage.removeItem(checkInKey);
+
+      closeReportForm();
+      if (isLate) {
         showToast('ส่งรายงานสายเข้าสู่คิวหัวหน้าเวรแล้ว ระบบจะนับผลหลังหัวหน้าเวรอนุมัติ', 'warning');
         renderPage('my-duty');
         return;
@@ -6648,12 +6575,7 @@
     function closeAppreciationDuaModal() {
       const modal = document.getElementById('appreciation-dua-modal');
       if (modal) modal.classList.add('hidden');
-      if (isSimulationMode) {
-        isSimulationMode = false;
-        renderPage('simulate-reporting');
-      } else {
-        navigateTo('my-duty');
-      }
+      navigateTo('my-duty');
     }
 
     async function saveReportDB(newReport, silent = false) {
@@ -7036,510 +6958,7 @@
     }
 
     // =========================================================================
-    // 5.1 SANDBOX SIMULATION MODE
-    // =========================================================================
-    function renderSimulateReportingView() {
-      const points = db.getDutyPoints();
-      const pt = points.find(p => p.id === simSelectedPointId) || points[0];
-      if (pt && simSelectedPointId !== pt.id) {
-        simSelectedPointId = pt.id;
-      }
-      const simRequiredMins = getRequiredDutyMinutes(pt);
-
-      let buttonHtml = '';
-      if (simCheckInState === 'none') {
-        buttonHtml = `
-          <button onclick="simClickCheckIn()" class="w-full bg-brand-800 hover:bg-brand-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            📌 เช็คอินเริ่มปฏิบัติงาน (จำลอง)
-          </button>
-        `;
-      } else if (simCheckInState === 'recent') {
-        buttonHtml = `
-          <button disabled class="w-full bg-blue-900/40 text-blue-200 border border-blue-500/30 font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-not-allowed">
-            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-            🕒 กำลังปฏิบัติหน้าที่ (จำลอง) (รอครบ ${simRequiredMins} นาที)
-          </button>
-        `;
-      } else {
-        buttonHtml = `
-          <button onclick="simClickReport()" class="w-full bg-emerald-650 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            📸 ถ่ายรูปส่งรายงานเวร (จำลอง)
-          </button>
-        `;
-      }
-
-      return `
-        <div class="fade-in space-y-6 text-xs max-w-xl">
-          <div class="border-b pb-4">
-            <h3 class="text-lg font-bold text-slate-900">จำลองการรายงานเวร (Sandbox)</h3>
-            <p class="text-slate-500 mt-1">ใช้ทดสอบปุ่มเช็คอิน ระบบตรวจสอบพิกัด และป๊อปอัปความสัตย์จริง (อิคลาส) โดยไม่มีผลกระทบต่อฐานข้อมูลจริง</p>
-          </div>
-
-          <div class="bg-white border rounded-xl shadow-sm p-6 space-y-5">
-            <h4 class="font-bold text-slate-800 border-b pb-2 flex items-center gap-1.5">
-              <i data-lucide="flask-conical" class="w-4 h-4 text-brand-700"></i>ตั้งค่าสภาวะการจำลอง
-            </h4>
-            
-            <div class="space-y-4">
-              <div>
-                <label class="block text-slate-500 font-bold mb-1">1. เลือกจุดเวรจำลอง:</label>
-                <select id="sim-point-select" onchange="simChangePoint(this.value)" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-semibold">
-                  ${points.map(p => `<option value="${p.id}" ${simSelectedPointId === p.id ? 'selected' : ''}>จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name} (${p.time} น.)</option>`).join('')}
-                </select>
-              </div>
-
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-slate-500 font-bold mb-1">2. สถานะเวลากับการเข้าเวร:</label>
-                  <select id="sim-checkin-select" onchange="simChangeCheckIn(this.value)" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-semibold">
-                    <option value="none" ${simCheckInState === 'none' ? 'selected' : ''}>ยังไม่ได้กดเช็คอิน (📌 ปุ่มเริ่มต้น)</option>
-                    <option value="recent" ${simCheckInState === 'recent' ? 'selected' : ''}>เพิ่งเช็คอินเสร็จ (🕒 บล็อกรอครบ ${simRequiredMins} นาที)</option>
-                    <option value="complete" ${simCheckInState === 'complete' ? 'selected' : ''}>เช็คอินครบ ${simRequiredMins} นาทีแล้ว (📸 พร้อมถ่ายรูปส่งรายงาน)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="block text-slate-500 font-bold mb-1">3. พิกัดจำลองของคุณ:</label>
-                  <select id="sim-gps-select" onchange="simChangeGPS(this.value)" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-semibold">
-                    <option value="in" ${simGPSState === 'in' ? 'selected' : ''}>อยู่ในรัศมีระยะเวร (ผ่าน ✅)</option>
-                    <option value="out" ${simGPSState === 'out' ? 'selected' : ''}>อยู่นอกเขตรัศมีเวร (บล็อก ❌)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="mt-4">
-                <label class="block text-slate-500 font-bold mb-1">4. สถานะเวลาการรายงาน:</label>
-                <select id="sim-time-select" onchange="simChangeReportTimeMode(this.value)" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-semibold">
-                  <option value="on-time" ${simReportTimeMode === 'on-time' ? 'selected' : ''}>รายงานในช่วงเวลาปกติ</option>
-                  <option value="grace" ${simReportTimeMode === 'grace' ? 'selected' : ''}>รายงานในช่วงเวลาผ่อนผัน (ยังไม่ถือว่าสาย)</option>
-                  <option value="late" ${simReportTimeMode === 'late' ? 'selected' : ''}>รายงานหลังหมดช่วงผ่อนผัน (ถือว่าสาย/รออนุมัติ)</option>
-                </select>
-                <p class="text-[10px] text-slate-500 mt-2">ระบบจำลองจะใช้สถานะนี้เพื่อทดสอบผลลัพธ์ของการส่งรายงานในช่วงเวลาปกติ ช่วงผ่อนผัน หรือหลังหมดช่วงผ่อนผัน</p>
-              </div>
-            </div>
-            
-            <div class="border-t pt-5 mt-3 space-y-3">
-              <label class="block text-slate-550 font-bold text-center">ตัวอย่างปุ่มแสดงบนหน้าจอของครูเวร:</label>
-              <div class="max-w-xs mx-auto border rounded-2xl p-4 bg-slate-50 shadow-inner">
-                ${buttonHtml}
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderSandboxReportWorkflowModals() {
-      const settings = db.getSettings();
-      const ikhlasConfirmText = escapeHtml(settings.ikhlasConfirmText || DEFAULT_IKHLAS_CONFIRM_TEXT);
-      return `
-        <div id="sandbox-report-modal" class="fixed inset-0 bg-black/60 z-[200] hidden flex items-center justify-center p-3 sm:p-4">
-          <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border">
-            <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
-              <h3 class="font-bold text-xs" id="sandbox-form-modal-title">หน้าจำลองรายงานผลการปฏิบัติหน้าที่</h3>
-              <button onclick="closeSandboxReportForm()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
-            </div>
-
-            <div class="bg-amber-50 border-b border-amber-200 px-5 py-2.5 text-amber-800 font-bold flex items-center gap-2">
-              <i data-lucide="flask-conical" class="w-4 h-4 text-amber-600"></i>
-              <span>โหมดจำลองเท่านั้น - ไม่ใช้ฟอร์มจริง ไม่บันทึกฐานข้อมูล และไม่ส่งแจ้งเตือนจริง</span>
-            </div>
-            <div class="bg-slate-100 border-b border-slate-200 px-5 py-2.5 text-slate-700 flex items-center gap-2">
-              <i data-lucide="clock" class="w-4 h-4 text-slate-600"></i>
-              <span id="sandbox-simulation-time-text"></span>
-            </div>
-
-            <form onsubmit="submitSandboxReport(event)" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
-              <div id="sandbox-distance-alert" class="p-3 rounded-lg border font-bold flex items-center gap-2"></div>
-
-              <div>
-                <label class="block text-slate-500 mb-1 font-bold">ระบุสภาพความเรียบร้อย:</label>
-                <select id="sandbox-report-status-select" onchange="toggleSandboxReportProblemsInput()" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 font-bold text-slate-700">
-                  <option value="reported">ปฏิบัติเวรเรียบร้อย (ปกติ/ไม่พบปัญหา)</option>
-                  <option value="problem">⚠️ พบประเด็นความผิดปกติ หรืออุบัติเหตุ (แจ้งปัญหา)</option>
-                </select>
-              </div>
-
-              <div id="sandbox-report-result-section">
-                <label class="block text-slate-500 mb-1 font-bold">ผลการปฏิบัติงานโดยรวม:</label>
-                <textarea id="sandbox-report-result-text" rows="3" required placeholder="ระบุการปฏิบัติหน้าที่เวรเบื้องต้น..." class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 leading-relaxed"></textarea>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                  <span class="text-[10px] text-slate-400 font-bold w-full">ตัวอย่างข้อความ (คลิกเพื่อเลือก):</span>
-                  <button type="button" onclick="setSandboxReportSuggestion('นักเรียนปฏิบัติตนเรียบร้อยดี ไม่พบปัญหาหรือเหตุผิดปกติ')" class="text-[10px] bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-800 rounded-full px-2.5 py-1 font-medium transition">นักเรียนปฏิบัติตนเรียบร้อยดี ไม่พบปัญหา</button>
-                  <button type="button" onclick="setSandboxReportSuggestion('นักเรียนเดินทางมาโรงเรียนตามปกติ ไม่พบเหตุผิดปกติ')" class="text-[10px] bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-800 rounded-full px-2.5 py-1 font-medium transition">นักเรียนเดินทางมาโรงเรียนตามปกติ</button>
-                  <button type="button" onclick="setSandboxReportSuggestion('บริเวณจุดเวรเรียบร้อยดี นักเรียนให้ความร่วมมือดี ไม่พบเหตุผิดปกติ')" class="text-[10px] bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-800 rounded-full px-2.5 py-1 font-medium transition">บริเวณจุดเวรเรียบร้อย นักเรียนให้ความร่วมมือดี</button>
-                </div>
-              </div>
-
-              <div id="sandbox-report-problem-fields" class="hidden grid grid-cols-1 gap-3 bg-red-50 border border-red-150 rounded-lg p-3">
-                <div>
-                  <label class="block text-red-800 font-bold mb-1">ปัญหาที่พบ:</label>
-                  <input type="text" id="sandbox-report-problem-text" placeholder="เช่น พบนักเรียนไม่ปฏิบัติตามระเบียบ" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-red-500 text-slate-750 font-medium">
-                </div>
-                <div>
-                  <label class="block text-brand-900 font-bold mb-1">แนวทางดำเนินการแก้ไขเบื้องต้น:</label>
-                  <input type="text" id="sandbox-report-solution-text" placeholder="เช่น ตักเตือนและแจ้งครูที่ปรึกษา" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-750 font-medium">
-                </div>
-              </div>
-
-              <div class="border-t pt-4 space-y-3">
-                <div class="flex items-center justify-between gap-2">
-                  <label class="block text-slate-500 font-bold">ผู้เข้าร่วมเวรในรายงานจำลอง:</label>
-                  <span class="text-[9px] text-slate-400 font-semibold">เพิ่มเพื่อทดสอบหน้าจอเท่านั้น</span>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-                  <input type="text" id="sandbox-co-reporter-name" placeholder="ชื่อผู้ร่วมเวร เช่น ครูอับดุลเลาะ" class="border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700">
-                  <button type="button" onclick="addSandboxCoReporter()" class="bg-brand-800 hover:bg-brand-700 text-white font-bold px-3 py-2.5 rounded-lg transition inline-flex items-center justify-center gap-1">
-                    <i data-lucide="user-plus" class="w-4 h-4"></i> เพิ่ม
-                  </button>
-                </div>
-                <div id="sandbox-co-reporter-list" class="flex flex-wrap gap-2"></div>
-              </div>
-
-              <div class="border-t pt-4">
-                <label class="block text-slate-500 mb-1 font-bold">แนบรูปภาพปฏิบัติเวร: <span class="text-red-500">*</span></label>
-                <div class="flex items-center gap-3">
-                  <input type="file" accept="image/*" id="sandbox-report-photo-input" onchange="previewSandboxReportPhoto(event)" class="hidden">
-                  <button type="button" onclick="document.getElementById('sandbox-report-photo-input').click()" class="border border-brand-300 hover:border-brand-500 text-brand-850 hover:bg-brand-50/50 py-2 px-3.5 rounded-lg font-bold transition flex items-center gap-1.5">
-                    <i data-lucide="camera" class="w-4 h-4"></i> อัปโหลดรูปภาพเวร
-                  </button>
-                  <span id="sandbox-report-photo-filename" class="text-[9px] text-red-400 font-bold">⚠ ยังไม่ได้แนบรูป (จำเป็น)</span>
-                </div>
-                <div id="sandbox-report-photo-preview-box" class="mt-2 border rounded-lg bg-slate-50 hidden overflow-hidden justify-center items-center max-h-32">
-                  <img id="sandbox-report-photo-preview" src="" class="object-contain max-h-32" alt="รูปพรีวิว">
-                </div>
-              </div>
-
-              <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-                <i data-lucide="shield-alert" class="w-4 h-4 text-amber-700 mt-0.5"></i>
-                <div>
-                  <p class="font-bold text-amber-900">หน้าจำลองนี้แยกจากฟอร์มรายงานจริงของครู</p>
-                  <p class="text-[9px] text-amber-700 mt-0.5">การเพิ่มผู้ร่วมเวรและแนบรูปในนี้ไม่แก้ข้อมูลรายงานจริง ไม่แตะลายเซ็น และไม่เขียนลงฐานข้อมูล</p>
-                </div>
-              </div>
-
-              <div class="flex gap-2 pt-2 border-t">
-                <button type="button" onclick="closeSandboxReportForm()" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ปิดหน้าต่าง</button>
-                <button type="submit" class="flex-1 bg-brand-850 hover:bg-brand-700 text-white font-bold py-2.5 rounded-lg shadow hover:shadow-md transition">
-                  บันทึกผลจำลอง
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        <div id="sandbox-ikhlas-confirm-modal" class="fixed inset-0 bg-black/70 z-[400] hidden flex items-center justify-center p-4">
-          <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border fade-in">
-            <div class="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-4 flex items-center gap-2">
-              <i data-lucide="shield-check" class="w-5 h-5 text-amber-100"></i>
-              <h4 class="font-bold text-xs">ยืนยันความบริสุทธิ์ใจในการรายงานร่วม</h4>
-            </div>
-            <div class="p-6 space-y-4 text-slate-700 text-[11px] leading-relaxed">
-              <p class="font-semibold">${ikhlasConfirmText}</p>
-
-              <div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 space-y-1.5 font-bold text-amber-900" id="sandbox-ikhlas-co-reporters-list"></div>
-
-              <p class="text-slate-500 text-[10px] leading-normal">
-                การยืนยันนี้เป็นส่วนหนึ่งของหน้าจำลองเท่านั้น เพื่อให้เห็นขั้นตอนก่อนส่งรายงานร่วมกัน โดยไม่บันทึกข้อมูลจริงและไม่แตะฟอร์มรายงานจริงของคุณครู
-              </p>
-
-              <div class="flex gap-2 pt-2 border-t text-xs">
-                <button type="button" onclick="closeSandboxIkhlasConfirm()" class="flex-1 border border-slate-200 hover:bg-slate-50 py-2 rounded-lg text-slate-600 font-bold transition">ย้อนกลับไปแก้ไข</button>
-                <button type="button" onclick="confirmSandboxIkhlasAndSubmit()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-lg shadow transition">ยืนยันความบริสุทธิ์ใจ</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    function simChangePoint(val) {
-      simSelectedPointId = parseInt(val);
-      renderPage('simulate-reporting');
-    }
-
-    function simChangeCheckIn(val) {
-      simCheckInState = val;
-      renderPage('simulate-reporting');
-    }
-
-    function simChangeGPS(val) {
-      simGPSState = val;
-      renderPage('simulate-reporting');
-    }
-
-    function simChangeReportTimeMode(val) {
-      simReportTimeMode = val;
-      renderPage('simulate-reporting');
-    }
-
-    function simClickCheckIn() {
-      if (simGPSState === 'out') {
-        showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้ ไม่สามารถเช็คอินได้', 'error');
-        return;
-      }
-      simCheckInState = 'recent';
-      showToast('จำลองการเช็คอินเข้าเวรสำเร็จ! ระบบเริ่มนับถอยหลังเวลา', 'success');
-      renderPage('simulate-reporting');
-    }
-
-    function simClickReport() {
-      if (simGPSState === 'out') {
-        showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้', 'error');
-        return;
-      }
-      if (simCheckInState !== 'complete') {
-        const points = db.getDutyPoints();
-        const pt = points.find(p => p.id === simSelectedPointId);
-        showToast(`กรุณาจำลองการเช็คอินและรอให้สถานะเป็นพร้อมส่งรายงานก่อน (เช็คอินครบ ${getRequiredDutyMinutes(pt)} นาที)`, 'warning');
-        return;
-      }
-      openSandboxReportForm(simSelectedPointId);
-    }
-
-    function openSandboxReportForm(pointId) {
-      const modal = document.getElementById('sandbox-report-modal');
-      if (!modal) {
-        showToast('ไม่พบหน้าต่างจำลองรายงานเวร กรุณาโหลดหน้านี้ใหม่อีกครั้ง', 'error');
-        return;
-      }
-
-      const points = db.getDutyPoints();
-      const pt = points.find(p => p.id === pointId);
-      simReportPhotoBase64 = null;
-      simReportCoReporters = [];
-      simSandboxIkhlasConfirmed = false;
-
-      const titleEl = document.getElementById('sandbox-form-modal-title');
-      if (titleEl && pt) {
-        titleEl.textContent = `หน้าจำลองรายงานผลการปฏิบัติหน้าที่ - จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}`;
-      }
-
-      const statusSelect = document.getElementById('sandbox-report-status-select');
-      if (statusSelect) statusSelect.value = 'reported';
-      const resultText = document.getElementById('sandbox-report-result-text');
-      if (resultText) resultText.value = '';
-      const problemText = document.getElementById('sandbox-report-problem-text');
-      if (problemText) problemText.value = '';
-      const solutionText = document.getElementById('sandbox-report-solution-text');
-      if (solutionText) solutionText.value = '';
-      const coName = document.getElementById('sandbox-co-reporter-name');
-      if (coName) coName.value = '';
-
-      const fileLabel = document.getElementById('sandbox-report-photo-filename');
-      if (fileLabel) {
-        fileLabel.textContent = '⚠ ยังไม่ได้แนบรูป (จำเป็น)';
-        fileLabel.className = 'text-[9px] text-red-400 font-bold';
-      }
-      const photoInput = document.getElementById('sandbox-report-photo-input');
-      if (photoInput) photoInput.value = '';
-      const previewImg = document.getElementById('sandbox-report-photo-preview');
-      if (previewImg) previewImg.src = '';
-      const previewBox = document.getElementById('sandbox-report-photo-preview-box');
-      if (previewBox) {
-        previewBox.classList.add('hidden');
-        previewBox.classList.remove('flex');
-      }
-
-      updateSandboxReportTimeText();
-      updateSandboxDistanceAlert(pt);
-      toggleSandboxReportProblemsInput();
-      renderSandboxCoReporterList();
-      modal.classList.remove('hidden');
-      lucide.createIcons();
-    }
-
-    function closeSandboxReportForm() {
-      const modal = document.getElementById('sandbox-report-modal');
-      if (modal) modal.classList.add('hidden');
-      closeSandboxIkhlasConfirm();
-      simReportPhotoBase64 = null;
-      simReportCoReporters = [];
-      simSandboxIkhlasConfirmed = false;
-    }
-
-    function updateSandboxReportTimeText() {
-      const textEl = document.getElementById('sandbox-simulation-time-text');
-      if (!textEl) return;
-      if (simReportTimeMode === 'grace') {
-        textEl.textContent = 'จำลองการรายงานในช่วงเวลาผ่อนผัน: ยังไม่ถือว่าสายและไม่ต้องรออนุมัติ';
-      } else if (simReportTimeMode === 'late') {
-        textEl.textContent = 'จำลองการรายงานหลังหมดช่วงผ่อนผัน: ถือว่าสายและรอหัวหน้าเวรอนุมัติก่อนนับผล';
-      } else {
-        textEl.textContent = 'จำลองการรายงานอยู่ในช่วงเวลาปกติ';
-      }
-    }
-
-    function updateSandboxDistanceAlert(pt) {
-      const alertEl = document.getElementById('sandbox-distance-alert');
-      if (!alertEl || !pt) return;
-      const inRadius = simGPSState === 'in';
-      const distance = inRadius ? 12.5 : 345.2;
-      const radiusVal = pt.radius || 100;
-      if (inRadius) {
-        alertEl.className = 'p-3 rounded-lg border font-bold flex items-center gap-2 bg-green-50 text-green-800 border-green-200';
-        alertEl.innerHTML = `
-          <i data-lucide="check-circle" class="w-4 h-4 text-green-650"></i>
-          <span>อยู่ในระยะลงชื่อปฏิบัติงาน (ห่างจากจุด ${distance.toFixed(1)} เมตร) [โหมดจำลอง]</span>
-        `;
-      } else {
-        alertEl.className = 'p-3 rounded-lg border font-bold flex items-center gap-2 bg-red-50 text-red-800 border-red-200';
-        alertEl.innerHTML = `
-          <i data-lucide="alert-triangle" class="w-4 h-4 text-red-650"></i>
-          <span>อยู่นอกระยะปฏิบัติงาน (ห่างจากจุด ${distance.toFixed(1)} เมตร, รัศมีสูงสุด ${radiusVal} เมตร) [โหมดจำลอง]</span>
-        `;
-      }
-    }
-
-    function toggleSandboxReportProblemsInput() {
-      const select = document.getElementById('sandbox-report-status-select');
-      const problemFields = document.getElementById('sandbox-report-problem-fields');
-      const resultSection = document.getElementById('sandbox-report-result-section');
-      const resultText = document.getElementById('sandbox-report-result-text');
-      const problemText = document.getElementById('sandbox-report-problem-text');
-      const solutionText = document.getElementById('sandbox-report-solution-text');
-      if (!select || !problemFields || !resultSection || !resultText || !problemText || !solutionText) return;
-
-      if (select.value === 'problem') {
-        problemFields.classList.remove('hidden');
-        problemText.setAttribute('required', 'true');
-        solutionText.setAttribute('required', 'true');
-        resultSection.classList.add('hidden');
-        resultText.removeAttribute('required');
-      } else {
-        problemFields.classList.add('hidden');
-        problemText.removeAttribute('required');
-        solutionText.removeAttribute('required');
-        resultSection.classList.remove('hidden');
-        resultText.setAttribute('required', 'true');
-      }
-    }
-
-    function setSandboxReportSuggestion(text) {
-      const ta = document.getElementById('sandbox-report-result-text');
-      if (ta) {
-        ta.value = text;
-        ta.focus();
-      }
-    }
-
-    function addSandboxCoReporter() {
-      const input = document.getElementById('sandbox-co-reporter-name');
-      const name = input ? input.value.trim() : '';
-      if (!name) {
-        showToast('กรุณาระบุชื่อผู้ร่วมเวรในหน้าจำลอง', 'warning');
-        return;
-      }
-      if (!simReportCoReporters.includes(name)) {
-        simReportCoReporters.push(name);
-      }
-      if (input) input.value = '';
-      renderSandboxCoReporterList();
-    }
-
-    function removeSandboxCoReporter(index) {
-      simReportCoReporters.splice(index, 1);
-      renderSandboxCoReporterList();
-    }
-
-    function escapeSandboxText(value) {
-      return escapeHtml(value);
-    }
-
-    function renderSandboxCoReporterList() {
-      const list = document.getElementById('sandbox-co-reporter-list');
-      if (!list) return;
-      if (simReportCoReporters.length === 0) {
-        list.innerHTML = '<span class="text-[10px] text-slate-400 font-semibold">ยังไม่มีผู้ร่วมเวรในรายงานจำลองนี้</span>';
-      } else {
-        list.innerHTML = simReportCoReporters.map((name, index) => `
-          <span class="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-800 rounded-full px-2.5 py-1 font-bold text-[10px]">
-            <i data-lucide="user-check" class="w-3.5 h-3.5"></i>${escapeSandboxText(name)}
-            <button type="button" onclick="removeSandboxCoReporter(${index})" class="text-green-700 hover:text-red-600">
-              <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
-          </span>
-        `).join('');
-      }
-      lucide.createIcons();
-    }
-
-    function showSandboxIkhlasConfirmModal() {
-      const modal = document.getElementById('sandbox-ikhlas-confirm-modal');
-      const listContainer = document.getElementById('sandbox-ikhlas-co-reporters-list');
-      if (!modal || !listContainer) return;
-      listContainer.innerHTML = simReportCoReporters.length
-        ? `<ul class="space-y-1">${simReportCoReporters.map(name => `<li>• ${escapeSandboxText(name)}</li>`).join('')}</ul>`
-        : '<p class="text-slate-500">ไม่มีผู้เข้าร่วมเวรเพิ่มเติม</p>';
-      modal.classList.remove('hidden');
-      lucide.createIcons();
-    }
-
-    function closeSandboxIkhlasConfirm() {
-      const modal = document.getElementById('sandbox-ikhlas-confirm-modal');
-      if (modal) modal.classList.add('hidden');
-    }
-
-    function confirmSandboxIkhlasAndSubmit() {
-      simSandboxIkhlasConfirmed = true;
-      closeSandboxIkhlasConfirm();
-      finishSandboxReportSubmission();
-    }
-
-    function previewSandboxReportPhoto(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const filenameEl = document.getElementById('sandbox-report-photo-filename');
-      if (filenameEl) {
-        filenameEl.textContent = file.name;
-        filenameEl.className = 'text-[9px] text-green-600 font-bold';
-      }
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        simReportPhotoBase64 = reader.result;
-        const preview = document.getElementById('sandbox-report-photo-preview');
-        if (preview) preview.src = reader.result;
-        const previewBox = document.getElementById('sandbox-report-photo-preview-box');
-        if (previewBox) {
-          previewBox.classList.remove('hidden');
-          previewBox.classList.add('flex');
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function submitSandboxReport(e) {
-      e.preventDefault();
-      if (!simReportPhotoBase64) {
-        showToast('กรุณาแนบรูปภาพปฏิบัติเวรในหน้าจำลองก่อน', 'warning');
-        document.getElementById('sandbox-report-photo-input').click();
-        return;
-      }
-      if (simReportCoReporters.length > 0 && !simSandboxIkhlasConfirmed) {
-        showSandboxIkhlasConfirmModal();
-        return;
-      }
-      finishSandboxReportSubmission();
-    }
-
-    function finishSandboxReportSubmission() {
-      const coReporterCount = simReportCoReporters.length;
-      simCheckInState = 'none';
-      closeSandboxReportForm();
-      if (simReportTimeMode === 'late') {
-        showToast(`จำลองส่งรายงานสายเข้าสู่คิวหัวหน้าเวร${coReporterCount ? ` พร้อมผู้ร่วมเวร ${coReporterCount} คน` : ''} (ไม่บันทึกข้อมูลจริง)`, 'warning');
-      } else {
-        showToast(`จำลองบันทึกรายงานสำเร็จ${coReporterCount ? ` พร้อมผู้ร่วมเวร ${coReporterCount} คน` : ''} (ไม่บันทึกข้อมูลจริง)`, 'success');
-      }
-      renderPage('simulate-reporting');
-    }
-
-    // =========================================================================
-    // 6. DOWLOADS AND simulated line/telegram notification methods
+    // 6. DOWNLOADS AND NOTIFICATION METHODS
     // =========================================================================
     
     // EXCEL EXPORTER
@@ -7595,7 +7014,7 @@
       updateNotificationLogsUI();
 
       // Show temporary web notification toast
-      showToast('ส่งข้อความแจ้งเตือนจำลองผ่าน Line Notify สำเร็จ', 'info');
+      showToast('บันทึกประวัติการแจ้งเตือนในระบบแล้ว', 'info');
 
       // Check if credentials are set to trigger real telegram bot
       if (settings.telegramToken && settings.telegramChatId) {
@@ -8143,28 +7562,6 @@
       return !!rep && !(rep.isLate && (rep.lateReviewStatus === 'pending' || rep.lateReviewStatus === 'rejected'));
     }
 
-    function updateReportModalSimulationBanner() {
-      const timeBanner = document.getElementById('modal-simulation-time-banner');
-      if (!timeBanner) return;
-      if (!isSimulationMode) {
-        timeBanner.classList.add('hidden');
-        return;
-      }
-
-      let text = '';
-      if (simReportTimeMode === 'on-time') {
-        text = 'จำลองการรายงานอยู่ในช่วงเวลาปกติ';
-      } else if (simReportTimeMode === 'grace') {
-        text = 'จำลองการรายงานในช่วงเวลาผ่อนผัน: ยังไม่ถือว่าสาย';
-      } else if (simReportTimeMode === 'late') {
-        text = 'จำลองการรายงานหลังหมดช่วงผ่อนผัน: ถือว่าสายและรอหัวหน้าเวรอนุมัติ';
-      }
-
-      const textEl = document.getElementById('modal-simulation-time-text');
-      if (textEl) textEl.textContent = text;
-      timeBanner.classList.remove('hidden');
-    }
-
     // คลาสสีของป้าย countdown: ปกติ = เขียว (brand), ช่วงผ่อนผัน = ส้ม
     const COUNTDOWN_NORMAL_CLASSES = ['text-brand-700', 'bg-brand-50', 'border-brand-200'];
     const COUNTDOWN_GRACE_CLASSES = ['text-orange-700', 'bg-orange-50', 'border-orange-300'];
@@ -8228,8 +7625,8 @@
         if (cardEl) {
           const isDone = cardEl.getAttribute('data-is-done') === 'true';
 
-          const currentGeo = realGPSReady && Number.isFinite(mockLatitude) && Number.isFinite(mockLongitude)
-            ? getDutyGeofenceDistance(p, mockLatitude, mockLongitude)
+          const currentGeo = realGPSReady && Number.isFinite(currentLatitude) && Number.isFinite(currentLongitude)
+            ? getDutyGeofenceDistance(p, currentLatitude, currentLongitude)
             : null;
           const inGeofence = !!currentGeo && currentGeo.distance <= currentGeo.radius;
 
@@ -8575,14 +7972,14 @@
     }
 
     function applyRealGPSPosition(pos) {
-      mockLatitude = pos.coords.latitude;
-      mockLongitude = pos.coords.longitude;
+      currentLatitude = pos.coords.latitude;
+      currentLongitude = pos.coords.longitude;
       lastGPSAccuracy = pos.coords.accuracy;
       lastGPSTimestamp = Date.now();
       realGPSReady = true;
       updateRealGPSUI('ready');
       if (currentPage === 'my-duty') updateTeacherLocationStatus();
-      return { latitude: mockLatitude, longitude: mockLongitude, accuracy: lastGPSAccuracy };
+      return { latitude: currentLatitude, longitude: currentLongitude, accuracy: lastGPSAccuracy };
     }
 
     function startRealGPSWatch() {
@@ -8596,7 +7993,7 @@
 
     async function ensureRealGPSLocation({ showPrompt = true, requireFresh = false } = {}) {
       if (realGPSReady && !requireFresh && Date.now() - lastGPSTimestamp < 30000) {
-        return { latitude: mockLatitude, longitude: mockLongitude, accuracy: lastGPSAccuracy };
+        return { latitude: currentLatitude, longitude: currentLongitude, accuracy: lastGPSAccuracy };
       }
       if (!window.isSecureContext && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
         const secureMessage = 'การใช้ GPS จริงต้องเปิดระบบผ่าน HTTPS เท่านั้น กรุณาใช้ลิงก์เว็บไซต์แบบ https:// แล้วลองใหม่';
@@ -9014,8 +8411,8 @@
 
     function autoDetectCoordinates() {
       const settings = db.getSettings();
-      const lat = Number(settings.centerLat) || mockLatitude;
-      const lng = Number(settings.centerLng) || mockLongitude;
+      const lat = Number(settings.centerLat) || currentLatitude;
+      const lng = Number(settings.centerLng) || currentLongitude;
       document.getElementById('point-form-lat').value = lat.toFixed(6);
       document.getElementById('point-form-lng').value = lng.toFixed(6);
       updateGmapsModalLink();
@@ -9024,8 +8421,8 @@
 
     function autoDetectCoordinates2() {
       const settings = db.getSettings();
-      const lat = Number(settings.centerLat) || mockLatitude;
-      const lng = Number(settings.centerLng) || mockLongitude;
+      const lat = Number(settings.centerLat) || currentLatitude;
+      const lng = Number(settings.centerLng) || currentLongitude;
       document.getElementById('point-form-lat2').value = lat.toFixed(6);
       document.getElementById('point-form-lng2').value = lng.toFixed(6);
       if (modalMapInstance) {
@@ -9342,8 +8739,8 @@
         timeInput.value = '08:00-08:30';
         reportWindowInput.value = '';
         minDutyMinutesInput.value = '';
-        latInput.value = settings.centerLat || mockLatitude;
-        lngInput.value = settings.centerLng || mockLongitude;
+        latInput.value = settings.centerLat || currentLatitude;
+        lngInput.value = settings.centerLng || currentLongitude;
         radInput.value = settings.defaultRadius || 50;
 
         hasSecondCheckbox.checked = false;
@@ -9365,8 +8762,8 @@
     }
 
     function updateGmapsModalLink() {
-      const lat = parseFloat(document.getElementById('point-form-lat').value) || mockLatitude;
-      const lng = parseFloat(document.getElementById('point-form-lng').value) || mockLongitude;
+      const lat = parseFloat(document.getElementById('point-form-lat').value) || currentLatitude;
+      const lng = parseFloat(document.getElementById('point-form-lng').value) || currentLongitude;
       const btn = document.getElementById('btn-open-gmaps');
       if (btn) {
         btn.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
@@ -9404,8 +8801,8 @@
     }
 
     function initModalPickerMap() {
-      const lat = parseFloat(document.getElementById('point-form-lat').value) || mockLatitude;
-      const lng = parseFloat(document.getElementById('point-form-lng').value) || mockLongitude;
+      const lat = parseFloat(document.getElementById('point-form-lat').value) || currentLatitude;
+      const lng = parseFloat(document.getElementById('point-form-lng').value) || currentLongitude;
 
       if (!modalMapInstance) {
         modalMapInstance = L.map('modal-picker-map').setView([lat, lng], 17);
@@ -9706,8 +9103,8 @@
       }
       
       const settings = db.getSettings();
-      const lat = settings.centerLat || mockLatitude;
-      const lng = settings.centerLng || mockLongitude;
+      const lat = settings.centerLat || currentLatitude;
+      const lng = settings.centerLng || currentLongitude;
       
       const points = db.getDutyPoints();
       points.forEach(p => {
@@ -9743,8 +9140,8 @@
     }
 
     function initSettingsPickerMap() {
-      const lat = parseFloat(document.getElementById('sett-center-lat').value) || mockLatitude;
-      const lng = parseFloat(document.getElementById('sett-center-lng').value) || mockLongitude;
+      const lat = parseFloat(document.getElementById('sett-center-lat').value) || currentLatitude;
+      const lng = parseFloat(document.getElementById('sett-center-lng').value) || currentLongitude;
 
       if (!settingsMapInstance) {
         settingsMapInstance = L.map('settings-picker-map').setView([lat, lng], 17);
@@ -9995,8 +9392,8 @@
     function updateTeacherLocationStatus() {
       const statusBadge = document.getElementById('teacher-gps-status-badge');
       if (statusBadge) {
-        if (realGPSReady && Number.isFinite(mockLatitude) && Number.isFinite(mockLongitude)) {
-          statusBadge.textContent = `🛰️ GPS จริง: ${mockLatitude.toFixed(6)}, ${mockLongitude.toFixed(6)}`;
+        if (realGPSReady && Number.isFinite(currentLatitude) && Number.isFinite(currentLongitude)) {
+          statusBadge.textContent = `🛰️ GPS จริง: ${currentLatitude.toFixed(6)}, ${currentLongitude.toFixed(6)}`;
           statusBadge.className = "bg-blue-900/40 text-blue-200 px-2.5 py-1 rounded border border-blue-500/30 font-bold";
         } else {
           statusBadge.textContent = '🛰️ กรุณาแตะปุ่มเช็คอิน/รายงานเพื่ออนุญาต GPS จริง';
@@ -10011,7 +9408,7 @@
       myPoints.forEach(p => {
         const spanDist = document.getElementById(`my-distance-check-${p.id}`);
         if (spanDist) {
-          const geo = getDutyGeofenceDistance(p, mockLatitude, mockLongitude);
+          const geo = getDutyGeofenceDistance(p, currentLatitude, currentLongitude);
 
           if (geo.distance <= geo.radius) {
             spanDist.innerHTML = `✅ อยู่ในรัศมี (${geo.distance.toFixed(1)} เมตร)`;
@@ -10027,29 +9424,22 @@
         const activePt = points.find(p => p.id === reportModalActivePointId);
         const distAlert = document.getElementById('modal-distance-alert');
         if (activePt && distAlert) {
-          let distance, inRadius, radiusVal;
-          if (isSimulationMode) {
-            inRadius = (simGPSState === 'in');
-            distance = inRadius ? 12.5 : 345.2;
-            radiusVal = activePt.radius || 100;
-          } else {
-            const geo = getDutyGeofenceDistance(activePt, mockLatitude, mockLongitude);
-            distance = geo.distance;
-            radiusVal = geo.radius;
-            inRadius = (geo.distance <= geo.radius);
-          }
+          const geo = getDutyGeofenceDistance(activePt, currentLatitude, currentLongitude);
+          const distance = geo.distance;
+          const radiusVal = geo.radius;
+          const inRadius = geo.distance <= geo.radius;
 
           if (inRadius) {
             distAlert.className = "p-3 rounded-lg border font-bold flex items-center gap-2 bg-green-50 text-green-800 border-green-200";
             distAlert.innerHTML = `
               <i data-lucide="check-circle" class="w-4 h-4 text-green-650"></i>
-              <span>อยู่ในระยะลงชื่อปฏิบัติงาน (ห่างจากจุด ${distance.toFixed(1)} เมตร)${isSimulationMode ? ' [โหมดจำลอง]' : ''}</span>
+              <span>อยู่ในระยะลงชื่อปฏิบัติงาน (ห่างจากจุด ${distance.toFixed(1)} เมตร)</span>
             `;
           } else {
             distAlert.className = "p-3 rounded-lg border font-bold flex items-center gap-2 bg-red-50 text-red-800 border-red-200";
             distAlert.innerHTML = `
               <i data-lucide="alert-triangle" class="w-4 h-4 text-red-650"></i>
-              <span>อยู่นอกระยะปฏิบัติงาน (ห่างจากจุด ${distance.toFixed(1)} เมตร, รัศมีสูงสุด ${radiusVal} เมตร)${isSimulationMode ? ' [โหมดจำลอง]' : ''}</span>
+              <span>อยู่นอกระยะปฏิบัติงาน (ห่างจากจุด ${distance.toFixed(1)} เมตร, รัศมีสูงสุด ${radiusVal} เมตร)</span>
             `;
           }
           lucide.createIcons();
@@ -10100,21 +9490,10 @@
       });
     }
 
-    function openReportForm(pointId, isSim = false) {
-      isSimulationMode = isSim;
+    function openReportForm(pointId) {
       reportModalActivePointId = pointId;
       uploadedReportPhotoBase64 = null;
       uploadedReportPhotoThumbBase64 = null;
-      
-      const simBanner = document.getElementById('modal-simulation-banner');
-      if (simBanner) {
-        if (isSimulationMode) {
-          simBanner.classList.remove('hidden');
-        } else {
-          simBanner.classList.add('hidden');
-        }
-      }
-      updateReportModalSimulationBanner();
       
       const previewBox = document.getElementById('rep-photo-preview-box');
       if (previewBox) {
@@ -10144,8 +9523,7 @@
       const points = db.getDutyPoints();
       const pt = points.find(p => p.id === pointId);
       if (pt) {
-        const titlePrefix = isSimulationMode ? '[โหมดจำลอง] ' : '';
-        document.getElementById('form-modal-title').textContent = `${titlePrefix}รายงานผลการปฏิบัติหน้าที่ - จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}`;
+        document.getElementById('form-modal-title').textContent = `รายงานผลการปฏิบัติหน้าที่ - จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}`;
       }
 
       // รายงานแทนกันหลายคน: เตรียม state ของครูร่วมเวรใหม่ทุกครั้งที่เปิด modal
@@ -10172,16 +9550,6 @@
       coReporterOtherIds = [];
       coReporterBannerAnswered = false;
       coReporterSigPads = {};
-      
-      const simBanner = document.getElementById('modal-simulation-banner');
-      if (simBanner) simBanner.classList.add('hidden');
-      const timeBanner = document.getElementById('modal-simulation-time-banner');
-      if (timeBanner) timeBanner.classList.add('hidden');
-      
-      if (isSimulationMode) {
-        isSimulationMode = false;
-        renderPage('simulate-reporting');
-      }
     }
 
     // =========================================================================
@@ -10701,7 +10069,7 @@
         showToast('บันทึกลายเซ็นใหม่ของคุณเรียบร้อยแล้ว', 'success');
       } else if (currentUser.role === 'admin') {
         currentUser.signature = base64Data;
-        showToast('บันทึกลายเซ็นแอดมินเรียบร้อย (บันทึกจำลอง)', 'success');
+        showToast('บันทึกลายเซ็นผู้ดูแลระบบเรียบร้อย', 'success');
         const previewContainer = document.getElementById('prof-sig-preview-container');
         if (previewContainer) {
           previewContainer.innerHTML = `<img src="${base64Data}" class="max-h-20 object-contain p-1 border rounded bg-white shadow-sm" alt="ลายเซ็นของคุณ">`;
@@ -10803,7 +10171,7 @@
       } else if (currentUser.role === 'admin') {
         currentUser.name = newName;
         document.getElementById('user-name').textContent = newName;
-        showToast('ปรับปรุงข้อมูลจำลองผู้ดูแลระบบสำเร็จ!', 'success');
+        showToast('ปรับปรุงข้อมูลผู้ดูแลระบบสำเร็จ!', 'success');
       }
     }
 
@@ -10852,7 +10220,7 @@
         }
       } else if (currentUser.role === 'admin') {
         currentUser.password = newPassInput;
-        showToast('เปลี่ยนรหัสผ่านผู้ดูแลระบบ (บันทึกจำลอง) สำเร็จ!', 'success');
+        showToast('เปลี่ยนรหัสผ่านผู้ดูแลระบบสำเร็จ!', 'success');
       }
 
       document.getElementById('prof-current-pass').value = '';
@@ -10960,15 +10328,9 @@
       lucide.createIcons();
     }
 
-    // Modal close and simulated triggers
+    // Report details modal close
     function closeReportDetails() {
       document.getElementById('report-view-modal').classList.add('hidden');
-    }
-
-    function triggerSimulatedTeacherReport(pointId, teacherId) {
-      currentUser = db.getTeachers().find(t => t.id === teacherId);
-      navigateTo('my-duty');
-      openReportForm(parseInt(pointId));
     }
 
     function filterDashboardTable() {
