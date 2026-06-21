@@ -2908,7 +2908,7 @@
     }
 
     function getDutyGradeInfo(totalScore) {
-      if (totalScore >= 90) {
+      if (totalScore >= 80) {
         return {
           grade: 'A',
           gradeClass: 'bg-green-150 text-green-800',
@@ -2917,7 +2917,7 @@
           label: 'ยอดเยี่ยม'
         };
       }
-      if (totalScore >= 75) {
+      if (totalScore >= 60) {
         return {
           grade: 'B',
           gradeClass: 'bg-blue-100 text-blue-800',
@@ -2926,21 +2926,12 @@
           label: 'ดี'
         };
       }
-      if (totalScore >= 50) {
-        return {
-          grade: 'C',
-          gradeClass: 'bg-amber-100 text-amber-800',
-          badgeClass: 'bg-amber-100 text-amber-900 border-amber-200',
-          watermarkClass: 'text-amber-200/35',
-          label: 'พอใช้'
-        };
-      }
       return {
-        grade: 'D',
-        gradeClass: 'bg-red-100 text-red-800',
-        badgeClass: 'bg-red-100 text-red-900 border-red-200',
-        watermarkClass: 'text-red-200/35',
-        label: 'ต้องติดตาม'
+        grade: 'C',
+        gradeClass: 'bg-amber-100 text-amber-800',
+        badgeClass: 'bg-amber-100 text-amber-900 border-amber-200',
+        watermarkClass: 'text-amber-200/35',
+        label: 'พอใช้'
       };
     }
 
