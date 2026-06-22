@@ -162,7 +162,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.33.9</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.0</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
           </div>
@@ -253,7 +253,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.33.9</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.0</div>
           </div>
         </aside>
 
@@ -346,7 +346,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.33.9</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.34.0</div>
         </div>
       </aside>
 
@@ -458,7 +458,10 @@
         isLate: dbRep.is_late !== undefined ? !!dbRep.is_late : !!dbRep.isLate,
         lateReviewStatus: dbRep.late_review_status !== undefined ? dbRep.late_review_status : (dbRep.lateReviewStatus || null),
         lateReviewedBy: dbRep.late_reviewed_by !== undefined ? dbRep.late_reviewed_by : (dbRep.lateReviewedBy || null),
-        lateReviewedAt: dbRep.late_reviewed_at !== undefined ? dbRep.late_reviewed_at : (dbRep.lateReviewedAt || null)
+        lateReviewedAt: dbRep.late_reviewed_at !== undefined ? dbRep.late_reviewed_at : (dbRep.lateReviewedAt || null),
+        submittedOnBehalf: dbRep.submitted_on_behalf !== undefined ? !!dbRep.submitted_on_behalf : !!dbRep.submittedOnBehalf,
+        submittedBy: dbRep.submitted_by !== undefined ? dbRep.submitted_by : (dbRep.submittedBy || null),
+        submissionReason: dbRep.submission_reason !== undefined ? dbRep.submission_reason : (dbRep.submissionReason || '')
       };
     }
 
@@ -483,7 +486,10 @@
         is_late: !!jsRep.isLate,
         late_review_status: jsRep.lateReviewStatus || null,
         late_reviewed_by: jsRep.lateReviewedBy || null,
-        late_reviewed_at: jsRep.lateReviewedAt || null
+        late_reviewed_at: jsRep.lateReviewedAt || null,
+        submitted_on_behalf: !!jsRep.submittedOnBehalf,
+        submitted_by: jsRep.submittedBy || null,
+        submission_reason: jsRep.submissionReason || null
       };
     }
 
@@ -657,7 +663,7 @@
     const TEACHER_HEAVY_COLUMNS = 'id,signature,avatar';
     const REPORT_PHOTO_BUCKET = 'wen-report-photos';
     const REPORT_BASE_COLUMNS = 'id,date,point_id,teacher_id,status,time,distance,result,problem,solution';
-    const REPORT_LIGHT_COLUMNS = 'id,date,point_id,teacher_id,status,time,distance,result,problem,solution,is_late,late_review_status,late_reviewed_by,late_reviewed_at,photo_thumb_path,photo_path';
+    const REPORT_LIGHT_COLUMNS = 'id,date,point_id,teacher_id,status,time,distance,result,problem,solution,is_late,late_review_status,late_reviewed_by,late_reviewed_at,photo_thumb_path,photo_path,submitted_on_behalf,submitted_by,submission_reason';
     const REPORT_HEAVY_COLUMNS = 'id,photo,photo_thumb,photo_path,photo_thumb_path,signature';
     const FULL_OFFLINE_REPORT_DAYS = 30;
     window.cloudTeachersFullList = null;
@@ -785,7 +791,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.33.9';
+    const APP_VERSION = '1.34.0';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1429,6 +1435,9 @@
     let pendingSubmitReportData = null; // Store report arguments during ikhlas confirmation
     let ikhlasConfirmed = false; // Flag to check if ikhlas confirmation is done
     let reportSubmissionInProgress = false; // ป้องกันการกดส่งรายงานซ้ำระหว่างรอบันทึก
+    let onBehalfSubmissionInProgress = false;
+    let onBehalfEvidencePhotoBase64 = null;
+    let onBehalfPhotoProcessing = false;
     let coReporterSigPads = {}; // rowId -> {canvas, ctx, drawing} สำหรับลายเซ็นชั่วคราวของครูร่วมเวร
     let syncQueueProcessing = false; // กันการประมวลผล wen_pending_sync ซ้ำซ้อน
     let coReporterOtherIds = []; // teacher_id ที่ assign จุดนี้วันนี้ (ไม่รวม currentUser)
@@ -2712,7 +2721,7 @@
                           <td class="px-4 py-3 font-bold text-slate-800">${getTeacherName(teacherId)}</td>
                           <td class="px-4 py-3 text-center">${badge}</td>
                           <td class="px-4 py-3 text-center font-bold text-slate-600">
-                            ${rep && rep.status === 'leave' ? '-' : (rep ? rep.time + ' น.' + lateBadge(rep) : '-')}
+                            ${rep && rep.status === 'leave' ? '-' : (rep ? rep.time + ' น.' + lateBadge(rep) + onBehalfBadge(rep) : '-')}
                             ${rep && rep.isLate && canReviewLateReport(rep) ? `
                               <div class="mt-1 no-print">
                                 <button onclick="onLateReportReviewAction('${rep.id}', 'normalized')" class="bg-green-600 hover:bg-green-700 text-white text-[9px] px-1.5 py-0.5 rounded transition font-bold whitespace-nowrap">
@@ -2721,7 +2730,7 @@
                               </div>
                             ` : ''}
                           </td>
-                          <td class="px-4 py-3 text-center text-slate-500">${rep && rep.status !== 'leave' ? rep.distance.toFixed(1) + ' ม.' : '-'}</td>
+                          <td class="px-4 py-3 text-center text-slate-500">${rep && rep.status !== 'leave' ? (rep.submittedOnBehalf ? '<span class="text-violet-700 font-bold">ไม่ยืนยัน GPS</span>' : rep.distance.toFixed(1) + ' ม.') : '-'}</td>
                           <td class="px-4 py-3 text-center">
                             ${thumbSrc ? `<button onclick="viewReportDetails('${rep.id}')" class="inline-flex w-10 h-10 rounded-lg border bg-slate-50 overflow-hidden items-center justify-center hover:ring-2 hover:ring-brand-200 transition" title="ดูรูปหลักฐาน"><img src="${thumbSrc}" class="w-full h-full object-cover" alt="รูปหลักฐานย่อ"></button>` : '<span class="text-slate-300">-</span>'}
                           </td>
@@ -2774,8 +2783,8 @@
                       </div>
                       <div class="text-[10px] text-slate-500 space-y-0.5">
                         <p><strong>ผู้เข้าเวร:</strong> ${getTeacherName(teacherId)}</p>
-                        <p><strong>เวลาเวร:</strong> ${p.time} น. ${rep && rep.status !== 'leave' ? `| <strong>ส่งเวลา:</strong> ${rep.time} น.${lateBadge(rep)}` : ''}</p>
-                        ${rep && rep.status !== 'leave' ? `<p><strong>ระยะ GPS ยืนยัน:</strong> ${rep.distance.toFixed(1)} ม.</p>` : ''}
+                        <p><strong>เวลาเวร:</strong> ${p.time} น. ${rep && rep.status !== 'leave' ? `| <strong>ส่งเวลา:</strong> ${rep.time} น.${lateBadge(rep)}${onBehalfBadge(rep)}` : ''}</p>
+                        ${rep && rep.status !== 'leave' ? `<p><strong>การยืนยัน GPS:</strong> ${rep.submittedOnBehalf ? '<span class="text-violet-700 font-bold">ไม่ยืนยัน GPS (รายงานแทน)</span>' : rep.distance.toFixed(1) + ' ม.'}</p>` : ''}
                         ${thumbSrc ? `<button onclick="viewReportDetails('${rep.id}')" class="mt-1 inline-flex w-16 h-12 rounded-lg border bg-slate-50 overflow-hidden items-center justify-center"><img src="${thumbSrc}" class="w-full h-full object-cover" alt="รูปหลักฐานย่อ"></button>` : ''}
                       </div>
                       <div class="border-t pt-1.5 flex justify-between items-center text-[10px]">
@@ -2975,11 +2984,17 @@
       const actualCheckins = actualReports.length;
       const lates = actualReports.filter(r => r.isLate).length;
       const actualOntimes = actualCheckins - lates;
+      const actualCheckinCredits = actualReports.reduce((sum, report) => sum + getReportScoreCredit(report), 0);
+      const actualOntimeCredits = actualReports
+        .filter(report => !report.isLate)
+        .reduce((sum, report) => sum + getReportScoreCredit(report), 0);
       const scheduled = weeklyDuties * selectedWeeks.length;
       const checkins = baselineCredit + actualCheckins;
       const ontimes = baselineCredit + actualOntimes;
-      const compliance = scheduled > 0 ? Math.min(100, Math.round((checkins / scheduled) * 100)) : 100;
-      const punctuality = checkins > 0 ? Math.max(0, Math.round((ontimes / checkins) * 100)) : 100;
+      const creditedCheckins = baselineCredit + actualCheckinCredits;
+      const creditedOntimes = baselineCredit + actualOntimeCredits;
+      const compliance = scheduled > 0 ? Math.min(100, Math.round((creditedCheckins / scheduled) * 100)) : 100;
+      const punctuality = checkins > 0 ? Math.max(0, Math.round((creditedOntimes / checkins) * 100)) : 100;
       const score = Math.round((compliance * 0.6) + (punctuality * 0.4));
       const gradeInfo = getDutyGradeInfo(score);
 
@@ -2991,6 +3006,8 @@
         baselineCredit,
         lates,
         ontimes,
+        creditedCheckins,
+        creditedOntimes,
         compliance,
         punctuality,
         score,
@@ -3066,6 +3083,8 @@
     }
 
     function renderDutyHeadApprovalsView() {
+      onBehalfEvidencePhotoBase64 = null;
+      onBehalfPhotoProcessing = false;
       const myLeaveRequests = db.getLeaveRequests()
         .filter(r => r.status === 'pending' && (r.approverId === currentUser.id || getDutyApproverId(r.teacherId, r.date) === currentUser.id || isFullAdmin(currentUser)))
         .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
@@ -3076,6 +3095,7 @@
 
       const todayDate = getTodayISODate();
       const approvableTeachers = getTeachersApprovableByMe(todayDate);
+      const onBehalfTeachers = getOnBehalfEligibleTeachers(todayDate);
 
       const settings = db.getSettings();
       const canManageExemptions = isFullAdmin(currentUser) || isOpsHead(currentUser);
@@ -3089,7 +3109,80 @@
         <div class="fade-in space-y-5 text-xs">
           <div class="border-b pb-4">
             <h3 class="text-lg font-bold text-slate-900">งานหัวหน้าเวร</h3>
-            <p class="text-slate-500 mt-1">อนุมัติคำขอลา และรับทราบ/อนุมัติรายงานสายของครูในความรับผิดชอบ</p>
+            <p class="text-slate-500 mt-1">ช่วยรายงานแทนครู อนุมัติคำขอลา และรับทราบ/อนุมัติรายงานสาย</p>
+          </div>
+
+          <!-- รายงานแทนครู -->
+          <div class="bg-violet-50/50 border border-violet-200 rounded-2xl shadow-sm p-4 space-y-4">
+            <div class="flex items-start gap-2">
+              <i data-lucide="clipboard-pen-line" class="w-5 h-5 text-violet-700 mt-0.5"></i>
+              <div>
+                <h4 class="font-bold text-violet-950">รายงานแทนครูเวร</h4>
+                <p class="text-[10px] text-violet-700 mt-0.5">หัวหน้าเวรที่ได้รับแต่งตั้งสามารถช่วยรายงานของวันนี้ได้ แม้วันนี้ไม่ใช่วันเวรของตนเอง · ไม่ตรวจ GPS · คะแนนสูงสุด 8/10</p>
+              </div>
+            </div>
+            ${onBehalfTeachers.length === 0 ? `
+              <p class="bg-white/80 border border-violet-100 rounded-xl text-slate-500 text-center py-4">วันนี้ไม่มีรายการของครูท่านอื่นที่รอรายงานแทน</p>
+            ` : `
+              <form onsubmit="submitReportOnBehalf(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white border border-violet-100 rounded-xl p-4">
+                <div>
+                  <label class="block text-slate-600 mb-1 font-bold">ครูเวรที่ต้องการรายงานแทน:</label>
+                  <select id="on-behalf-teacher" onchange="refreshOnBehalfPointOptions()" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-violet-500 text-slate-700" required>
+                    <option value="">-- เลือกครู --</option>
+                    ${onBehalfTeachers.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-slate-600 mb-1 font-bold">จุดเวร:</label>
+                  <select id="on-behalf-point" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-violet-500 text-slate-700" required>
+                    <option value="">-- เลือกครูก่อน --</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-slate-600 mb-1 font-bold">ผลการปฏิบัติ:</label>
+                  <select id="on-behalf-status" onchange="toggleOnBehalfProblemFields()" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-violet-500 text-slate-700">
+                    <option value="reported">ปกติเรียบร้อย</option>
+                    <option value="problem">พบปัญหา</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-slate-600 mb-1 font-bold">รูปหลักฐาน (ถ้ามี):</label>
+                  <input id="on-behalf-photo" type="file" accept="image/*" onchange="handleOnBehalfPhoto(event)" class="w-full border rounded-lg p-2 text-[10px] bg-white">
+                  <p id="on-behalf-photo-status" class="text-[9px] text-slate-400 mt-1">ไม่บังคับ และไม่ถือเป็นหลักฐาน GPS ของครู</p>
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-slate-600 mb-1 font-bold">บันทึกผล:</label>
+                  <textarea id="on-behalf-result" rows="2" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-violet-500 text-slate-700" placeholder="เช่น บริเวณจุดเวรเรียบร้อยดี ไม่พบเหตุผิดปกติ" required></textarea>
+                </div>
+                <div id="on-behalf-problem-fields" class="hidden sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-red-700 mb-1 font-bold">ปัญหาที่พบ:</label>
+                    <textarea id="on-behalf-problem" rows="2" class="w-full border border-red-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-red-400"></textarea>
+                  </div>
+                  <div>
+                    <label class="block text-slate-600 mb-1 font-bold">การแก้ไข/ข้อเสนอแนะ:</label>
+                    <textarea id="on-behalf-solution" rows="2" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-violet-500"></textarea>
+                  </div>
+                </div>
+                <div class="sm:col-span-2 space-y-2">
+                  <label class="block text-slate-600 font-bold">เหตุผลที่ต้องรายงานแทน:</label>
+                  <div class="flex flex-wrap gap-1.5">
+                    ${[
+                      'ครูใช้งานระบบไม่คล่อง',
+                      'อุปกรณ์หรือโทรศัพท์มีปัญหา',
+                      'อินเทอร์เน็ตขัดข้อง',
+                      'ระบบไม่สามารถระบุตำแหน่ง GPS ได้',
+                      'ครูแจ้งให้หัวหน้าเวรช่วยรายงาน',
+                      'เหตุจำเป็นอื่น ๆ'
+                    ].map(reason => `<button type="button" onclick="applyOnBehalfReasonPreset('${reason}')" class="px-2.5 py-1.5 rounded-lg bg-violet-100 hover:bg-violet-200 text-violet-800 border border-violet-200 text-[10px] font-bold transition">${reason}</button>`).join('')}
+                  </div>
+                  <textarea id="on-behalf-reason" rows="2" class="w-full border border-violet-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-violet-500 text-slate-700" placeholder="เลือกข้อความตัวอย่างด้านบน แล้วแก้ไขหรือเพิ่มรายละเอียดได้" required></textarea>
+                </div>
+                <div class="sm:col-span-2">
+                  <button id="btn-submit-on-behalf" type="submit" class="w-full bg-violet-700 hover:bg-violet-800 text-white font-bold py-2.5 rounded-lg shadow transition">บันทึกรายงานแทน (คะแนนสูงสุด 8/10)</button>
+                </div>
+              </form>
+            `}
           </div>
 
           <!-- เพิ่มลาแทนครู (กรณีแจ้งด้วยวาจา/ฉุกเฉิน) -->
@@ -3300,12 +3393,13 @@
 
       const totalScheduled = teacherStats.reduce((sum, t) => sum + t.scheduled, 0) || 1;
       const totalCheckins = teacherStats.reduce((sum, t) => sum + t.checkins, 0);
-      const totalOntimes = teacherStats.reduce((sum, t) => sum + t.ontimes, 0);
+      const totalCreditedCheckins = teacherStats.reduce((sum, t) => sum + t.creditedCheckins, 0);
+      const totalCreditedOntimes = teacherStats.reduce((sum, t) => sum + t.creditedOntimes, 0);
       const totalLates = teacherStats.reduce((sum, t) => sum + t.lates, 0);
       const filteredReports = reports.filter(r => isReportCountableForScoring(r) && isReportInSelectedWeeks(r, selectedWeekSet, settings));
       const problemsCount = filteredReports.filter(r => r.status === 'problem').length;
-      const complianceRate = Math.min(100, Math.round((totalCheckins / totalScheduled) * 100));
-      const punctualityRate = totalCheckins > 0 ? Math.round((totalOntimes / totalCheckins) * 100) : 100;
+      const complianceRate = Math.min(100, Math.round((totalCreditedCheckins / totalScheduled) * 100));
+      const punctualityRate = totalCheckins > 0 ? Math.round((totalCreditedOntimes / totalCheckins) * 100) : 100;
       const topPerformers = teacherStats.filter(t => t.grade === 'A').slice(0, 3);
 
       const activeTeacherIds = activeTeachers.map(t => t.id);
@@ -3315,7 +3409,7 @@
         const baselineDayCredit = weeklyDayDuties * baselineWeeks;
         const dayReports = filteredReports.filter(r => getThaiDayNameForDate(r.date) === day && (getSemesterWeekNumberForDate(r.date, settings) || 0) >= EXEC_FIRST_SYSTEM_WEEK);
         const checkins = baselineDayCredit + dayReports.length;
-        const ontimes = baselineDayCredit + dayReports.filter(r => !r.isLate).length;
+        const ontimes = baselineDayCredit + dayReports.filter(r => !r.isLate).reduce((sum, report) => sum + getReportScoreCredit(report), 0);
         const rate = checkins > 0 ? Math.round((ontimes / checkins) * 100) : 100;
         return { day, rate };
       });
@@ -3384,7 +3478,7 @@
 
           <div class="bg-green-50/70 border border-green-200 rounded-xl p-3 flex items-start gap-2 text-green-900">
             <i data-lucide="badge-check" class="w-4 h-4 text-green-700 mt-0.5"></i>
-            <p class="leading-relaxed"><span class="font-bold">กติกาคะแนนเริ่มระบบ:</span> สัปดาห์ที่ 1-6 ให้เครดิตเต็มอัตโนมัติทุกคน เพราะเปิดใช้งานจริงในสัปดาห์ที่ ${EXEC_FIRST_SYSTEM_WEEK}; ตั้งแต่สัปดาห์ที่ ${EXEC_FIRST_SYSTEM_WEEK} เป็นต้นไปใช้ข้อมูลรายงานจริง</p>
+            <p class="leading-relaxed"><span class="font-bold">กติกาคะแนนเริ่มระบบ:</span> สัปดาห์ที่ 1-6 ให้เครดิตเต็มอัตโนมัติทุกคน เพราะเปิดใช้งานจริงในสัปดาห์ที่ ${EXEC_FIRST_SYSTEM_WEEK}; ตั้งแต่สัปดาห์ที่ ${EXEC_FIRST_SYSTEM_WEEK} เป็นต้นไปใช้ข้อมูลรายงานจริง โดยรายงานแทนได้สูงสุด 8/10</p>
           </div>
 
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -4764,6 +4858,11 @@
       return ' <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-bold text-[9px] whitespace-nowrap">สาย - รออนุมัติ</span>';
     }
 
+    function onBehalfBadge(rep) {
+      if (!rep || !rep.submittedOnBehalf) return '';
+      return ' <span class="bg-violet-100 text-violet-800 border border-violet-200 px-1.5 py-0.5 rounded font-bold text-[9px] whitespace-nowrap">รายงานแทน · 8/10</span>';
+    }
+
     function renderDutyReportRows(groupPoints, docDay, reports, exemption) {
       return groupPoints.flatMap((p) => {
         const assignedList = p.assignedTo || p.assigned_to || [];
@@ -4780,7 +4879,7 @@
           let sigMarkup = '';
 
           if (rep) {
-            const sigSrc = rep.signature || (teacher ? teacher.signature : null);
+            const sigSrc = rep.submittedOnBehalf ? null : (rep.signature || (teacher ? teacher.signature : null));
 
             if (rep.status === 'reported') {
               resultText = sigSrc ? '' : `✓ ${rep.result}`;
@@ -4796,6 +4895,8 @@
               const leaveReq = db.getLeaveRequests().find(r => r.teacherId === teacherId && r.date === rep.date && (r.pointId === null || r.pointId === p.id));
               const label = leaveReq ? leaveTypeLabel(leaveReq.leaveType) : (rep.result && rep.result.includes('ฉุกเฉิน') ? 'ลาฉุกเฉิน' : 'ลากิจ');
               sigMarkup = `<span class="text-slate-500 font-bold block text-center mt-1">${label} (อนุมัติ)</span>`;
+            } else if (rep.submittedOnBehalf) {
+              sigMarkup = `<span class="text-violet-700 font-bold block text-center mt-1">รายงานแทนโดย ${escapeHtml(getTeacherName(rep.submittedBy))} · 8/10</span>`;
             } else if (sigSrc) {
               // แสดงแค่รูปลายเซ็นเต็มช่อง (ขยายเกินช่องได้) ให้ดูเหมือนเซ็นเอกสารจริง
               sigMarkup = `<div class="flex justify-center -my-1.5"><img src="${sigSrc}" class="h-10 w-auto max-w-[85%] object-contain" alt="ลงชื่อ"></div>`;
@@ -4818,7 +4919,7 @@
               ` : ''}
               <td class="border border-slate-400 px-2 py-1.5">${getTeacherName(teacherId)}</td>
               <td class="border border-slate-400 px-2 py-1.5">
-                ${rep && rep.isLate ? `<div class="text-center mb-0.5">${lateBadge(rep)}</div>` : ''}
+                ${rep && (rep.isLate || rep.submittedOnBehalf) ? `<div class="text-center mb-0.5">${lateBadge(rep)}${onBehalfBadge(rep)}</div>` : ''}
                 ${resultText ? `<p class="text-slate-700 leading-relaxed">${resultText}</p>` : ''}
                 ${sigMarkup}
               </td>
@@ -6028,6 +6129,7 @@
                           ? '<span class="bg-amber-500/10 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-amber-500"></span>🏖️ แจ้งลาจุดนี้</span>'
                           : '<span class="bg-amber-500/10 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-amber-500"></span>⏳ รอบันทึก</span>'}
                         ${isDone && rep.isLate ? lateBadge(rep) : ''}
+                        ${isDone && rep.submittedOnBehalf ? onBehalfBadge(rep) : ''}
 
                         <!-- Real-time Countdown Badge -->
                         <span id="my-duty-countdown-${p.id}" class="hidden text-brand-700 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded-full font-bold text-[10px] items-center gap-1">
@@ -6956,6 +7058,182 @@
       return isFullAdmin(currentUser) || isOpsHead(currentUser) || getDutyApproverId(rep.teacherId, rep.date) === currentUser.id;
     }
 
+    function canSubmitReportOnBehalf() {
+      if (!currentUser) return false;
+      return isFullAdmin(currentUser) || isOpsHead(currentUser) || currentUser.role === 'head' || getHeadAssignedDays(currentUser.id).length > 0;
+    }
+
+    function getOnBehalfAvailablePoints(teacherId, dateStr = getTodayISODate()) {
+      if (!teacherId || teacherId === currentUser?.id) return [];
+      const reports = db.getReports();
+      return getDutyPointsForTeacher(teacherId, dateStr).filter(point =>
+        !reports.some(report =>
+          report.date === dateStr &&
+          String(report.pointId) === String(point.id) &&
+          String(report.teacherId) === String(teacherId)
+        )
+      );
+    }
+
+    function getOnBehalfEligibleTeachers(dateStr = getTodayISODate()) {
+      if (!canSubmitReportOnBehalf()) return [];
+      return db.getTeachers()
+        .filter(teacher => teacher.id !== currentUser.id)
+        .filter(teacher => getOnBehalfAvailablePoints(teacher.id, dateStr).length > 0)
+        .sort((a, b) => a.name.localeCompare(b.name, 'th'));
+    }
+
+    function refreshOnBehalfPointOptions() {
+      const teacherSelect = document.getElementById('on-behalf-teacher');
+      const pointSelect = document.getElementById('on-behalf-point');
+      if (!teacherSelect || !pointSelect) return;
+      const teacherId = teacherSelect.value;
+      if (!teacherId) {
+        pointSelect.innerHTML = '<option value="">-- เลือกครูก่อน --</option>';
+        return;
+      }
+      const points = getOnBehalfAvailablePoints(teacherId);
+      pointSelect.innerHTML = points.length
+        ? `<option value="">-- เลือกจุดเวร --</option>${points.map(point => `<option value="${point.id}">จุดที่ ${getDutyPointDisplayNumber(point)}: ${escapeHtml(point.name)} (${point.time} น.)</option>`).join('')}`
+        : '<option value="">-- ครูท่านนี้รายงานครบแล้ว --</option>';
+    }
+
+    function applyOnBehalfReasonPreset(reason) {
+      const textarea = document.getElementById('on-behalf-reason');
+      if (!textarea) return;
+      textarea.value = reason;
+      textarea.focus();
+    }
+
+    function toggleOnBehalfProblemFields() {
+      const status = document.getElementById('on-behalf-status')?.value;
+      const container = document.getElementById('on-behalf-problem-fields');
+      const problem = document.getElementById('on-behalf-problem');
+      if (container) container.classList.toggle('hidden', status !== 'problem');
+      if (problem) problem.required = status === 'problem';
+    }
+
+    function handleOnBehalfPhoto(event) {
+      const file = event.target.files?.[0];
+      const status = document.getElementById('on-behalf-photo-status');
+      onBehalfEvidencePhotoBase64 = null;
+      onBehalfPhotoProcessing = false;
+      if (!file) {
+        if (status) status.textContent = 'ไม่บังคับ และไม่ถือเป็นหลักฐาน GPS ของครู';
+        return;
+      }
+      onBehalfPhotoProcessing = true;
+      if (status) status.textContent = 'กำลังเตรียมรูป...';
+      compressImageFile(file, 1200, 900, 0.82, compressed => {
+        onBehalfEvidencePhotoBase64 = compressed;
+        onBehalfPhotoProcessing = false;
+        if (status) status.textContent = 'แนบรูปเรียบร้อยแล้ว (ไม่ใช้ยืนยัน GPS)';
+      });
+    }
+
+    async function submitReportOnBehalf(event) {
+      event.preventDefault();
+      if (onBehalfSubmissionInProgress) {
+        showToast('ระบบกำลังบันทึกรายงานแทน กรุณาไม่กดซ้ำ', 'warning');
+        return;
+      }
+      if (!canSubmitReportOnBehalf()) {
+        showToast('ท่านไม่มีสิทธิ์รายงานแทนครู', 'error');
+        return;
+      }
+      if (onBehalfPhotoProcessing) {
+        showToast('กรุณารอระบบเตรียมรูปหลักฐานให้เสร็จก่อน', 'warning');
+        return;
+      }
+
+      const teacherId = document.getElementById('on-behalf-teacher')?.value;
+      const pointId = Number(document.getElementById('on-behalf-point')?.value);
+      const status = document.getElementById('on-behalf-status')?.value || 'reported';
+      const result = document.getElementById('on-behalf-result')?.value.trim() || '';
+      const problem = document.getElementById('on-behalf-problem')?.value.trim() || '';
+      const solution = document.getElementById('on-behalf-solution')?.value.trim() || '';
+      const reason = document.getElementById('on-behalf-reason')?.value.trim() || '';
+      const dateStr = getTodayISODate();
+
+      if (!teacherId || !pointId || !result || !reason || (status === 'problem' && !problem)) {
+        showToast('กรุณากรอกข้อมูลรายงานแทนให้ครบถ้วน', 'error');
+        return;
+      }
+      if (teacherId === currentUser.id) {
+        showToast('ไม่สามารถใช้รายงานแทนเพื่อรายงานเวรของตนเองได้', 'error');
+        return;
+      }
+
+      const point = getOnBehalfAvailablePoints(teacherId, dateStr).find(item => Number(item.id) === pointId);
+      if (!point) {
+        showToast('ไม่พบจุดเวรนี้ หรือมีรายงานอยู่แล้ว กรุณาดึงข้อมูลล่าสุด', 'warning');
+        return;
+      }
+
+      const existing = await findExistingDutyReport(dateStr, pointId, teacherId);
+      if (existing) {
+        showToast('ครูท่านนี้มีรายงานสำหรับจุดเวรดังกล่าวแล้ว ระบบจึงไม่บันทึกซ้ำ', 'warning');
+        navigateTo('duty-head-approvals');
+        return;
+      }
+
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      const timing = getReportTimingDecision(point, nowMin);
+      if (timing.status === 'too_early') {
+        showToast(`ยังไม่ถึงช่วงเวลารายงานของจุดนี้ (${timing.windowDisplay} น.)`, 'error');
+        return;
+      }
+
+      onBehalfSubmissionInProgress = true;
+      const button = document.getElementById('btn-submit-on-behalf');
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'กำลังบันทึกรายงานแทน...';
+        button.classList.add('opacity-70', 'cursor-not-allowed');
+      }
+
+      try {
+        const isLate = !!timing.isLate;
+        const timeNow = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
+        const report = {
+          id: buildDutyReportId(dateStr, pointId, teacherId),
+          date: dateStr,
+          pointId,
+          teacherId,
+          status,
+          time: timeNow,
+          distance: 0,
+          result,
+          problem: status === 'problem' ? problem : '',
+          solution: status === 'problem' ? solution : '',
+          photo: onBehalfEvidencePhotoBase64 || '',
+          photoThumb: onBehalfEvidencePhotoBase64 || null,
+          photoPath: null,
+          photoThumbPath: null,
+          signature: null,
+          isLate,
+          lateReviewStatus: isLate ? 'approved' : null,
+          lateReviewedBy: isLate ? currentUser.id : null,
+          lateReviewedAt: isLate ? now.toISOString() : null,
+          submittedOnBehalf: true,
+          submittedBy: currentUser.id,
+          submissionReason: reason
+        };
+
+        const saved = await saveReportDB(report, true);
+        if (saved._syncStatus === 'queued' || saved._syncStatus === 'offline') {
+          showToast('บันทึกไว้ในเครื่องแล้ว ระบบจะซิงก์รายงานแทนเมื่อเชื่อมต่อคลาวด์สำเร็จ', 'warning');
+        } else {
+          showToast(`รายงานแทน ${getTeacherName(teacherId)} เรียบร้อยแล้ว (คะแนนสูงสุด 8/10)`, 'success');
+        }
+        onBehalfEvidencePhotoBase64 = null;
+        navigateTo('duty-head-approvals');
+      } finally {
+        onBehalfSubmissionInProgress = false;
+      }
+    }
+
     // หัวหน้าเวรรับรองรายงานสายเป็นปกติ (คะแนนเต็ม) หรืออนุมัติรายงาน (แต่ยังเป็นสาย) หรือไม่อนุมัติรายงาน
     async function onLateReportReviewAction(reportId, decision) {
       const rep = db.getReports().find(r => r.id === reportId);
@@ -6971,7 +7249,10 @@
       }
 
       const normalizeToOnTime = decision === 'normalized';
-      if (normalizeToOnTime && !window.confirm('ยืนยันรับรองรายงานสายนี้เป็นรายงานปกติ และให้คะแนนเต็มเท่ากับผู้ที่รายงานตามเวลาใช่หรือไม่?')) {
+      const normalizeConfirmText = rep.submittedOnBehalf
+        ? 'ยืนยันรับรองรายงานแทนนี้เป็นรายงานปกติใช่หรือไม่? รายงานแทนยังคงได้สูงสุด 8/10'
+        : 'ยืนยันรับรองรายงานสายนี้เป็นรายงานปกติ และให้คะแนนเต็มเท่ากับผู้ที่รายงานตามเวลาใช่หรือไม่?';
+      if (normalizeToOnTime && !window.confirm(normalizeConfirmText)) {
         return;
       }
       if (decision === 'approved' && !window.confirm('ยืนยันอนุมัติรายงานนี้ (แต่ยังนับเป็นสาย) ใช่หรือไม่?')) {
@@ -6988,7 +7269,9 @@
 
       let msg = '';
       if (decision === 'normalized') {
-        msg = 'รับรองรายงานเป็นปกติแล้ว ครูได้รับคะแนนเต็มเรียบร้อย';
+        msg = rep.submittedOnBehalf
+          ? 'รับรองรายงานแทนเป็นปกติแล้ว คะแนนยังคงสูงสุด 8/10'
+          : 'รับรองรายงานเป็นปกติแล้ว ครูได้รับคะแนนเต็มเรียบร้อย';
       } else if (decision === 'approved') {
         msg = 'อนุมัติรายงาน (แต่ยังนับเป็นสาย) เรียบร้อยแล้ว';
       } else {
@@ -7118,8 +7401,8 @@
                       <tr class="hover:bg-slate-50 transition cursor-default">
                         <td class="px-4 py-3 text-center font-bold text-slate-600">${getTodayThaiFullDate(r.date)}</td>
                         <td class="px-4 py-3 font-semibold text-brand-950">${pt ? `จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}` : `จุดที่ ${r.pointId}`}</td>
-                        <td class="px-4 py-3 text-center font-semibold text-slate-800">${r.status === 'leave' ? '-' : `${r.time} น.${lateBadge(r)}`}</td>
-                        <td class="px-4 py-3 text-center">${r.status === 'leave' ? '-' : r.distance.toFixed(1) + ' ม.'}</td>
+                        <td class="px-4 py-3 text-center font-semibold text-slate-800">${r.status === 'leave' ? '-' : `${r.time} น.${lateBadge(r)}${onBehalfBadge(r)}`}</td>
+                        <td class="px-4 py-3 text-center">${r.status === 'leave' ? '-' : r.submittedOnBehalf ? '<span class="text-violet-700 font-bold">ไม่ยืนยัน GPS</span>' : r.distance.toFixed(1) + ' ม.'}</td>
                         <td class="px-4 py-3 text-center">
                           ${r.status === 'problem'
                             ? '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">พบปัญหา</span>'
@@ -7169,7 +7452,10 @@
             'ชื่อคุณครู': getTeacherName(teacherId),
             'สถานะปฏิบัติเวร': rep ? (rep.status === 'problem' ? 'พบปัญหา!' : rep.status === 'leave' ? 'ลา (ได้รับอนุมัติ)' : 'ปกติ / รายงานเรียบร้อย') : 'ยังไม่ได้รายงานเวร',
             'เวลารายงาน': rep && rep.status !== 'leave' ? rep.time : '-',
-            'ระยะขอบเขต GPS (เมตร)': rep && rep.status !== 'leave' ? rep.distance.toFixed(1) : '-',
+            'ระยะขอบเขต GPS (เมตร)': rep && rep.status !== 'leave' ? (rep.submittedOnBehalf ? 'ไม่ยืนยัน GPS' : rep.distance.toFixed(1)) : '-',
+            'รูปแบบการรายงาน': rep ? (rep.submittedOnBehalf ? 'หัวหน้าเวรรายงานแทน (8/10)' : 'ครูรายงานด้วยตนเอง') : '-',
+            'ผู้รายงานแทน': rep && rep.submittedOnBehalf ? getTeacherName(rep.submittedBy) : '-',
+            'เหตุผลที่รายงานแทน': rep && rep.submittedOnBehalf ? rep.submissionReason : '-',
             'บันทึกผลการปฏิบัติหน้าที่': rep ? (rep.status === 'problem' ? rep.problem : rep.result) : '-',
             'แนวทางการแก้ไขปัญหา': rep ? rep.solution : '-'
           });
@@ -7747,6 +8033,10 @@
 
     function isReportCountableForScoring(rep) {
       return !!rep && !(rep.isLate && (rep.lateReviewStatus === 'pending' || rep.lateReviewStatus === 'rejected'));
+    }
+
+    function getReportScoreCredit(rep) {
+      return rep && rep.submittedOnBehalf ? 0.8 : 1;
     }
 
     // คลาสสีของป้าย countdown: ปกติ = เขียว (brand), ช่วงผ่อนผัน = ส้ม
@@ -10450,7 +10740,7 @@
             <div class="flex flex-wrap gap-2 justify-center">
               ${(rep.isLate || rep.lateReviewStatus !== 'normalized') ? `
                 <button onclick="onLateReportReviewAction('${rep.id}', 'normalized'); closeReportDetails();" class="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-2 rounded-lg transition text-[11px]">
-                  รับรองเป็นปกติ (คะแนนเต็ม)
+                  ${rep.submittedOnBehalf ? 'รับรองเป็นปกติ (ยังคง 8/10)' : 'รับรองเป็นปกติ (คะแนนเต็ม)'}
                 </button>
               ` : ''}
               ${(rep.lateReviewStatus !== 'approved') ? `
@@ -10469,11 +10759,13 @@
       }
 
       let signatureMarkup = '';
-      const sigSrc = rep.signature || (teacher ? teacher.signature : null);
+      const sigSrc = rep.submittedOnBehalf ? null : (rep.signature || (teacher ? teacher.signature : null));
       if (rep.status === 'leave') {
         const leaveReq = db.getLeaveRequests().find(r => r.teacherId === rep.teacherId && r.date === rep.date && (r.pointId === null || r.pointId === rep.pointId));
         const label = leaveReq ? leaveTypeLabel(leaveReq.leaveType) : (rep.result && rep.result.includes('ฉุกเฉิน') ? 'ลาฉุกเฉิน' : 'ลากิจ');
         signatureMarkup = `<span class="text-slate-500 font-bold">${label} (อนุมัติ)</span>`;
+      } else if (rep.submittedOnBehalf) {
+        signatureMarkup = `<span class="text-violet-700 font-bold">รายงานแทนโดย ${escapeHtml(getTeacherName(rep.submittedBy))}</span>`;
       } else if (sigSrc) {
         signatureMarkup = `<img src="${sigSrc}" class="max-h-16 mx-auto border rounded p-1 bg-white" alt="ลายเซ็น">`;
       } else {
@@ -10496,8 +10788,8 @@
 
         <div class="grid grid-cols-2 gap-3 mt-3">
           <div>
-            <span class="text-slate-400 block">ผู้รายงาน:</span>
-            <span class="font-bold text-slate-800">${teacher ? teacher.name : ''}</span>
+            <span class="text-slate-400 block">ครูเจ้าของเวร:</span>
+            <span class="font-bold text-slate-800">${teacher ? teacher.name : ''} ${onBehalfBadge(rep)}</span>
           </div>
           <div>
             <span class="text-slate-400 block">เวลารายงาน:</span>
@@ -10505,13 +10797,22 @@
           </div>
           <div>
             <span class="text-slate-400 block">ระยะตรวจสอบ GPS:</span>
-            <span class="text-slate-850 font-bold">${rep.status === 'leave' ? '-' : rep.distance.toFixed(1) + ' เมตร'}</span>
+            <span class="text-slate-850 font-bold">${rep.status === 'leave' ? '-' : rep.submittedOnBehalf ? '<span class="text-violet-700">ไม่ยืนยัน GPS</span>' : rep.distance.toFixed(1) + ' เมตร'}</span>
           </div>
         </div>
 
+        ${rep.submittedOnBehalf ? `
+          <div class="mt-3 bg-violet-50 border border-violet-200 rounded-lg p-3 text-violet-900">
+            <p class="font-bold">รายงานแทน · คะแนนสูงสุด 8/10</p>
+            <p class="text-[10px] mt-1">ผู้บันทึกแทน: ${escapeHtml(getTeacherName(rep.submittedBy))}</p>
+            <p class="text-[10px] mt-0.5">เหตุผล: ${escapeHtml(rep.submissionReason || '-')}</p>
+            <p class="text-[9px] text-violet-600 mt-1">รายการนี้ไม่ได้ใช้พิกัดของผู้บันทึกแทนมายืนยันตำแหน่งของครูเจ้าของเวร</p>
+          </div>
+        ` : ''}
+
         ${normalizedByHead ? `
           <div class="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-blue-800">
-            <p class="font-bold">✓ หัวหน้าเวรรับรองรายงานนี้เป็นรายงานปกติและให้คะแนนเต็ม</p>
+            <p class="font-bold">✓ หัวหน้าเวรรับรองรายงานนี้เป็นรายงานปกติ${rep.submittedOnBehalf ? ' (รายงานแทนยังคงสูงสุด 8/10)' : 'และให้คะแนนเต็ม'}</p>
             <p class="text-[10px] mt-0.5">ผู้รับรอง: ${escapeHtml(lateReviewer ? lateReviewer.name : (rep.lateReviewedBy || '-'))}${normalizedAtText ? ` · ${escapeHtml(normalizedAtText)}` : ''}</p>
           </div>
         ` : ''}
