@@ -162,7 +162,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.0</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.1</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
           </div>
@@ -253,7 +253,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.0</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.1</div>
           </div>
         </aside>
 
@@ -346,7 +346,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.34.0</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.34.1</div>
         </div>
       </aside>
 
@@ -791,7 +791,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.34.0';
+    const APP_VERSION = '1.34.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -2500,25 +2500,30 @@
     // A. DASHBOARD VIEW (Admin / Head of Duty)
     function renderDashboardView() {
       let points = db.getDutyPoints();
-      let reports = db.getReports().filter(r => r.date === getTodayISODate());
+      const todayDateStr = getTodayISODate();
+      let dashboardContexts = [{ day: getTodayThaiDayName(), dateStr: todayDateStr, groups: null }];
+      let reports = db.getReports().filter(r => r.date === todayDateStr);
 
-      // หน้า "รายงานเวรวันนี้" (ไม่ใช่ดัชบอร์ด): หัวหน้าเวร (ที่ไม่ใช่แอดมิน) ถูกล็อกให้เห็นเฉพาะจุดเวรของคณะที่ตนเองได้รับแต่งตั้งเป็นหัวหน้าในวันนี้
+      // หน้า "รายงานเวรวันนี้": หัวหน้าเวรทั่วไปเห็นเฉพาะชุดเวรของตนเองตลอดรอบสัปดาห์ของวันเวรนั้น
       // หัวหน้างานเวร (isOpsHead) เห็นภาพรวมทุกจุดทั้งชาย+หญิง ไม่ถูกกรองตามวัน/กลุ่ม
-      let headTodayGroup = null;
+      let headDutyScopeLabel = '';
       let headNotOnDutyToday = false;
       if ((currentPage === 'today-report' || currentPage === 'dashboard') && activeRoleMode === 'head' && !isFullAdmin(currentUser) && !isOpsHead(currentUser)) {
-        const headDays = getHeadAssignedDays(currentUser.id);
-        if (headDays.length > 0) {
-          headTodayGroup = getHeadAssignedDutyGroup(currentUser.id, getTodayThaiDayName());
-          if (headTodayGroup) {
-            points = points.filter(p => (p.dutyGroup || 'ครูชาย') === headTodayGroup);
-            const pointIds = new Set(points.map(p => p.id));
-            reports = reports.filter(r => pointIds.has(r.pointId));
-          } else {
-            headNotOnDutyToday = true;
-            points = [];
-            reports = [];
-          }
+        const headWindows = getOnBehalfDutyWindowsForCurrentUser(todayDateStr);
+        if (headWindows.length > 0) {
+          dashboardContexts = headWindows;
+          const allowedGroups = new Set(headWindows.flatMap(w => w.groups || []));
+          points = points.filter(p => allowedGroups.has(p.dutyGroup || 'ครูชาย'));
+          const allowedDates = new Set(headWindows.map(w => w.dateStr));
+          const pointIds = new Set(points.map(p => p.id));
+          reports = db.getReports().filter(r => allowedDates.has(r.date) && pointIds.has(r.pointId));
+          const groups = Array.from(allowedGroups);
+          const rangeText = headWindows.map(w => `วัน${w.day} (${getTodayThaiFullDate(w.dateStr)} - ${getTodayThaiFullDate(w.endISO)})`).join(' / ');
+          headDutyScopeLabel = `คณะ${groups.join('/')} · ${rangeText}`;
+        } else {
+          headNotOnDutyToday = true;
+          points = [];
+          reports = [];
         }
       }
 
@@ -2529,8 +2534,28 @@
         reports = reports.filter(r => visiblePointIds.has(r.pointId));
       }
 
-      const totalPoints = points.length;
-      const todayDay = getTodayThaiDayName();
+      const dashboardRows = points.flatMap(p => {
+        const assignedList = p.assignedTo || p.assigned_to || [];
+        return dashboardContexts.flatMap(ctx => {
+          if (ctx.groups && !ctx.groups.includes(p.dutyGroup || 'ครูชาย')) return [];
+          const assignedToday = assignedList.filter(item => isAssignedOnDay(item, ctx.day));
+          return assignedToday.map(item => {
+            const teacherId = getAssignedEntryTeacherId(item);
+            const rep = reports.find(r => r.date === ctx.dateStr && String(r.pointId) === String(p.id) && String(r.teacherId) === String(teacherId));
+            const status = rep ? (isReportPendingLateApproval(rep) ? 'pending' : rep.status) : 'not_reported';
+            return { point: p, teacherId, rep, status, dateStr: ctx.dateStr, dutyDay: ctx.day, cycleEndDate: ctx.endISO };
+          });
+        });
+      });
+
+      const pointBuckets = new Map();
+      dashboardRows.forEach(row => {
+        const key = `${row.dateStr}|${row.point.id}`;
+        if (!pointBuckets.has(key)) pointBuckets.set(key, []);
+        pointBuckets.get(key).push(row);
+      });
+
+      const totalPoints = pointBuckets.size;
 
       let reportedCount = 0;
       let problemCount = 0;
@@ -2539,21 +2564,9 @@
       let exemptedPointsCount = 0;
       let inactivePointsCount = 0;
 
-      points.forEach(p => {
-        const assignedList = p.assignedTo || p.assigned_to || [];
-        const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
-        const teachersCount = todayAssigned.length;
-
-        // หากไม่มีครูได้รับมอบหมายในวันนี้
-        if (teachersCount === 0) {
-          inactivePointsCount++;
-          return;
-        }
-
-        const assignedTeacherIds = todayAssigned.map(item => item.includes(':') ? item.split(':')[1] : item);
-        
-        // กรองรายงานในจุดนี้ของคุณครูที่ได้รับการมอบหมาย (รวมรายงานปกติ, ปัญหา, สาย, ลา)
-        const pointReports = reports.filter(r => r.pointId === p.id && assignedTeacherIds.includes(r.teacherId));
+      pointBuckets.forEach(rows => {
+        const teachersCount = rows.length;
+        const pointReports = rows.map(row => row.rep).filter(Boolean);
         const completedReportsCount = pointReports.length;
 
         if (completedReportsCount === teachersCount) {
@@ -2569,7 +2582,8 @@
           }
         } else {
           // ยังรายงานไม่ครบ
-          const isExempted = !!getExemptionForDate(getTodayISODate(), p.dutyGroup || 'ครูชาย');
+          const sample = rows[0];
+          const isExempted = !!getExemptionForDate(sample.dateStr, sample.point.dutyGroup || 'ครูชาย');
           if (isExempted) {
             exemptedPointsCount++;
           } else {
@@ -2586,7 +2600,7 @@
         <div class="fade-in space-y-6">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b pb-4">
             <div>
-              <p class="text-xs text-slate-500 flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4 text-brand-700"></i> ${getTodayThaiFullDate()}</p>
+              <p class="text-xs text-slate-500 flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4 text-brand-700"></i> ${headDutyScopeLabel || getTodayThaiFullDate()}</p>
               <h3 class="text-lg font-bold text-slate-900 mt-1">สรุปการปฏิบัติหน้าที่เวรประจำวันนี้</h3>
             </div>
             <div class="text-[10px] text-slate-500 bg-white border px-3 py-1.5 rounded-lg inline-flex items-center gap-2">
@@ -2598,12 +2612,12 @@
           ${headNotOnDutyToday ? `
             <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800 flex items-center gap-2">
               <i data-lucide="info" class="w-4 h-4 text-amber-600"></i>
-              วันนี้ไม่ใช่วันที่ท่านได้รับมอบหมายเป็นหัวหน้าเวร จึงไม่มีจุดเวรให้รายงานในวันนี้
+              ยังไม่พบวัน/กลุ่มเวรที่ท่านได้รับมอบหมายให้เป็นหัวหน้าเวร
             </div>
-          ` : headTodayGroup ? `
+          ` : headDutyScopeLabel ? `
             <div class="bg-brand-50/50 border border-brand-200/60 rounded-xl p-3 text-[11px] text-brand-800 flex items-center gap-2">
               <i data-lucide="shield-check" class="w-4 h-4 text-brand-700"></i>
-              กำลังแสดงจุดเวรของคณะ${headTodayGroup}เท่านั้น (ตามสิทธิ์หัวหน้าเวรของท่าน)
+              กำลังแสดงเฉพาะลูกเวรในวันเดียวกับหัวหน้าเวรของท่าน: ${headDutyScopeLabel}
             </div>
           ` : ''}
 
@@ -2648,7 +2662,7 @@
               </div>
               <select id="dash-filter-point" onchange="filterDashboardTable()" class="text-xs border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-brand-500 text-slate-600">
                 <option value="all">ทุกจุดเวร</option>
-                ${points.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                ${Array.from(new Map(points.map(p => [String(p.id), p])).values()).map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
               </select>
               <select id="dash-filter-status" onchange="filterDashboardTable()" class="text-xs border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-brand-500 text-slate-600">
                 <option value="all">ทุกสถานะรายงาน</option>
@@ -2673,7 +2687,7 @@
           <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
               <h4 class="font-bold text-xs text-brand-950">สถานะความคืบหน้ารายบุคคล</h4>
-              <span class="text-[10px] text-slate-400">${headTodayGroup ? `คณะ${headTodayGroup} วันนี้` : headNotOnDutyToday ? 'ไม่มีเวรวันนี้' : 'ทุกจุดเวรวันนี้ (ครูชาย + ครูหญิง)'}</span>
+              <span class="text-[10px] text-slate-400">${headDutyScopeLabel || (headNotOnDutyToday ? 'ไม่มีเวรในสิทธิ์' : 'ทุกจุดเวรวันนี้ (ครูชาย + ครูหญิง)')}</span>
             </div>
             
             <!-- Wide screen Table (hidden on mobile) -->
@@ -2695,15 +2709,11 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-150">
-                  ${points.flatMap(p => {
-                    const assignedList = p.assignedTo || p.assigned_to || [];
-                    const todayDay = getTodayThaiDayName();
-                    const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
-
-                    return todayAssigned.map(item => {
-                      const teacherId = item.includes(':') ? item.split(':')[1] : item;
-                      const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
-                      const status = rep ? (isReportPendingLateApproval(rep) ? 'pending' : rep.status) : 'not_reported';
+                  ${dashboardRows.map(row => {
+                      const p = row.point;
+                      const teacherId = row.teacherId;
+                      const rep = row.rep;
+                      const status = row.status;
                       const thumbSrc = rep && rep.status !== 'leave' ? resolveReportPhotoSrc(rep, true) : '';
                       
                       let badge = '';
@@ -2717,7 +2727,7 @@
                         <tr class="hover:bg-slate-50 transition cursor-default dash-row" data-point-id="${p.id}" data-duty-group="${p.dutyGroup || 'ครูชาย'}" data-status="${status}" data-teacher-name="${getTeacherName(teacherId)}">
                           <td class="px-4 py-3 text-center font-bold text-brand-900">จุดที่ ${getDutyPointDisplayNumber(p)}</td>
                           <td class="px-4 py-3 font-semibold text-slate-800">${p.name}</td>
-                          <td class="px-4 py-3 text-slate-500">${p.time} น.</td>
+                          <td class="px-4 py-3 text-slate-500">${p.time} น.${headDutyScopeLabel ? `<div class="text-[9px] text-slate-400 mt-0.5">วัน${row.dutyDay} ${getTodayThaiFullDate(row.dateStr)}</div>` : ''}</td>
                           <td class="px-4 py-3 font-bold text-slate-800">${getTeacherName(teacherId)}</td>
                           <td class="px-4 py-3 text-center">${badge}</td>
                           <td class="px-4 py-3 text-center font-bold text-slate-600">
@@ -2749,7 +2759,6 @@
                           </td>
                         </tr>
                       `;
-                    });
                   }).join('')}
                 </tbody>
               </table>
@@ -2757,15 +2766,11 @@
  
             <!-- Mobile List Card View (Displays on screen sizes below md) -->
             <div class="block md:hidden p-4 space-y-3 bg-slate-50" id="dashboard-mobile-list">
-              ${points.flatMap(p => {
-                const assignedList = p.assignedTo || p.assigned_to || [];
-                const todayDay = getTodayThaiDayName();
-                const todayAssigned = assignedList.filter(item => isAssignedOnDay(item, todayDay));
- 
-                return todayAssigned.map(item => {
-                  const teacherId = item.includes(':') ? item.split(':')[1] : item;
-                  const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
-                  const status = rep ? (isReportPendingLateApproval(rep) ? 'pending' : rep.status) : 'not_reported';
+              ${dashboardRows.map(row => {
+                  const p = row.point;
+                  const teacherId = row.teacherId;
+                  const rep = row.rep;
+                  const status = row.status;
                   const thumbSrc = rep && rep.status !== 'leave' ? resolveReportPhotoSrc(rep, true) : '';
                   
                   let badge = '';
@@ -2783,6 +2788,7 @@
                       </div>
                       <div class="text-[10px] text-slate-500 space-y-0.5">
                         <p><strong>ผู้เข้าเวร:</strong> ${getTeacherName(teacherId)}</p>
+                        ${headDutyScopeLabel ? `<p><strong>วันที่เวร:</strong> วัน${row.dutyDay} ${getTodayThaiFullDate(row.dateStr)}</p>` : ''}
                         <p><strong>เวลาเวร:</strong> ${p.time} น. ${rep && rep.status !== 'leave' ? `| <strong>ส่งเวลา:</strong> ${rep.time} น.${lateBadge(rep)}${onBehalfBadge(rep)}` : ''}</p>
                         ${rep && rep.status !== 'leave' ? `<p><strong>การยืนยัน GPS:</strong> ${rep.submittedOnBehalf ? '<span class="text-violet-700 font-bold">ไม่ยืนยัน GPS (รายงานแทน)</span>' : rep.distance.toFixed(1) + ' ม.'}</p>` : ''}
                         ${thumbSrc ? `<button onclick="viewReportDetails('${rep.id}')" class="mt-1 inline-flex w-16 h-12 rounded-lg border bg-slate-50 overflow-hidden items-center justify-center"><img src="${thumbSrc}" class="w-full h-full object-cover" alt="รูปหลักฐานย่อ"></button>` : ''}
@@ -2806,7 +2812,6 @@
                       </div>
                     </div>
                   `;
-                });
               }).join('')}
             </div>
 
@@ -3095,7 +3100,10 @@
 
       const todayDate = getTodayISODate();
       const approvableTeachers = getTeachersApprovableByMe(todayDate);
-      const onBehalfTeachers = getOnBehalfEligibleTeachers(todayDate);
+      const onBehalfTeachers = getOnBehalfEligibleTeachers();
+      const onBehalfScopeText = isAllOnBehalfScopeUser()
+        ? 'หัวหน้างานเวร/แอดมินเห็นครูเวรทั้งหมดที่ยังไม่รายงานในรอบสัปดาห์ของแต่ละวันเวร'
+        : 'หัวหน้าเวรเห็นเฉพาะลูกเวรวันเดียวกับตนเอง และรายงานแทนได้ตั้งแต่วันเวรถึงก่อนวันเวรสัปดาห์ถัดไป';
 
       const settings = db.getSettings();
       const canManageExemptions = isFullAdmin(currentUser) || isOpsHead(currentUser);
@@ -3118,11 +3126,11 @@
               <i data-lucide="clipboard-pen-line" class="w-5 h-5 text-violet-700 mt-0.5"></i>
               <div>
                 <h4 class="font-bold text-violet-950">รายงานแทนครูเวร</h4>
-                <p class="text-[10px] text-violet-700 mt-0.5">หัวหน้าเวรที่ได้รับแต่งตั้งสามารถช่วยรายงานของวันนี้ได้ แม้วันนี้ไม่ใช่วันเวรของตนเอง · ไม่ตรวจ GPS · คะแนนสูงสุด 8/10</p>
+                <p class="text-[10px] text-violet-700 mt-0.5">${onBehalfScopeText} · ไม่ตรวจ GPS · คะแนนสูงสุด 8/10</p>
               </div>
             </div>
             ${onBehalfTeachers.length === 0 ? `
-              <p class="bg-white/80 border border-violet-100 rounded-xl text-slate-500 text-center py-4">วันนี้ไม่มีรายการของครูท่านอื่นที่รอรายงานแทน</p>
+              <p class="bg-white/80 border border-violet-100 rounded-xl text-slate-500 text-center py-4">ไม่มีรายการของครูท่านอื่นที่รอรายงานแทนตามสิทธิ์ของท่าน</p>
             ` : `
               <form onsubmit="submitReportOnBehalf(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white border border-violet-100 rounded-xl p-4">
                 <div>
@@ -7063,23 +7071,119 @@
       return isFullAdmin(currentUser) || isOpsHead(currentUser) || currentUser.role === 'head' || getHeadAssignedDays(currentUser.id).length > 0;
     }
 
-    function getOnBehalfAvailablePoints(teacherId, dateStr = getTodayISODate()) {
+    const THAI_DUTY_DAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+
+    function isAllOnBehalfScopeUser() {
+      return isFullAdmin(currentUser) || isOpsHead(currentUser);
+    }
+
+    function addDaysToISODate(dateStr, days) {
+      const d = new Date(dateStr + 'T00:00:00');
+      d.setDate(d.getDate() + days);
+      return formatDateISO(d);
+    }
+
+    function getDutyCycleStartDateForDay(dayName, anchorDateStr = getTodayISODate()) {
+      const targetIdx = THAI_DUTY_DAYS.indexOf(dayName);
+      if (targetIdx < 0) return anchorDateStr;
+      const d = new Date(anchorDateStr + 'T00:00:00');
+      const diffDays = (d.getDay() - targetIdx + 7) % 7;
+      d.setDate(d.getDate() - diffDays);
+      return formatDateISO(d);
+    }
+
+    function getDutyCycleWindowForDay(dayName, anchorDateStr = getTodayISODate()) {
+      const startISO = getDutyCycleStartDateForDay(dayName, anchorDateStr);
+      return {
+        day: dayName,
+        dateStr: startISO,
+        startISO,
+        endISO: addDaysToISODate(startISO, 6)
+      };
+    }
+
+    function getAssignedEntryDay(item) {
+      if (String(item).includes(':')) return String(item).split(':')[0];
+      const settings = db.getSettings();
+      return settings.dutyDay || 'อังคาร';
+    }
+
+    function getAssignedEntryTeacherId(item) {
+      return String(item).includes(':') ? String(item).split(':')[1] : String(item);
+    }
+
+    function getOnBehalfDutyWindowsForCurrentUser(anchorDateStr = getTodayISODate()) {
+      if (!canSubmitReportOnBehalf()) return [];
+
+      if (isAllOnBehalfScopeUser()) {
+        const days = new Set();
+        db.getDutyPoints().forEach(point => {
+          (point.assignedTo || point.assigned_to || []).forEach(item => days.add(getAssignedEntryDay(item)));
+        });
+        return Array.from(days)
+          .sort((a, b) => THAI_DUTY_DAYS.indexOf(a) - THAI_DUTY_DAYS.indexOf(b))
+          .map(day => ({ ...getDutyCycleWindowForDay(day, anchorDateStr), groups: ['ครูชาย', 'ครูหญิง'] }));
+      }
+
+      return getHeadAssignedDays(currentUser.id)
+        .map(day => {
+          const groups = getHeadAssignedDutyGroupsForDay(currentUser.id, day);
+          return groups.length ? { ...getDutyCycleWindowForDay(day, anchorDateStr), groups } : null;
+        })
+        .filter(Boolean);
+    }
+
+    function isOnBehalfPointAllowedForCurrentUser(point, teacherId, dateStr) {
+      if (!point || !teacherId || teacherId === currentUser?.id) return false;
+      if (isAllOnBehalfScopeUser()) return true;
+      const dayName = getThaiDayNameForDate(dateStr);
+      const group = point.dutyGroup || 'ครูชาย';
+      return getHeadAssignedDutyGroupsForDay(currentUser.id, dayName).includes(group);
+    }
+
+    function getOnBehalfAvailablePointEntries(teacherId) {
       if (!teacherId || teacherId === currentUser?.id) return [];
       const reports = db.getReports();
-      return getDutyPointsForTeacher(teacherId, dateStr).filter(point =>
-        !reports.some(report =>
-          report.date === dateStr &&
-          String(report.pointId) === String(point.id) &&
-          String(report.teacherId) === String(teacherId)
-        )
+      const entries = [];
+
+      getOnBehalfDutyWindowsForCurrentUser().forEach(window => {
+        getDutyPointsForTeacher(teacherId, window.dateStr)
+          .filter(point => window.groups.includes(point.dutyGroup || 'ครูชาย'))
+          .filter(point => isOnBehalfPointAllowedForCurrentUser(point, teacherId, window.dateStr))
+          .forEach(point => {
+            const alreadyReported = reports.some(report =>
+              report.date === window.dateStr &&
+              String(report.pointId) === String(point.id) &&
+              String(report.teacherId) === String(teacherId)
+            );
+            if (!alreadyReported) {
+              entries.push({
+                ...point,
+                reportDate: window.dateStr,
+                dutyDay: window.day,
+                cycleEndDate: window.endISO
+              });
+            }
+          });
+      });
+
+      return entries.sort((a, b) =>
+        a.reportDate.localeCompare(b.reportDate) ||
+        (a.dutyGroup || '').localeCompare(b.dutyGroup || '', 'th') ||
+        Number(a.id) - Number(b.id)
       );
     }
 
-    function getOnBehalfEligibleTeachers(dateStr = getTodayISODate()) {
+    function getOnBehalfAvailablePoints(teacherId, dateStr = null) {
+      const entries = getOnBehalfAvailablePointEntries(teacherId);
+      return dateStr ? entries.filter(point => point.reportDate === dateStr) : entries;
+    }
+
+    function getOnBehalfEligibleTeachers() {
       if (!canSubmitReportOnBehalf()) return [];
       return db.getTeachers()
         .filter(teacher => teacher.id !== currentUser.id)
-        .filter(teacher => getOnBehalfAvailablePoints(teacher.id, dateStr).length > 0)
+        .filter(teacher => getOnBehalfAvailablePointEntries(teacher.id).length > 0)
         .sort((a, b) => a.name.localeCompare(b.name, 'th'));
     }
 
@@ -7092,9 +7196,9 @@
         pointSelect.innerHTML = '<option value="">-- เลือกครูก่อน --</option>';
         return;
       }
-      const points = getOnBehalfAvailablePoints(teacherId);
+      const points = getOnBehalfAvailablePointEntries(teacherId);
       pointSelect.innerHTML = points.length
-        ? `<option value="">-- เลือกจุดเวร --</option>${points.map(point => `<option value="${point.id}">จุดที่ ${getDutyPointDisplayNumber(point)}: ${escapeHtml(point.name)} (${point.time} น.)</option>`).join('')}`
+        ? `<option value="">-- เลือกจุดเวร --</option>${points.map(point => `<option value="${point.reportDate}|${point.id}">วัน${point.dutyDay} ${getTodayThaiFullDate(point.reportDate)} · จุดที่ ${getDutyPointDisplayNumber(point)}: ${escapeHtml(point.name)} (${point.time} น.)</option>`).join('')}`
         : '<option value="">-- ครูท่านนี้รายงานครบแล้ว --</option>';
     }
 
@@ -7147,13 +7251,15 @@
       }
 
       const teacherId = document.getElementById('on-behalf-teacher')?.value;
-      const pointId = Number(document.getElementById('on-behalf-point')?.value);
+      const pointValue = document.getElementById('on-behalf-point')?.value || '';
+      const [selectedDateStr, selectedPointId] = pointValue.includes('|') ? pointValue.split('|') : ['', pointValue];
+      const pointId = Number(selectedPointId);
       const status = document.getElementById('on-behalf-status')?.value || 'reported';
       const result = document.getElementById('on-behalf-result')?.value.trim() || '';
       const problem = document.getElementById('on-behalf-problem')?.value.trim() || '';
       const solution = document.getElementById('on-behalf-solution')?.value.trim() || '';
       const reason = document.getElementById('on-behalf-reason')?.value.trim() || '';
-      const dateStr = getTodayISODate();
+      const dateStr = selectedDateStr;
 
       if (!teacherId || !pointId || !result || !reason || (status === 'problem' && !problem)) {
         showToast('กรุณากรอกข้อมูลรายงานแทนให้ครบถ้วน', 'error');
@@ -7164,9 +7270,9 @@
         return;
       }
 
-      const point = getOnBehalfAvailablePoints(teacherId, dateStr).find(item => Number(item.id) === pointId);
+      const point = getOnBehalfAvailablePointEntries(teacherId).find(item => item.reportDate === dateStr && Number(item.id) === pointId);
       if (!point) {
-        showToast('ไม่พบจุดเวรนี้ หรือมีรายงานอยู่แล้ว กรุณาดึงข้อมูลล่าสุด', 'warning');
+        showToast('ไม่พบจุดเวรนี้ ไม่อยู่ในสิทธิ์ของท่าน หรือมีรายงานอยู่แล้ว กรุณาดึงข้อมูลล่าสุด', 'warning');
         return;
       }
 
@@ -7180,7 +7286,7 @@
       const now = new Date();
       const nowMin = now.getHours() * 60 + now.getMinutes();
       const timing = getReportTimingDecision(point, nowMin);
-      if (timing.status === 'too_early') {
+      if (dateStr === getTodayISODate() && timing.status === 'too_early') {
         showToast(`ยังไม่ถึงช่วงเวลารายงานของจุดนี้ (${timing.windowDisplay} น.)`, 'error');
         return;
       }
@@ -7194,7 +7300,7 @@
       }
 
       try {
-        const isLate = !!timing.isLate;
+        const isLate = false;
         const timeNow = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
         const report = {
           id: buildDutyReportId(dateStr, pointId, teacherId),
