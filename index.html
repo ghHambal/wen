@@ -162,7 +162,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.4</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.5</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
           </div>
@@ -253,7 +253,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.4</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.5</div>
           </div>
         </aside>
 
@@ -346,7 +346,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.34.4</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.34.5</div>
         </div>
       </aside>
 
@@ -806,7 +806,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.34.4';
+    const APP_VERSION = '1.34.5';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -2521,6 +2521,7 @@
       const todayDateStr = getTodayISODate();
       let dashboardContexts = [{ day: getTodayThaiDayName(), dateStr: todayDateStr, groups: null }];
       let reports = db.getReports().filter(r => r.date === todayDateStr);
+      const getMissingDashboardStatus = (point, dateStr) => isDutyPointOverdueForDashboard(point, dateStr) ? 'not_reported_missed' : 'not_reported_upcoming';
 
       // หน้า "รายงานเวรวันนี้": หัวหน้าเวรทั่วไปเห็นเฉพาะชุดเวรของตนเองตลอดรอบสัปดาห์ของวันเวรนั้น
       // หัวหน้างานเวร (isOpsHead) เห็นภาพรวมทุกจุดทั้งชาย+หญิง ไม่ถูกกรองตามวัน/กลุ่ม
@@ -2560,7 +2561,7 @@
           return assignedToday.map(item => {
             const teacherId = getAssignedEntryTeacherId(item);
             const rep = reports.find(r => r.date === ctx.dateStr && String(r.pointId) === String(p.id) && String(r.teacherId) === String(teacherId));
-            const status = rep ? (isReportPendingLateApproval(rep) ? 'pending' : rep.status) : 'not_reported';
+            const status = rep ? (isReportPendingLateApproval(rep) ? 'pending' : rep.status) : getMissingDashboardStatus(p, ctx.dateStr);
             return { point: p, teacherId, rep, status, dateStr: ctx.dateStr, dutyDay: ctx.day, cycleEndDate: ctx.endISO };
           });
         });
@@ -2578,7 +2579,8 @@
       let reportedCount = 0;
       let problemCount = 0;
       let leaveCount = 0;
-      let notReportedCount = 0;
+      let missedReportCount = 0;
+      let upcomingReportCount = 0;
       let exemptedPointsCount = 0;
       let inactivePointsCount = 0;
 
@@ -2604,8 +2606,10 @@
           const isExempted = !!getExemptionForDate(sample.dateStr, sample.point.dutyGroup || 'ครูชาย', sample.point.id);
           if (isExempted) {
             exemptedPointsCount++;
+          } else if (isDutyPointOverdueForDashboard(sample.point, sample.dateStr)) {
+            missedReportCount++;
           } else {
-            notReportedCount++;
+            upcomingReportCount++;
           }
         }
       });
@@ -2640,13 +2644,14 @@
           ` : ''}
 
           <!-- Stats Grid -->
-          <div class="grid grid-cols-2 lg:grid-cols-6 gap-3">
+          <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
             ${statCard('จุดเวรทั้งหมด', totalPoints, 'map-pin', 'bg-blue-50 text-blue-700 border-blue-100', 'all')}
             ${statCard('รายงานแล้ว', reportedCount, 'check-circle', 'bg-green-50 text-green-700 border-green-100', 'reported')}
             ${statCard('พบปัญหา', problemCount, 'alert-triangle', 'bg-red-50 text-red-700 border-red-100', 'problem')}
             ${statCard('ลา', leaveCount, 'palm-tree', 'bg-slate-100 text-slate-700 border-slate-200', 'leave')}
-            ${statCard('ยังไม่รายงาน', notReportedCount, 'x-circle', 'bg-amber-50 text-amber-700 border-amber-100', 'not_reported')}
-            <div class="col-span-2 lg:col-span-1 bg-gradient-to-br from-brand-900 to-brand-800 text-white rounded-xl p-4 shadow-sm flex flex-col justify-between">
+            ${statCard('ไม่ได้รายงาน (เลยเวลา)', missedReportCount, 'x-circle', 'bg-red-50 text-red-700 border-red-100', 'not_reported_missed')}
+            ${statCard('ยังไม่ถึงเวลา', upcomingReportCount, 'clock', 'bg-amber-50 text-amber-700 border-amber-100', 'not_reported_upcoming')}
+            <div class="col-span-2 md:col-span-2 xl:col-span-1 bg-gradient-to-br from-brand-900 to-brand-800 text-white rounded-xl p-4 shadow-sm flex flex-col justify-between">
               <div>
                 <p class="text-[10px] text-brand-100">อัตราการรายงาน</p>
                 <p class="text-2xl font-black mt-1">${ratePercent}%</p>
@@ -2688,7 +2693,8 @@
                 <option value="problem">พบปัญหา</option>
                 <option value="pending">รออนุมัติรายงานสาย</option>
                 <option value="leave">🏖️ ลา</option>
-                <option value="not_reported">ยังไม่ได้รายงาน</option>
+                <option value="not_reported_missed">ไม่ได้รายงาน (เลยเวลา)</option>
+                <option value="not_reported_upcoming">ยังไม่ถึงเวลา/ยังไม่เลยเวลา</option>
               </select>
               <div class="flex gap-2">
                 <button onclick="exportToExcel()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-lg px-2 py-2 font-medium transition flex items-center justify-center gap-1">
@@ -2739,7 +2745,8 @@
                       else if (status === 'problem') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold animate-pulse">พบปัญหา!</span>';
                       else if (status === 'leave') badge = '<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">🏖️ ลา</span>';
                       else if (status === 'pending') badge = '<span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-bold">รออนุมัติ</span>';
-                      else badge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">ยังไม่ลงชื่อ</span>';
+                      else if (status === 'not_reported_missed') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold">ไม่ได้รายงาน</span>';
+                      else badge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">ยังไม่ถึงเวลา</span>';
 
                       return `
                         <tr class="hover:bg-slate-50 transition cursor-default dash-row" data-point-id="${p.id}" data-duty-group="${p.dutyGroup || 'ครูชาย'}" data-status="${status}" data-teacher-name="${getTeacherName(teacherId)}">
@@ -2796,7 +2803,8 @@
                   else if (status === 'problem') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-[10px] font-bold">พบปัญหา!</span>';
                   else if (status === 'leave') badge = '<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold">🏖️ ลา</span>';
                   else if (status === 'pending') badge = '<span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-[10px] font-bold">รออนุมัติ</span>';
-                  else badge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-bold">ยังไม่ส่งเวร</span>';
+                  else if (status === 'not_reported_missed') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-[10px] font-bold">ไม่ได้รายงาน</span>';
+                  else badge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-bold">ยังไม่ถึงเวลา</span>';
  
                   return `
                     <div class="bg-white border rounded-xl p-3 shadow-sm space-y-2 dash-row" data-point-id="${p.id}" data-duty-group="${p.dutyGroup || 'ครูชาย'}" data-status="${status}" data-teacher-name="${getTeacherName(teacherId)}">
@@ -2813,7 +2821,7 @@
                       </div>
                       <div class="border-t pt-1.5 flex justify-between items-center text-[10px]">
                         <span class="text-slate-700 truncate max-w-[150px]">
-                          ${rep ? (rep.status === 'problem' ? `🚨 ปัญหา: ${rep.problem}` : rep.result) : 'ยังไม่ส่งรายงาน'}
+                          ${rep ? (rep.status === 'problem' ? `🚨 ปัญหา: ${rep.problem}` : rep.result) : (status === 'not_reported_missed' ? 'เลยเวลาปฏิบัติเวรแล้วยังไม่รายงาน' : 'ยังไม่ถึงเวลา/ยังไม่เลยเวลารายงาน')}
                         </span>
                         <div class="flex items-center gap-1.5 flex-shrink-0">
                           ${rep && rep.isLate && canReviewLateReport(rep) ? `
@@ -3883,6 +3891,16 @@
           </div>
         </div>
       `;
+    }
+
+    function isDutyPointOverdueForDashboard(point, dateStr) {
+      const today = getTodayISODate();
+      if (dateStr < today) return true;
+      if (dateStr > today) return false;
+      const now = new Date();
+      const currentMin = now.getHours() * 60 + now.getMinutes();
+      const range = parseTimeRange(point?.reportWindow || point?.time || '');
+      return currentMin > range.endMin;
     }
 
     function filterDashboardByCard(status) {
