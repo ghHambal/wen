@@ -162,7 +162,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.3</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.4</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
           </div>
@@ -253,7 +253,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.3</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.4</div>
           </div>
         </aside>
 
@@ -346,7 +346,7 @@
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.34.3</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.34.4</div>
         </div>
       </aside>
 
@@ -806,7 +806,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.34.3';
+    const APP_VERSION = '1.34.4';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -3112,10 +3112,78 @@
       return db.getDutyPoints()
         .filter(p => groups.includes(p.dutyGroup || 'ครูชาย'))
         .filter(p => (p.assignedTo || p.assigned_to || []).some(item => isAssignedOnDay(item, dayName)))
+        .filter(p => isDutyPointPendingForExemption(p, dateStr))
+        .filter(p => isDutyPointCurrentOrUpcomingForExemption(p, dateStr))
         .sort((a, b) =>
           (a.dutyGroup || '').localeCompare(b.dutyGroup || '', 'th') ||
           getDutyPointDisplayNumber(a) - getDutyPointDisplayNumber(b)
         );
+    }
+
+    function isDutyPointPendingForExemption(point, dateStr) {
+      const assignedTeacherIds = getAssignedTeacherIdsForPoint(point, dateStr);
+      if (assignedTeacherIds.length === 0) return false;
+      const reports = db.getReports();
+      const allReported = assignedTeacherIds.every(teacherId =>
+        reports.some(report =>
+          report.date === dateStr &&
+          String(report.pointId) === String(point.id) &&
+          String(report.teacherId) === String(teacherId)
+        )
+      );
+      return !allReported && !getExemptionForDate(dateStr, point.dutyGroup || 'ครูชาย', point.id);
+    }
+
+    function isDutyPointCurrentOrUpcomingForExemption(point, dateStr) {
+      const today = getTodayISODate();
+      if (dateStr > today) return true;
+      if (dateStr < today) return false;
+      const now = new Date();
+      const currentMin = now.getHours() * 60 + now.getMinutes();
+      const range = parseTimeRange(point.reportWindow || point.time);
+      return currentMin <= range.endMin;
+    }
+
+    function renderExemptionPointCheckbox(point) {
+      return `
+        <label class="flex items-start gap-2 border rounded-lg p-2.5 hover:bg-sky-50 cursor-pointer bg-white">
+          <input type="checkbox" name="exemption-point" value="${point.id}" class="mt-0.5">
+          <span class="text-[11px] leading-snug">
+            <span class="font-bold text-slate-800">จุดที่ ${getDutyPointDisplayNumber(point)}</span>
+            <span class="text-slate-600">${escapeHtml(point.name)}</span>
+            <span class="block text-slate-400">${point.time} น. · ${point.dutyGroup || 'ครูชาย'}</span>
+          </span>
+        </label>
+      `;
+    }
+
+    function renderExemptionPointSelection(points, showGenderColumns) {
+      if (points.length === 0) {
+        return '<p class="text-slate-400 bg-slate-50 border rounded-lg p-3">ไม่มีจุดเวรที่ยังไม่รายงานหรือยังอยู่ในช่วงเวลาที่สามารถยกเว้นได้</p>';
+      }
+      if (showGenderColumns) {
+        const malePoints = points.filter(point => (point.dutyGroup || 'ครูชาย') === 'ครูชาย');
+        const femalePoints = points.filter(point => (point.dutyGroup || 'ครูชาย') === 'ครูหญิง');
+        return `
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            ${[
+              { title: 'เวรครูชาย', points: malePoints, tone: 'border-blue-100 bg-blue-50/40' },
+              { title: 'เวรครูหญิง', points: femalePoints, tone: 'border-pink-100 bg-pink-50/40' }
+            ].map(group => `
+              <div class="rounded-xl border ${group.tone} p-3 space-y-2">
+                <div class="font-bold text-slate-800 flex items-center justify-between">
+                  <span>${group.title}</span>
+                  <span class="text-[10px] text-slate-500">${group.points.length} จุด</span>
+                </div>
+                ${group.points.length === 0
+                  ? '<p class="text-[11px] text-slate-400 bg-white/70 border rounded-lg p-3 text-center">ไม่มีจุดที่ต้องยกเว้น</p>'
+                  : `<div class="space-y-2">${group.points.map(renderExemptionPointCheckbox).join('')}</div>`}
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+      return `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${points.map(renderExemptionPointCheckbox).join('')}</div>`;
     }
 
     function formatExemptionScope(exm) {
@@ -3160,28 +3228,19 @@
       groupSelect.innerHTML = groupOptions.map(option => `<option value="${option.value}">${option.label}</option>`).join('');
       if (groupOptions.some(option => option.value === previousGroup)) groupSelect.value = previousGroup;
 
-      const points = getDutyPointsForExemptionSelection(dateStr, groupSelect.value || null);
+      const selectedGroup = groupSelect.value || null;
+      const points = getDutyPointsForExemptionSelection(dateStr, selectedGroup);
+      const showGenderColumns = isAllOnBehalfScopeUser() && !selectedGroup && canAllGroups;
       if (scopeSelect.value === 'points') {
         pointsBox.classList.remove('hidden');
-        pointsBox.innerHTML = points.length === 0
-          ? '<p class="text-slate-400 bg-slate-50 border rounded-lg p-3">ไม่มีจุดเวรในวัน/กลุ่มที่เลือก</p>'
-          : `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${points.map(point => `
-              <label class="flex items-start gap-2 border rounded-lg p-2.5 hover:bg-sky-50 cursor-pointer">
-                <input type="checkbox" name="exemption-point" value="${point.id}" class="mt-0.5">
-                <span class="text-[11px] leading-snug">
-                  <span class="font-bold text-slate-800">จุดที่ ${getDutyPointDisplayNumber(point)}</span>
-                  <span class="text-slate-600">${escapeHtml(point.name)}</span>
-                  <span class="block text-slate-400">${point.time} น. · ${point.dutyGroup || 'ครูชาย'}</span>
-                </span>
-              </label>
-            `).join('')}</div>`;
+        pointsBox.innerHTML = renderExemptionPointSelection(points, showGenderColumns);
       } else {
         pointsBox.classList.add('hidden');
         pointsBox.innerHTML = '';
       }
       if (hint) {
         hint.textContent = scopeSelect.value === 'points'
-          ? 'เลือกเฉพาะจุดที่ต้องการยกเว้น หากไม่เลือกจุดใด ระบบจะไม่บันทึก'
+          ? 'แสดงเฉพาะจุดที่ยังรายงานไม่ครบ และถ้าเป็นวันนี้จะแสดงตั้งแต่จุดปัจจุบัน/ถัดไปเท่านั้น'
           : 'ยกเว้นทุกจุดในวัน/กลุ่มที่เลือก';
       }
     }
