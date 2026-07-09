@@ -185,7 +185,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.9</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.10</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login"
               class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌
@@ -299,7 +299,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.9
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.10
             </div>
           </div>
         </aside>
@@ -412,7 +412,7 @@
             <span>ออกจากระบบ</span>
           </button>
           <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน
-            1.34.9</div>
+            1.34.10</div>
         </div>
       </aside>
 
@@ -877,7 +877,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.34.9';
+    const APP_VERSION = '1.34.10';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1690,6 +1690,25 @@
 
     const DEFAULT_IKHLAS_CONFIRM_TEXT = 'ท่านขอยืนยันด้วยความสัตย์จริงต่อตนเองและอัลลอฮฺ (ซ.บ.) ว่า ผู้ร่วมปฏิบัติหน้าที่เวรที่เพิ่มเข้ามาในรายงานนี้ ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่าระยะเวลาขั้นต่ำที่ระบบกำหนดสำหรับจุดเวรนั้น ตามเงื่อนไขของระบบ';
 
+    const DEFAULT_REPORT_TEMPLATES = {
+      normal: ['นักเรียนปฏิบัติตนเรียบร้อยดี ไม่พบปัญหาหรือเหตุผิดปกติ', 'นักเรียนเดินทางมาโรงเรียนตามปกติ ไม่พบเหตุผิดปกติ', 'นักเรียนแต่งกายเรียบร้อย ปฏิบัติตามระเบียบโรงเรียน ไม่พบปัญหา', 'สถานการณ์เรียบร้อยดี ไม่มีนักเรียนกระทำผิดระเบียบ', 'บริเวณจุดเวรเรียบร้อยดี นักเรียนให้ความร่วมมือดี ไม่พบเหตุผิดปกติ'],
+      problem: ['นักเรียนทะเลาะวิวาทกัน', 'พบนักเรียนแต่งกายผิดระเบียบ', 'พบสิ่งของต้องสงสัย/สิ่งผิดกฎหมาย', 'นักเรียนหนีเรียน/ออกนอกบริเวณโดยไม่ได้รับอนุญาต', 'เกิดอุบัติเหตุ/นักเรียนได้รับบาดเจ็บ', 'อุปกรณ์สาธารณูปโภคชำรุด/เสียหาย', 'พบบุคคลภายนอกที่น่าสงสัยเข้ามาในบริเวณโรงเรียน'],
+      solution: ['แจ้งฝ่ายปกครองทันทีเพื่อดำเนินการ', 'นำผู้เกี่ยวข้องเข้าพบครูที่ปรึกษาและฝ่ายปกครอง', 'บันทึกสถานการณ์และรายงานครูเวรหัวหน้า', 'แจ้งซ่อมบำรุงผ่านช่องทางที่กำหนด', 'ห้ามการกระทำและแยกผู้ที่เกี่ยวข้องออกจากกัน', 'นำส่งห้องพยาบาล/ประสานผู้ปกครองทันที', 'เฝ้าระวังและประสานเจ้าหน้าที่รักษาความปลอดภัย']
+    };
+
+    function getReportTemplates() {
+      try {
+        const stored = localStorage.getItem('wen_report_templates');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          return { normal: Array.isArray(parsed.normal) ? parsed.normal : DEFAULT_REPORT_TEMPLATES.normal, problem: Array.isArray(parsed.problem) ? parsed.problem : DEFAULT_REPORT_TEMPLATES.problem, solution: Array.isArray(parsed.solution) ? parsed.solution : DEFAULT_REPORT_TEMPLATES.solution };
+        }
+      } catch (e) {}
+      return { normal: [...DEFAULT_REPORT_TEMPLATES.normal], problem: [...DEFAULT_REPORT_TEMPLATES.problem], solution: [...DEFAULT_REPORT_TEMPLATES.solution] };
+    }
+
+    function saveReportTemplates(templates) { localStorage.setItem('wen_report_templates', JSON.stringify(templates)); }
+
     const adminMenus = [
       { id: 'dashboard', icon: 'layout-dashboard', label: 'Dashboard' },
       { id: 'executive-overview', icon: 'award', label: 'ภาพรวมผู้บริหาร' },
@@ -1708,6 +1727,13 @@
     const teacherMenus = [
       { id: 'my-duty', icon: 'clipboard-check', label: 'จุดเวรของฉัน' },
       { id: 'my-history', icon: 'history', label: 'ประวัติการรายงาน' },
+      { id: 'profile-settings', icon: 'user-cog', label: 'ข้อมูลส่วนตัว' },
+    ];
+
+    const directorMenus = [
+      { id: 'executive-overview', icon: 'award', label: 'ภาพรวมผู้บริหาร' },
+      { id: 'today-report', icon: 'clipboard-list', label: 'รายงานเวรวันนี้' },
+      { id: 'schedule', icon: 'calendar', label: 'ตารางเวร' },
       { id: 'profile-settings', icon: 'user-cog', label: 'ข้อมูลส่วนตัว' },
     ];
 
@@ -2060,7 +2086,11 @@
         }
 
         currentUser = matched;
-        activeRoleMode = isUserAdminOrHead() ? 'head' : 'teacher';
+        if (currentUser.role === 'director') {
+          activeRoleMode = 'director';
+        } else {
+          activeRoleMode = isUserAdminOrHead() ? 'head' : 'teacher';
+        }
         await ensureCurrentUserHeavyProfile();
 
         localStorage.setItem('wen_saved_account', JSON.stringify({
@@ -2076,7 +2106,7 @@
 
         buildSidebar();
         updateDynamicTitles();
-        navigateTo(activeRoleMode === 'head' ? 'dashboard' : 'my-duty');
+        navigateTo(activeRoleMode === 'director' ? 'executive-overview' : activeRoleMode === 'head' ? 'dashboard' : 'my-duty');
         showToast(`เข้าสู่ระบบสำเร็จ! สวัสดีครับ ${currentUser.name}`, 'success');
 
         // ตรวจสอบความจำเป็นในการดาวน์โหลดฐานข้อมูลออฟไลน์ครั้งแรก
@@ -2237,7 +2267,14 @@
     }
 
     function buildSidebar() {
-      let menus = activeRoleMode === 'head' ? adminMenus : teacherMenus;
+      let menus;
+      if (activeRoleMode === 'director') {
+        menus = directorMenus;
+      } else if (activeRoleMode === 'head') {
+        menus = adminMenus;
+      } else {
+        menus = teacherMenus;
+      }
 
       // จำกัดเมนูของหัวหน้าเวร (ที่ไม่ใช่แอดมิน) ตามสิทธิ์ที่กำหนดไว้ในหน้าตั้งค่าระบบ
       // หัวหน้างานเวร (isOpsHead) ได้รับเมนู duty-points เพิ่มเติมเสมอ เพื่อตั้งช่วงเวลาแต่ละจุด
@@ -2259,7 +2296,8 @@
       const pendingApprovalsCount = canAccessDutyHeadApprovals() ? getPendingDutyApprovalsCount() : 0;
 
       let html = '';
-      if (isUserAdminOrHead()) {
+      // แสดงปุ่มสลับโหมดเฉพาะ admin/head (ไม่แสดงให้ director หรือ teacher ทั่วไป)
+      if (isUserAdminOrHead() && activeRoleMode !== 'director') {
         html += `
           <!-- Role Switcher Panel -->
           <div class="px-3 py-2 border-b border-white/10 mb-3 bg-brand-950/20 rounded-lg no-print">
@@ -2548,6 +2586,64 @@
       } catch (err) {
         showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
       }
+    }
+
+    function openExecutiveProblemModal() {
+      const modal = document.getElementById('exec-problem-reports-modal');
+      if (!modal) return;
+
+      const settings = db.getSettings();
+      const reports = db.getReports();
+      const selectedWeeks = getExecutiveSelectedWeeks(settings);
+      const selectedWeekSet = new Set(selectedWeeks);
+
+      // filter only real problem reports (exclude exec comment rows)
+      const problemReports = reports.filter(r =>
+        r.status === 'problem' &&
+        r.teacherId !== 'executive_daily_comment' &&
+        r.teacherId !== 'executive_point_comment' &&
+        isReportCountableForScoring(r) &&
+        isReportInSelectedWeeks(r, selectedWeekSet, settings) &&
+        (currentExecutiveGroupFilter === 'all' || getTeacherGender(db.getTeachers().find(t => t.id === r.teacherId)) === (currentExecutiveGroupFilter === 'ชาย' ? 'ชาย' : 'หญิง'))
+      ).sort((a, b) => b.date.localeCompare(a.date));
+
+      const rows = problemReports.length === 0
+        ? `<p class="text-center text-slate-400 py-8">ไม่พบรายการแจ้งปัญหาในช่วงเวลาที่เลือก</p>`
+        : problemReports.map(r => {
+          const point = db.getDutyPoints().find(p => p.id === r.pointId || String(p.id) === String(r.pointId));
+          const thaiDate = getTodayThaiFullDate ? getTodayThaiFullDate(r.date) : r.date;
+          return `
+            <div class="border rounded-xl p-3.5 space-y-2 bg-white hover:bg-red-50/50 transition">
+              <div class="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p class="font-bold text-slate-800">${getTeacherName(r.teacherId)}</p>
+                  <p class="text-[10px] text-slate-400">${point ? `จุดที่ ${getDutyPointDisplayNumber(point)}: ${point.name}` : `จุด #${r.pointId}`} • ${thaiDate} เวลา ${r.time} น.</p>
+                </div>
+                <span class="bg-red-100 text-red-700 font-bold text-[10px] px-2 py-0.5 rounded-full">⚠️ พบปัญหา</span>
+              </div>
+              ${r.problem ? `
+                <div class="bg-red-50 border border-red-100 rounded-lg p-2.5">
+                  <p class="text-[10px] font-bold text-red-800 mb-0.5">ปัญหาที่พบ:</p>
+                  <p class="text-[11px] text-red-700">${escapeHtml(r.problem)}</p>
+                </div>` : ''}
+              ${r.solution ? `
+                <div class="bg-brand-50 border border-brand-100 rounded-lg p-2.5">
+                  <p class="text-[10px] font-bold text-brand-800 mb-0.5">แนวทางดำเนินการแก้ไข:</p>
+                  <p class="text-[11px] text-brand-700">${escapeHtml(r.solution)}</p>
+                </div>` : ''}
+              ${r.result ? `<p class="text-[10px] text-slate-500 italic">${escapeHtml(r.result)}</p>` : ''}
+            </div>
+          `;
+        }).join('');
+
+      document.getElementById('exec-problem-reports-list').innerHTML = rows;
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeExecutiveProblemModal() {
+      const modal = document.getElementById('exec-problem-reports-modal');
+      if (modal) modal.classList.add('hidden');
     }
 
     function renderQuickLogin() {
@@ -4102,10 +4198,10 @@
               <h4 class="text-xl font-black text-slate-900 mt-1">${punctualityRate}%</h4>
               <p class="text-[9px] text-slate-400 mt-0.5">มาสาย ${totalLates} ครั้ง</p>
             </div>
-            <div class="bg-white border rounded-xl p-4 shadow-sm">
-              <p class="text-[10px] text-slate-500 font-bold">แจ้งพบจุดเสี่ยง/ปัญหา</p>
-              <h4 class="text-xl font-black text-slate-900 mt-1">${problemsCount} ครั้ง</h4>
-              <p class="text-[9px] text-slate-400 mt-0.5">ตามช่วงข้อมูลที่เลือก</p>
+            <div class="bg-white border rounded-xl p-4 shadow-sm ${problemsCount > 0 ? 'cursor-pointer hover:bg-red-50 hover:border-red-200 transition' : ''}" ${problemsCount > 0 ? `onclick="openExecutiveProblemModal()"` : ''}>
+              <p class="text-[10px] text-slate-500 font-bold flex items-center gap-1">แจ้งพบจุดเสี่ยง/ปัญหา ${problemsCount > 0 ? '<i data-lucide="external-link" class="w-3 h-3 text-red-400"></i>' : ''}</p>
+              <h4 class="text-xl font-black ${problemsCount > 0 ? 'text-red-600' : 'text-slate-900'} mt-1">${problemsCount} ครั้ง</h4>
+              <p class="text-[9px] text-slate-400 mt-0.5">${problemsCount > 0 ? 'คลิกเพื่อดูรายละเอียด' : 'ตามช่วงข้อมูลที่เลือก'}</p>
             </div>
             <div class="bg-gradient-to-br from-brand-900 to-brand-850 text-white rounded-xl p-4 shadow-sm">
               <p class="text-[10px] text-brand-200 font-bold">ผู้นำคะแนนสูงสุด</p>
@@ -6518,6 +6614,46 @@
               </button>
             </div>
           </div>
+
+          <!-- จัดการกลุ่มข้อความตัวอย่างการรายงาน -->
+          <div class="bg-white border rounded-xl shadow-sm p-6 space-y-5" id="sett-report-templates-section">
+            <h3 class="text-sm font-bold text-slate-800 border-b pb-3 flex items-center gap-1.5">
+              <i data-lucide="list-checks" class="w-4 h-4 text-brand-700"></i> จัดการกลุ่มข้อความตัวอย่างการรายงาน
+            </h3>
+            <p class="text-[10px] text-slate-500 -mt-2">ข้อความเหล่านี้จะปรากฏเป็นปุ่มให้ครูเวรคลิกเลือกเมื่อกรอกฟอร์มรายงาน ทั้ง 3 กลุ่ม เก็บในเครื่องนี้ครับ</p>
+            ${['normal', 'problem', 'solution'].map(type => {
+              const labels = { normal: { title: 'ผลการปฏิบัติงานปกติ', color: 'brand', icon: 'check-circle' }, problem: { title: 'ปัญหาที่พบ', color: 'red', icon: 'alert-triangle' }, solution: { title: 'แนวทางดำเนินการแก้ไข', color: 'green', icon: 'lightbulb' } };
+              const { title, color, icon } = labels[type];
+              const templates = getReportTemplates();
+              return `
+                <div class="border rounded-xl p-4 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <h4 class="font-bold text-slate-700 flex items-center gap-1.5 text-xs">
+                      <i data-lucide="${icon}" class="w-3.5 h-3.5 text-${color}-600"></i> ${title}
+                    </h4>
+                    <button type="button" onclick="addReportTemplate('${type}')" class="text-[10px] bg-${color}-50 hover:bg-${color}-100 border border-${color}-200 text-${color}-700 font-bold px-2.5 py-1 rounded-lg flex items-center gap-1">
+                      <i data-lucide="plus" class="w-3 h-3"></i> เพิ่มข้อความ
+                    </button>
+                  </div>
+                  <div id="sett-templates-${type}" class="space-y-2">
+                    ${templates[type].map((t, i) => `
+                      <div class="flex items-center gap-2 group" id="tmpl-row-${type}-${i}">
+                        <input type="text" value="${escapeHtml(t)}" onchange="updateReportTemplate('${type}', ${i}, this.value)" class="flex-1 border rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-brand-400 text-[11px] text-slate-700">
+                        <button type="button" onclick="deleteReportTemplate('${type}', ${i})" class="text-slate-300 hover:text-red-500 transition flex-shrink-0">
+                          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+            <div class="flex justify-end">
+              <button type="button" onclick="resetReportTemplatesToDefault()" class="text-[10px] text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition font-bold flex items-center gap-1">
+                <i data-lucide="rotate-ccw" class="w-3 h-3"></i> รีเซ็ตเป็นค่าเริ่มต้น
+              </button>
+            </div>
+          </div>
         </div>
       `;
     }
@@ -6937,6 +7073,21 @@
           `}
         </div>
 
+        <!-- EXECUTIVE PROBLEM REPORTS MODAL -->
+        <div id="exec-problem-reports-modal" class="fixed inset-0 bg-black/75 z-[10000] hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden border flex flex-col fade-in max-h-[90vh]">
+            <div class="bg-red-700 text-white p-4 flex justify-between items-center flex-shrink-0">
+              <div>
+                <h3 class="font-bold text-xs">รายการแจ้งพบจุดเสี่ยง / ปัญหา</h3>
+                <p class="text-red-200 text-[10px] mt-0.5">รายละเอียดและแนวทางการแก้ไขของครูเวร</p>
+              </div>
+              <button onclick="closeExecutiveProblemModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div id="exec-problem-reports-list" class="p-4 space-y-3 overflow-y-auto text-xs flex-1">
+            </div>
+          </div>
+        </div>
+
         <!-- EXECUTIVE POINT MAP MODAL -->
         <div id="exec-point-map-modal" class="fixed inset-0 bg-black/75 z-[10000] hidden flex items-center justify-center p-4">
           <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border flex flex-col fade-in">
@@ -7085,11 +7236,7 @@
                 <textarea id="rep-result-text" rows="3" required placeholder="ระบุการปฏิบัติหน้าที่เวรเบื้องต้น..." class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 leading-relaxed"></textarea>
                 <div class="mt-2 flex flex-wrap gap-1.5" id="rep-result-suggestions">
                   <span class="text-[10px] text-slate-400 font-bold w-full">ตัวอย่างข้อความ (คลิกเพื่อเลือก):</span>
-                  <button type="button" onclick="setReportSuggestion('นักเรียนปฏิบัติตนเรียบร้อยดี ไม่พบปัญหาหรือเหตุผิดปกติ')" class="text-[10px] bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-800 rounded-full px-2.5 py-1 font-medium transition">นักเรียนปฏิบัติตนเรียบร้อยดี ไม่พบปัญหา</button>
-                  <button type="button" onclick="setReportSuggestion('นักเรียนเดินทางมาโรงเรียนตามปกติ ไม่พบเหตุผิดปกติ')" class="text-[10px] bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-800 rounded-full px-2.5 py-1 font-medium transition">นักเรียนเดินทางมาโรงเรียนตามปกติ</button>
-                  <button type="button" onclick="setReportSuggestion('นักเรียนแต่งกายเรียบร้อย ปฏิบัติตามระเบียบโรงเรียน ไม่พบปัญหา')" class="text-[10px] bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-800 rounded-full px-2.5 py-1 font-medium transition">นักเรียนแต่งกายเรียบร้อย ปฏิบัติตามระเบียบ</button>
-                  <button type="button" onclick="setReportSuggestion('สถานการณ์เรียบร้อยดี ไม่มีนักเรียนกระทำผิดระเบียบ')" class="text-[10px] bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-800 rounded-full px-2.5 py-1 font-medium transition">สถานการณ์เรียบร้อยดี ไม่มีผิดระเบียบ</button>
-                  <button type="button" onclick="setReportSuggestion('บริเวณจุดเวรเรียบร้อยดี นักเรียนให้ความร่วมมือดี ไม่พบเหตุผิดปกติ')" class="text-[10px] bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-800 rounded-full px-2.5 py-1 font-medium transition">บริเวณจุดเวรเรียบร้อย นักเรียนให้ความร่วมมือดี</button>
+                  ${getReportTemplates().normal.map(t => `<button type="button" onclick="setReportSuggestion('${t.replace(/'/g, "\\'")}')" class="text-[10px] bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-800 rounded-full px-2.5 py-1 font-medium transition">${escapeHtml(t.length > 30 ? t.substring(0, 30) + '…' : t)}</button>`).join('')}
                 </div>
               </div>
 
@@ -7098,10 +7245,18 @@
                 <div>
                   <label class="block text-red-800 font-bold mb-1">ปัญหาที่พบ:</label>
                   <input type="text" id="rep-problem-text" placeholder="เช่น ก๊อกน้ำอ่างล้างมือนักเรียนชำรุดน้ำไหลท่วม" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-red-500 text-slate-750 font-medium">
+                  <div class="mt-2 flex flex-wrap gap-1.5">
+                    <span class="text-[10px] text-red-600 font-bold w-full">ตัวอย่างปัญหา (คลิกเพื่อเลือก):</span>
+                    ${getReportTemplates().problem.map(t => `<button type="button" onclick="setProblemSuggestion('${t.replace(/'/g, "\\'")}')" class="text-[10px] bg-red-100 hover:bg-red-200 border border-red-200 text-red-800 rounded-full px-2.5 py-1 font-medium transition">${escapeHtml(t.length > 28 ? t.substring(0, 28) + '…' : t)}</button>`).join('')}
+                  </div>
                 </div>
                 <div>
                   <label class="block text-brand-900 font-bold mb-1">แนวทางดำเนินการแก้ไขเบื้องต้น:</label>
                   <input type="text" id="rep-solution-text" placeholder="เช่น หมุนปิดประตูน้ำหลักและนำใบช่างส่งแจ้งเพื่อซ่อมบำรุง" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-750 font-medium">
+                  <div class="mt-2 flex flex-wrap gap-1.5">
+                    <span class="text-[10px] text-brand-700 font-bold w-full">ตัวอย่างแนวทางแก้ไข (คลิกเพื่อเลือก):</span>
+                    ${getReportTemplates().solution.map(t => `<button type="button" onclick="setSolutionSuggestion('${t.replace(/'/g, "\\'")}')" class="text-[10px] bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-800 rounded-full px-2.5 py-1 font-medium transition">${escapeHtml(t.length > 28 ? t.substring(0, 28) + '…' : t)}</button>`).join('')}
+                  </div>
                 </div>
               </div>
 
@@ -10483,6 +10638,85 @@
       }
     }
 
+    function renderSettingsTemplatesOnly() {
+      const parent = document.getElementById('sett-report-templates-section');
+      if (!parent) return;
+
+      const html = `
+        <h3 class="text-sm font-bold text-slate-800 border-b pb-3 flex items-center gap-1.5">
+          <i data-lucide="list-checks" class="w-4 h-4 text-brand-700"></i> จัดการกลุ่มข้อความตัวอย่างการรายงาน
+        </h3>
+        <p class="text-[10px] text-slate-500 -mt-2">ข้อความเหล่านี้จะปรากฏเป็นปุ่มให้ครูเวรคลิกเลือกเมื่อกรอกฟอร์มรายงาน ทั้ง 3 กลุ่ม เก็บในเครื่องนี้ครับ</p>
+        ${['normal', 'problem', 'solution'].map(type => {
+          const labels = { normal: { title: 'ผลการปฏิบัติงานปกติ', color: 'brand', icon: 'check-circle' }, problem: { title: 'ปัญหาที่พบ', color: 'red', icon: 'alert-triangle' }, solution: { title: 'แนวทางดำเนินการแก้ไข', color: 'green', icon: 'lightbulb' } };
+          const { title, color, icon } = labels[type];
+          const templates = getReportTemplates();
+          return `
+            <div class="border rounded-xl p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="font-bold text-slate-700 flex items-center gap-1.5 text-xs">
+                  <i data-lucide="${icon}" class="w-3.5 h-3.5 text-${color}-600"></i> ${title}
+                </h4>
+                <button type="button" onclick="addReportTemplate('${type}')" class="text-[10px] bg-${color}-50 hover:bg-${color}-100 border border-${color}-200 text-${color}-700 font-bold px-2.5 py-1 rounded-lg flex items-center gap-1">
+                  <i data-lucide="plus" class="w-3 h-3"></i> เพิ่มข้อความ
+                </button>
+              </div>
+              <div id="sett-templates-${type}" class="space-y-2">
+                ${templates[type].map((t, i) => `
+                  <div class="flex items-center gap-2 group" id="tmpl-row-${type}-${i}">
+                    <input type="text" value="${escapeHtml(t)}" onchange="updateReportTemplate('${type}', ${i}, this.value)" class="flex-1 border rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-brand-400 text-[11px] text-slate-700">
+                    <button type="button" onclick="deleteReportTemplate('${type}', ${i})" class="text-slate-300 hover:text-red-500 transition flex-shrink-0">
+                      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }).join('')}
+        <div class="flex justify-end">
+          <button type="button" onclick="resetReportTemplatesToDefault()" class="text-[10px] text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition font-bold flex items-center gap-1">
+            <i data-lucide="rotate-ccw" class="w-3 h-3"></i> รีเซ็ตเป็นค่าเริ่มต้น
+          </button>
+        </div>
+      `;
+      parent.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    function addReportTemplate(type) {
+      const templates = getReportTemplates();
+      const placeholders = {
+        normal: 'ตัวอย่างรายงานปกติใหม่',
+        problem: 'ตัวอย่างประเด็นปัญหาใหม่',
+        solution: 'ตัวอย่างแนวทางการแก้ไขปัญหาใหม่'
+      };
+      templates[type].push(placeholders[type]);
+      saveReportTemplates(templates);
+      renderSettingsTemplatesOnly();
+    }
+
+    function updateReportTemplate(type, index, value) {
+      const templates = getReportTemplates();
+      templates[type][index] = value.trim();
+      saveReportTemplates(templates);
+    }
+
+    function deleteReportTemplate(type, index) {
+      const templates = getReportTemplates();
+      templates[type].splice(index, 1);
+      saveReportTemplates(templates);
+      renderSettingsTemplatesOnly();
+    }
+
+    function resetReportTemplatesToDefault() {
+      if (confirm('คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตกลุ่มข้อความตัวอย่างทั้งหมดกลับเป็นค่าเริ่มต้นจากระบบ?')) {
+        localStorage.removeItem('wen_report_templates');
+        renderSettingsTemplatesOnly();
+        showToast('รีเซ็ตกลุ่มข้อความตัวอย่างเป็นค่าเริ่มต้นแล้ว', 'success');
+      }
+    }
+
     async function resetAllPointsToSchoolCenter() {
       if (!confirm('คุณยืนยันที่จะรีเซ็ตพิกัดของจุดเวรทั้งหมด (จุดที่ 1-41) มายังจุดศูนย์กลางของโรงเรียนที่ตั้งค่าไว้หรือไม่? การดำเนินการนี้จะทดแทนพิกัดปัจจุบันทั้งหมดบนคลาวด์ด้วยพิกัดศูนย์กลางโรงเรียนทันที!')) {
         return;
@@ -11207,6 +11441,16 @@
     function setReportSuggestion(text) {
       const ta = document.getElementById('rep-result-text');
       if (ta) { ta.value = text; ta.focus(); }
+    }
+
+    function setProblemSuggestion(text) {
+      const inp = document.getElementById('rep-problem-text');
+      if (inp) { inp.value = text; inp.focus(); }
+    }
+
+    function setSolutionSuggestion(text) {
+      const inp = document.getElementById('rep-solution-text');
+      if (inp) { inp.value = text; inp.focus(); }
     }
 
     function previewReportPhoto(e) {
