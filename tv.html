@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบติดตามการปฏิบัติเวร Real-time (TV Monitor)</title>
+  
+  <!-- Google Fonts: Prompt & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Prompt:wght@300;400;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'Outfit', 'sans-serif'],
+            outfit: ['Outfit', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Supabase JS Client CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    body {
+      background: radial-gradient(circle at 50% 50%, #080c14 0%, #02040a 100%);
+      overflow: hidden;
+      font-size: 14px;
+    }
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.025);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.015);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-card:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.08);
+      transform: translateY(-2px);
+    }
+    /* Pulse Animations */
+    @keyframes pulse-green {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.4; }
+    }
+    .pulse-dot-green {
+      animation: pulse-green 2s infinite;
+    }
+    @keyframes pulse-cyan {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.4; }
+    }
+    .pulse-dot-cyan {
+      animation: pulse-cyan 2s infinite;
+    }
+    /* Transition styles */
+    .fade-transition {
+      transition: opacity 0.5s ease-in-out;
+    }
+    .carousel-item {
+      display: none;
+    }
+    .carousel-item.active {
+      display: grid;
+    }
+  </style>
+</head>
+<body class="text-white min-h-screen flex flex-col justify-between p-6">
+
+  <!-- TOP HEADER -->
+  <header class="glass-panel rounded-2xl p-4 flex justify-between items-center shadow-lg flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 shadow-inner">
+        <i data-lucide="shield" class="w-7 h-7 text-emerald-400"></i>
+      </div>
+      <div>
+        <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2" id="tv-school-title">
+          ระบบบันทึกและติดตามการปฏิบัติเวร
+        </h1>
+        <p class="text-xs text-slate-400 font-medium">จอแสดงผลสรุปสถานะการปฏิบัติงานของครูเวรประจำวัน Real-time</p>
+      </div>
+    </div>
+    
+    <!-- TIME AND DAY -->
+    <div class="flex items-center gap-6">
+      <div class="text-right">
+        <div class="text-base font-bold text-white" id="tv-thai-date">วันอังคารที่ 9 กรกฎาคม 2569</div>
+        <div class="text-[11px] text-emerald-400 font-semibold tracking-wider uppercase flex items-center justify-end gap-1.5 mt-0.5">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 pulse-dot-green"></span>
+          REAL-TIME MONITOR ACTIVE
+        </div>
+      </div>
+      <div class="h-10 w-px bg-white/10"></div>
+      <div class="text-2xl font-bold tracking-widest text-white font-outfit select-none" id="tv-clock">00:00:00</div>
+    </div>
+  </header>
+
+  <!-- METRICS STRIP -->
+  <section class="grid grid-cols-4 gap-4 my-4 flex-shrink-0">
+    <!-- Card 1: Check-in rate -->
+    <div class="glass-panel rounded-2xl p-4 flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400 tracking-wide uppercase">อัตราการเช็คอินวันนี้</p>
+        <h3 class="text-2xl font-bold mt-1 text-emerald-400 font-outfit" id="metric-checkin-rate">0%</h3>
+        <p class="text-[10px] text-slate-400 mt-1" id="metric-checkin-desc">เช็คอินสำเร็จ 0 จาก 0 จุดเวร</p>
+      </div>
+      <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+        <i data-lucide="check-circle" class="w-6 h-6 text-emerald-400"></i>
+      </div>
+    </div>
+
+    <!-- Card 2: Active teachers -->
+    <div class="glass-panel rounded-2xl p-4 flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400 tracking-wide uppercase">ครูเวรปฏิบัติหน้าที่</p>
+        <h3 class="text-2xl font-bold mt-1 text-cyan-400 font-outfit" id="metric-active-teachers">0 คน</h3>
+        <p class="text-[10px] text-slate-400 mt-1">ประจำตำแหน่งพร้อมดูแลนักเรียน</p>
+      </div>
+      <div class="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
+        <i data-lucide="users" class="w-6 h-6 text-cyan-400"></i>
+      </div>
+    </div>
+
+    <!-- Card 3: Excused leaves -->
+    <div class="glass-panel rounded-2xl p-4 flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400 tracking-wide uppercase">ครูแจ้งลากิจ/ลาป่วย</p>
+        <h3 class="text-2xl font-bold mt-1 text-sky-400 font-outfit" id="metric-leave-count">0 คน</h3>
+        <p class="text-[10px] text-slate-400 mt-1">ได้รับการอนุมัติการลาล่วงหน้า</p>
+      </div>
+      <div class="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center border border-sky-500/20">
+        <i data-lucide="plane-takeoff" class="w-6 h-6 text-sky-400"></i>
+      </div>
+    </div>
+
+    <!-- Card 4: Unreported / Missing -->
+    <div class="glass-panel rounded-2xl p-4 flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400 tracking-wide uppercase">ประเด็นปัญหาที่พบ</p>
+        <h3 class="text-2xl font-bold mt-1 text-rose-400 font-outfit" id="metric-problems-count">0 จุด</h3>
+        <p class="text-[10px] text-slate-400 mt-1" id="metric-problems-desc">รอเจ้าหน้าที่ตรวจสอบแก้ไข</p>
+      </div>
+      <div class="w-12 h-12 rounded-xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
+        <i data-lucide="alert-triangle" class="w-6 h-6 text-rose-400"></i>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN MONITOR AREA (GRID OR CAROUSEL) -->
+  <main class="flex-1 min-h-0 relative flex flex-col justify-center">
+    <div id="tv-no-data" class="hidden text-center p-8 space-y-4">
+      <div class="w-16 h-16 mx-auto bg-slate-800 text-slate-400 rounded-full flex items-center justify-center">
+        <i data-lucide="calendar" class="w-8 h-8"></i>
+      </div>
+      <h3 class="text-lg font-bold">ไม่มีการจัดสรรเวรปฏิบัติหน้าที่ในวันนี้</h3>
+      <p class="text-xs text-slate-400 max-w-sm mx-auto">ระบบไม่พบพิกัดจุดเวรหรือรายชื่อครูที่ได้รับมอบหมายประจำการในวันดังกล่าว</p>
+    </div>
+
+    <!-- Grid Container with Carousel Pages -->
+    <div id="tv-carousel-container" class="w-full h-full relative overflow-hidden">
+      <!-- Slides will be injected dynamically here -->
+    </div>
+  </main>
+
+  <!-- FOOTER DESCRIPTOR -->
+  <footer class="glass-panel rounded-2xl p-3 flex justify-between items-center text-[10px] text-slate-400 mt-4 flex-shrink-0">
+    <div class="flex items-center gap-4">
+      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> เช็คอินเรียบร้อย</span>
+      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> ปฏิบัติงานสาย</span>
+      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> เลยเวลาเช็คอิน/ขาดเวร</span>
+      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-500"></span> แจ้งลาล่วงหน้า</span>
+      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500"></span> ยกเว้นการปฏิบัติเวร</span>
+      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-600"></span> ยังไม่เริ่มปฏิบัติหน้าที่</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="tv-slide-indicator" class="font-bold">หน้า 0/0</span>
+      <button onclick="toggleFullscreen()" class="hover:text-white transition flex items-center gap-1 font-bold">
+        <i data-lucide="maximize" class="w-3.5 h-3.5"></i> Fullscreen
+      </button>
+    </div>
+  </footer>
+
+  <script>
+    // Configuration values (same as index.html for direct connection)
+    const supabaseUrl = 'https://zhjqkylesnhcotpkzoxr.supabase.co';
+    const supabaseKey = 'sb_publishable_3vZV2TYujjhEmQcpdSk_1A_-B3AJK0n';
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+    const THAI_DAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+
+    let state = {
+      settings: {},
+      teachers: [],
+      dutyPoints: [],
+      reports: [],
+      leaveRequests: [],
+      dutyExemptions: []
+    };
+
+    let activePageIndex = 0;
+    let carouselInterval = null;
+    let autoRefreshInterval = null;
+
+    // Parse URL params for testing/demos
+    const urlParams = new URLSearchParams(window.location.search);
+    const customDate = urlParams.get('date'); // e.g. "2026-07-09"
+    const customDay = urlParams.get('day');   // e.g. "อังคาร"
+
+    function getLocalDateStr() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const date = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${date}`;
+    }
+
+    function getTargetDateStr() {
+      return customDate || getLocalDateStr();
+    }
+
+    function getThaiDayName(dateStr) {
+      if (customDay) return customDay;
+      const d = new Date(dateStr + 'T00:00:00');
+      return THAI_DAYS[d.getDay()];
+    }
+
+    function parseTimeRange(timeStr) {
+      if (!timeStr) return { startMin: 0, endMin: 0 };
+      const parts = timeStr.split('-');
+      const startPart = parts[0] ? parts[0].trim() : "00:00";
+      const endPart = parts[1] ? parts[1].trim() : "23:59";
+      const parseMin = (t) => {
+        const [h, m] = t.split(':').map(Number);
+        return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m);
+      };
+      return {
+        startMin: parseMin(startPart),
+        endMin: parseMin(endPart)
+      };
+    }
+
+    function getTeacherGender(t) {
+      if (!t) return 'ชาย';
+      if (t.id === 'admin' || t.id === 'chief' || t.id === 'director' || t.id === '1087') return 'ชาย';
+      const name = t.name || '';
+      if (name.startsWith('นาย') || name.startsWith('MR.') || name.startsWith('Mr.') || name.startsWith('mr.') || name.startsWith('Kru') || name.startsWith('kru')) {
+        return 'ชาย';
+      }
+      return 'หญิง';
+    }
+
+    function getTeacherAvatarHtml(t, classes = "w-11 h-11 rounded-full object-cover shadow-md border border-white/10") {
+      if (t && t.avatar) {
+        return `<img src="${t.avatar}" class="${classes}" alt="${t.name}">`;
+      }
+      const gender = getTeacherGender(t);
+      if (gender === 'ชาย') {
+        return `<svg viewBox="0 0 100 100" class="${classes}" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); display: block;"><circle cx="50" cy="50" r="50" fill="none"/><path d="M50,25 C38,25 35,35 35,45 C35,55 40,62 50,62 C60,62 65,55 65,45 C65,35 62,25 50,25 Z" fill="#ffdbac"/><path d="M50,22 C57,22 63,25 64,30 C64,26 58,22 50,22 C42,22 36,26 36,30 C37,25 43,22 50,22 Z" fill="#2d3748"/><path d="M35,40 C33,35 35,26 50,24 C65,26 67,35 65,40 C63,33 58,29 50,29 C42,29 37,33 35,40 Z" fill="#1a202c"/><circle cx="44" cy="45" r="2.5" fill="#2d3748"/><circle cx="56" cy="45" r="2.5" fill="#2d3748"/><path d="M39,40 C42,39 46,41 46,41" stroke="#2d3748" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M61,40 C58,39 54,41 54,41" stroke="#2d3748" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M45,53 Q50,57 55,53" stroke="#e11d48" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M22,88 C22,75 32,68 50,68 C68,68 78,75 78,88" fill="#1e3a8a"/><path d="M42,68 L50,78 L58,68" fill="#ffdbac"/><path d="M42,68 L50,75 L42,78 Z" fill="#ffffff" opacity="0.8"/><path d="M58,68 L50,75 L58,78 Z" fill="#ffffff" opacity="0.8"/></svg>`;
+      } else {
+        return `<svg viewBox="0 0 100 100" class="${classes}" style="background: linear-gradient(135deg, #ec4899, #be185d); display: block;"><circle cx="50" cy="50" r="50" fill="none"/><path d="M30,50 C30,30 70,30 70,50 C70,75 30,75 30,50 Z" fill="#4a3728"/><path d="M50,28 C39,28 36,37 36,46 C36,55 41,61 50,61 C59,61 64,55 64,46 C64,37 61,28 50,28 Z" fill="#fbe5d6"/><circle cx="44" cy="45" r="2.2" fill="#2d3748"/><circle cx="56" cy="45" r="2.2" fill="#2d3748"/><path d="M41,43 Q44,41 46,43" stroke="#2d3748" stroke-width="1" stroke-linecap="round" fill="none"/><path d="M59,43 Q56,41 54,43" stroke="#2d3748" stroke-width="1" stroke-linecap="round" fill="none"/><path d="M46,52 Q50,56 54,52" stroke="#be185d" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M36,43 C35,32 40,25 50,25 C60,25 65,32 64,43 C62,35 57,32 50,32 C43,32 38,35 36,43 Z" fill="#5c4033"/><path d="M36,43 C33,52 32,65 33,75 C35,75 37,70 37,55 Z" fill="#5c4033"/><path d="M64,43 C67,52 68,65 67,75 C65,75 63,70 63,55 Z" fill="#5c4033"/><path d="M24,88 C24,76 33,70 50,70 C67,70 76,76 76,88" fill="#db2777"/><path d="M44,70 C44,75 56,75 56,70" stroke="#fbe5d6" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="50" cy="74" r="2" fill="#facc15"/></svg>`;
+      }
+    }
+
+    // Load data from Supabase
+    async function refreshData() {
+      try {
+        const targetDate = getTargetDateStr();
+        
+        // 1. Settings
+        const { data: settData } = await supabaseClient.from('settings').select('*').eq('id', 'config');
+        if (settData && settData[0]) {
+          state.settings = settData[0];
+          // Update School Name Title
+          document.getElementById('tv-school-title').textContent = state.settings.school_name || 'ระบบบันทึกและติดตามการปฏิบัติเวร';
+        }
+
+        // 2. Teachers
+        const { data: tData } = await supabaseClient.from('teachers').select('id, name, avatar, duty_day, duty_group');
+        if (tData) state.teachers = tData;
+
+        // 3. Duty Points
+        const { data: pData } = await supabaseClient.from('duty_points').select('*').order('id');
+        if (pData) state.dutyPoints = pData;
+
+        // 4. Reports
+        const { data: repData } = await supabaseClient.from('reports').select('*').eq('date', targetDate);
+        if (repData) state.reports = repData;
+
+        // 5. Leave Requests
+        const { data: leaveData } = await supabaseClient.from('leave_requests').select('*').eq('date', targetDate).eq('status', 'approved');
+        if (leaveData) state.leaveRequests = leaveData;
+
+        // 6. Exemptions
+        const { data: exempData } = await supabaseClient.from('duty_exemptions').select('*').eq('date', targetDate);
+        if (exempData) state.dutyExemptions = exempData;
+
+        // Render clock and dates
+        updateDateDisplay();
+        
+        // Build the TV Display HTML
+        renderDashboard();
+      } catch (err) {
+        console.error("Supabase load error:", err);
+      }
+    }
+
+    function updateDateDisplay() {
+      const targetDate = getTargetDateStr();
+      const d = new Date(targetDate + 'T00:00:00');
+      const formattedDate = d.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      document.getElementById('tv-thai-date').textContent = formattedDate;
+    }
+
+    // Live Ticking Digital Clock
+    function startClock() {
+      setInterval(() => {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('th-TH', { hour12: false });
+        document.getElementById('tv-clock').textContent = timeStr;
+      }, 1000);
+    }
+
+    function getDutyPointDisplayNumber(p) {
+      if (!p) return '';
+      const group = p.duty_group || 'ครูชาย';
+      const groupPoints = state.dutyPoints
+        .filter(gp => (gp.duty_group || 'ครูชาย') === group)
+        .sort((a, b) => a.id - b.id);
+      const index = groupPoints.findIndex(gp => gp.id === p.id);
+      return index >= 0 ? index + 1 : p.id;
+    }
+
+    // Main UI Builder
+    function renderDashboard() {
+      const targetDate = getTargetDateStr();
+      const viewDay = getThaiDayName(targetDate);
+      const isToday = (targetDate === getLocalDateStr());
+      
+      const now = new Date();
+      const currentMin = now.getHours() * 60 + now.getMinutes();
+
+      // Filter points where at least one teacher is assigned today
+      const activePoints = state.dutyPoints.filter(p => {
+        const assigned = p.assigned_to || [];
+        return assigned.some(entry => entry.split(':')[0] === viewDay);
+      });
+
+      if (activePoints.length === 0) {
+        document.getElementById('tv-no-data').classList.remove('hidden');
+        document.getElementById('tv-carousel-container').innerHTML = '';
+        updateMetrics(0, 0, 0, 0);
+        return;
+      }
+      document.getElementById('tv-no-data').classList.add('hidden');
+
+      // Process teachers and reports
+      let totalAssigns = 0;
+      let checkinCount = 0;
+      let leaveCount = 0;
+      let problemPointsCount = 0;
+
+      // Collect points list with status structure
+      const pointCardsData = activePoints.map(p => {
+        const assignedList = p.assigned_to || [];
+        const teachersInPoint = [];
+
+        assignedList.forEach(entry => {
+          const [day, tId] = entry.split(':');
+          if (day === viewDay) {
+            const teacher = state.teachers.find(t => t.id === tId);
+            if (teacher) {
+              totalAssigns++;
+              
+              // Find check-in report
+              const rep = state.reports.find(r => r.point_id === p.id && r.teacher_id === teacher.id);
+              // Find approved leave
+              const leave = state.leaveRequests.find(l => l.teacher_id === teacher.id && l.status === 'approved');
+              // Find exemption
+              const isExempted = state.dutyExemptions.some(e => 
+                e.duty_group === p.duty_group && 
+                (!e.point_ids || e.point_ids.includes(p.id))
+              );
+
+              let status = 'pending'; // pending, checked, late, leave, exempted, absent
+              let timeText = '';
+
+              if (rep) {
+                checkinCount++;
+                if (rep.is_late || rep.isLate) {
+                  status = 'late';
+                  timeText = `สาย ${rep.time || ''}`;
+                } else {
+                  status = 'checked';
+                  timeText = rep.time || '';
+                }
+                if (rep.status === 'problem') {
+                  problemPointsCount++;
+                }
+              } else if (leave) {
+                leaveCount++;
+                status = 'leave';
+                timeText = 'ลากิจ/ลาป่วย';
+              } else if (isExempted) {
+                status = 'exempted';
+                timeText = 'ยกเว้นปฏิบัติเวร';
+              } else {
+                // Determine if late / absent depending on time
+                const { startMin, endMin } = parseTimeRange(p.time);
+                if (isToday) {
+                  if (currentMin > endMin) {
+                    status = 'absent';
+                    timeText = 'ขาดเวร';
+                  } else if (currentMin >= startMin) {
+                    status = 'active';
+                    timeText = 'กำลังปฏิบัติงาน';
+                  } else {
+                    status = 'pending';
+                    timeText = 'ยังไม่ถึงเวลา';
+                  }
+                } else {
+                  // Past day without report is automatically absent
+                  status = 'absent';
+                  timeText = 'ขาดเวร';
+                }
+              }
+
+              teachersInPoint.push({
+                teacher,
+                status,
+                timeText
+              });
+            }
+          }
+        });
+
+        // Determine point general state (for color coding card borders/dots)
+        let pointStatus = 'pending';
+        if (teachersInPoint.some(t => t.status === 'checked')) pointStatus = 'checked';
+        else if (teachersInPoint.some(t => t.status === 'late')) pointStatus = 'late';
+        else if (teachersInPoint.some(t => t.status === 'active')) pointStatus = 'active';
+        else if (teachersInPoint.some(t => t.status === 'absent')) pointStatus = 'absent';
+        else if (teachersInPoint.some(t => t.status === 'leave')) pointStatus = 'leave';
+        else if (teachersInPoint.some(t => t.status === 'exempted')) pointStatus = 'exempted';
+
+        return {
+          point: p,
+          teachers: teachersInPoint,
+          pointStatus
+        };
+      });
+
+      // Update Top Metrics Strip
+      const rate = totalAssigns > 0 ? Math.round((checkinCount / totalAssigns) * 100) : 0;
+      updateMetrics(rate, checkinCount, totalAssigns, leaveCount, problemPointsCount);
+
+      // Create carousel slides (8 cards per slide)
+      const cardsPerSlide = 8;
+      const slidesCount = Math.ceil(pointCardsData.length / cardsPerSlide);
+      
+      // Keep active page index within bounds if points count changed
+      if (activePageIndex >= slidesCount) {
+        activePageIndex = 0;
+      }
+
+      let carouselHtml = '';
+
+      for (let i = 0; i < slidesCount; i++) {
+        const slideCards = pointCardsData.slice(i * cardsPerSlide, (i + 1) * cardsPerSlide);
+        const isActive = (i === activePageIndex);
+
+        carouselHtml += `
+          <div class="carousel-item w-full h-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 absolute inset-0 fade-transition ${isActive ? 'active' : ''}" id="slide-${i}">
+            ${slideCards.map(c => renderCardHtml(c)).join('')}
+          </div>
+        `;
+      }
+
+      document.getElementById('tv-carousel-container').innerHTML = carouselHtml;
+      document.getElementById('tv-slide-indicator').textContent = `หน้า ${activePageIndex + 1}/${slidesCount}`;
+
+      // Re-initialize Lucide Icons
+      lucide.createIcons();
+
+      // Start Auto Carousel loop
+      startCarouselTimer(slidesCount);
+    }
+
+    function renderCardHtml(cardData) {
+      const p = cardData.point;
+      const statusColors = {
+        checked: { border: 'border-emerald-500/30', bg: 'from-emerald-950/10 to-slate-950/80', dot: 'bg-emerald-500' },
+        late: { border: 'border-amber-500/30', bg: 'from-amber-950/10 to-slate-950/80', dot: 'bg-amber-500' },
+        active: { border: 'border-cyan-500/40', bg: 'from-cyan-950/10 to-slate-950/80', dot: 'bg-cyan-500 pulse-dot-cyan' },
+        absent: { border: 'border-rose-500/30', bg: 'from-rose-950/10 to-slate-950/80', dot: 'bg-rose-500' },
+        leave: { border: 'border-sky-500/30', bg: 'from-sky-950/10 to-slate-950/80', dot: 'bg-sky-500' },
+        exempted: { border: 'border-purple-500/30', bg: 'from-purple-950/10 to-slate-950/80', dot: 'bg-purple-500' },
+        pending: { border: 'border-slate-800', bg: 'from-slate-900/10 to-slate-950/80', dot: 'bg-slate-600' }
+      };
+
+      const c = statusColors[cardData.pointStatus] || statusColors.pending;
+      const dispNum = getDutyPointDisplayNumber(p);
+      const isFemale = p.duty_group === 'ครูหญิง';
+
+      return `
+        <div class="glass-card rounded-2xl p-4 flex flex-col justify-between border ${c.border} bg-gradient-to-br ${c.bg} shadow-md fade-in">
+          <!-- Point Head -->
+          <div class="space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${isFemale ? 'bg-pink-950/40 text-pink-400 border border-pink-500/20' : 'bg-blue-950/40 text-blue-400 border border-blue-500/20'}">
+                จุดที่ ${dispNum} (${isFemale ? 'หญิง' : 'ชาย'})
+              </span>
+              <div class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full ${c.dot}"></span>
+                <span class="text-[10px] text-slate-400 font-bold font-outfit uppercase">${p.time}</span>
+              </div>
+            </div>
+            <h4 class="font-bold text-sm text-white line-clamp-1 mt-1.5 flex items-center gap-1">
+              <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0"></i>
+              ${p.name}
+            </h4>
+          </div>
+
+          <!-- Teachers list in checkpoint -->
+          <div class="space-y-3 mt-4 flex-1 flex flex-col justify-center">
+            ${cardData.teachers.map(tData => {
+              const statusPills = {
+                checked: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+                late: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+                active: 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20',
+                absent: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
+                leave: 'bg-sky-500/10 text-sky-400 border border-sky-500/20',
+                exempted: 'bg-purple-500/10 text-purple-400 border border-purple-500/20',
+                pending: 'bg-slate-800/40 text-slate-400 border border-slate-700/30'
+              };
+
+              const pillStyle = statusPills[tData.status] || statusPills.pending;
+
+              return `
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-2.5">
+                    ${getTeacherAvatarHtml(tData.teacher)}
+                    <div>
+                      <div class="font-bold text-white text-xs">${tData.teacher.name}</div>
+                      <div class="text-[10px] text-slate-400">ครูเวรประจำตำแหน่ง</div>
+                    </div>
+                  </div>
+                  <span class="text-[9px] font-bold px-2.5 py-1 rounded-lg ${pillStyle} flex items-center gap-1">
+                    ${tData.status === 'checked' ? '<i data-lucide="check" class="w-3 h-3"></i>' : ''}
+                    ${tData.status === 'late' ? '<i data-lucide="clock" class="w-3 h-3"></i>' : ''}
+                    ${tData.status === 'absent' ? '<i data-lucide="x" class="w-3 h-3"></i>' : ''}
+                    ${tData.status === 'leave' ? '<i data-lucide="plane-takeoff" class="w-3 h-3"></i>' : ''}
+                    ${tData.timeText}
+                  </span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function updateMetrics(rate, checkins, total, leaves, problems) {
+      document.getElementById('metric-checkin-rate').textContent = `${rate}%`;
+      document.getElementById('metric-checkin-desc').textContent = `เช็คอินสำเร็จ ${checkins} จาก ${total} คน`;
+      document.getElementById('metric-active-teachers').textContent = `${checkins} คน`;
+      document.getElementById('metric-leave-count').textContent = `${leaves} คน`;
+      document.getElementById('metric-problems-count').textContent = `${problems} จุด`;
+      document.getElementById('metric-problems-desc').textContent = problems > 0 ? `พบรายงานชำรุด/เหตุผิดปกติ` : 'บริเวณสถานศึกษาเรียบร้อยดี';
+    }
+
+    function startCarouselTimer(slidesCount) {
+      if (carouselInterval) clearInterval(carouselInterval);
+      if (slidesCount <= 1) return;
+
+      carouselInterval = setInterval(() => {
+        // Fade out active slide
+        const currentSlide = document.getElementById(`slide-${activePageIndex}`);
+        if (currentSlide) currentSlide.classList.remove('active');
+
+        // Go to next slide
+        activePageIndex = (activePageIndex + 1) % slidesCount;
+
+        // Fade in next slide
+        const nextSlide = document.getElementById(`slide-${activePageIndex}`);
+        if (nextSlide) nextSlide.classList.add('active');
+
+        document.getElementById('tv-slide-indicator').textContent = `หน้า ${activePageIndex + 1}/${slidesCount}`;
+      }, 12000); // Shift page every 12 seconds
+    }
+
+    // Auto data reload every 30 seconds
+    function startAutoRefreshTimer() {
+      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+      autoRefreshInterval = setInterval(() => {
+        refreshData();
+      }, 30000);
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.log(`Error attempting to enable full-screen mode: ${err.message}`);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // Startup
+    startClock();
+    refreshData();
+    startAutoRefreshTimer();
+  </script>
+</body>
+</html>
