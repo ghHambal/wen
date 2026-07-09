@@ -1,10 +1,11 @@
 <!doctype html>
 <html lang="th" class="h-full bg-slate-50">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบบันทึกและติดตามการปฏิบัติเวร | โรงเรียนมูลนิธิอาซิซสถาน</title>
-  
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script>
@@ -38,20 +39,23 @@
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
 
   <!-- Leaflet Map CSS & JS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <!-- SheetJS (Excel) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  
+
   <link rel="stylesheet" href="css/styles.css">
 
   <!-- Default seed data (teachers, duty points, settings, SQL schema) -->
   <script src="js/data/default-data.js"></script>
 </head>
+
 <body class="h-full text-slate-800 flex flex-col">
   <div id="app" class="h-full w-full overflow-hidden flex flex-col relative">
 
@@ -66,28 +70,38 @@
             <i data-lucide="database" class="w-5 h-5"></i>
             <h3 class="font-bold text-sm">การนำเข้าตารางฐานข้อมูล Supabase</h3>
           </div>
-          <button onclick="closeSqlModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+          <button onclick="closeSqlModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i
+              data-lucide="x" class="w-4 h-4"></i></button>
         </div>
         <div class="p-6 overflow-y-auto text-xs space-y-4 leading-relaxed">
-          <p class="font-bold text-slate-700">กรุณาคัดลอกโค้ด SQL ด้านล่างนี้ ไปวางในเมนู <strong class="text-brand-800">SQL Editor</strong> บนหน้าต่าง Dashboard ของ Supabase ของคุณเพื่อสร้างตารางทั้งหมด:</p>
+          <p class="font-bold text-slate-700">กรุณาคัดลอกโค้ด SQL ด้านล่างนี้ ไปวางในเมนู <strong
+              class="text-brand-800">SQL Editor</strong> บนหน้าต่าง Dashboard ของ Supabase ของคุณเพื่อสร้างตารางทั้งหมด:
+          </p>
           <div class="relative">
-            <pre class="bg-slate-900 text-slate-100 p-4 rounded-xl overflow-x-auto text-[10px] select-all max-h-80" id="sql-code-block"></pre>
-            <button onclick="copySQLCode()" class="absolute top-2 right-2 bg-brand-800 hover:bg-brand-700 text-white font-bold py-1 px-2.5 rounded transition">คัดลอก SQL</button>
+            <pre class="bg-slate-900 text-slate-100 p-4 rounded-xl overflow-x-auto text-[10px] select-all max-h-80"
+              id="sql-code-block"></pre>
+            <button onclick="copySQLCode()"
+              class="absolute top-2 right-2 bg-brand-800 hover:bg-brand-700 text-white font-bold py-1 px-2.5 rounded transition">คัดลอก
+              SQL</button>
           </div>
           <div class="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-lg flex items-start gap-2">
             <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5 text-amber-700 flex-shrink-0"></i>
-            <p>ระบบจะตรวจเช็คโครงสร้างตารางโดยอัตโนมัติ เมื่อสร้างตารางด้านบนเสร็จสิ้นและเปิด RLS แล้ว ระบบจะเปลี่ยนเป็นโหมดออนไลน์ทันทีเมื่อคุณรีเฟรชหน้าเว็บ</p>
+            <p>ระบบจะตรวจเช็คโครงสร้างตารางโดยอัตโนมัติ เมื่อสร้างตารางด้านบนเสร็จสิ้นและเปิด RLS แล้ว
+              ระบบจะเปลี่ยนเป็นโหมดออนไลน์ทันทีเมื่อคุณรีเฟรชหน้าเว็บ</p>
           </div>
         </div>
         <div class="p-4 bg-slate-50 border-t flex justify-end">
-          <button onclick="closeSqlModal()" class="bg-brand-850 hover:bg-brand-700 text-white font-bold px-6 py-2 rounded shadow transition">รับทราบ</button>
+          <button onclick="closeSqlModal()"
+            class="bg-brand-850 hover:bg-brand-700 text-white font-bold px-6 py-2 rounded shadow transition">รับทราบ</button>
         </div>
       </div>
     </div>
 
     <!-- OFFLINE DATA DOWNLOAD MODAL -->
-    <div id="offline-download-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10005] hidden flex items-center justify-center p-4">
-      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 flex flex-col transform transition-all scale-95 duration-300">
+    <div id="offline-download-modal"
+      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10005] hidden flex items-center justify-center p-4">
+      <div
+        class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 flex flex-col transform transition-all scale-95 duration-300">
         <div class="bg-brand-900 text-white p-5 text-center flex flex-col items-center gap-2">
           <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center shadow-inner">
             <i data-lucide="download-cloud" class="w-6 h-6 text-white"></i>
@@ -95,24 +109,26 @@
           <h3 class="font-bold text-base tracking-wide mt-1">ดาวน์โหลดข้อมูลเพื่อใช้งานออฟไลน์</h3>
           <p class="text-xs text-brand-200">เลือกโหลดเฉพาะข้อมูลที่จำเป็น เพื่อประหยัดโควตา Supabase และเน็ตมือถือ</p>
         </div>
-        
+
         <div class="p-6 space-y-4 text-xs leading-relaxed text-slate-600">
           <p class="font-bold text-slate-800 text-center text-sm">ดาวน์โหลดฐานข้อมูลที่จำเป็นเก็บไว้ในเครื่องของคุณ</p>
-          
+
           <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
             <div class="flex items-start gap-2.5">
               <i data-lucide="zap" class="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0"></i>
               <div>
                 <p class="font-bold text-slate-700">โหลดข้อมูลที่จำเป็นสำหรับการเข้าเวร</p>
-                <p class="text-[10px] text-slate-400">ระบบจะเตรียมข้อมูลตารางเวร รายงานของคุณ และข้อมูลส่วนตัวที่จำเป็นไว้ในเครื่อง</p>
+                <p class="text-[10px] text-slate-400">ระบบจะเตรียมข้อมูลตารางเวร รายงานของคุณ
+                  และข้อมูลส่วนตัวที่จำเป็นไว้ในเครื่อง</p>
               </div>
             </div>
-            
+
             <div class="flex items-start gap-2.5">
               <i data-lucide="database" class="w-4 h-4 text-brand-600 mt-0.5 flex-shrink-0"></i>
               <div>
                 <p class="font-bold text-slate-700">ข้อมูลส่วนตัวของคุณพร้อมใช้งาน</p>
-                <p class="text-[10px] text-slate-400">รูปโปรไฟล์และลายเซ็นจะเตรียมเฉพาะบัญชีของคุณ ไม่ดึงข้อมูลส่วนตัวของครูท่านอื่นลงเครื่อง</p>
+                <p class="text-[10px] text-slate-400">รูปโปรไฟล์และลายเซ็นจะเตรียมเฉพาะบัญชีของคุณ
+                  ไม่ดึงข้อมูลส่วนตัวของครูท่านอื่นลงเครื่อง</p>
               </div>
             </div>
 
@@ -120,7 +136,8 @@
               <i data-lucide="wifi-off" class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0"></i>
               <div>
                 <p class="font-bold text-slate-700">รองรับโหมดไม่มีสัญญาณเน็ต (Offline Resilience)</p>
-                <p class="text-[10px] text-slate-400">คุณครูสามารถลงลายเซ็น ถ่ายรูป และยืนยันเวรได้ตามปกติ ระบบจะส่งขึ้นคลาวด์เมื่อเน็ตกลับมาใช้งานได้</p>
+                <p class="text-[10px] text-slate-400">คุณครูสามารถลงลายเซ็น ถ่ายรูป และยืนยันเวรได้ตามปกติ
+                  ระบบจะส่งขึ้นคลาวด์เมื่อเน็ตกลับมาใช้งานได้</p>
               </div>
             </div>
           </div>
@@ -132,16 +149,19 @@
               <span id="offline-download-percentage">0%</span>
             </div>
             <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-              <div id="offline-download-progress-bar" class="bg-brand-600 h-full rounded-full transition-all duration-300 w-0"></div>
+              <div id="offline-download-progress-bar"
+                class="bg-brand-600 h-full rounded-full transition-all duration-300 w-0"></div>
             </div>
           </div>
         </div>
 
         <div id="offline-download-actions" class="p-4 bg-slate-50 border-t flex flex-col sm:flex-row gap-2 justify-end">
-          <button onclick="closeOfflinePromptModal(false)" class="text-slate-500 hover:text-slate-700 hover:bg-slate-200 px-4 py-2.5 rounded-xl font-bold transition text-center text-xs">
+          <button onclick="closeOfflinePromptModal(false)"
+            class="text-slate-500 hover:text-slate-700 hover:bg-slate-200 px-4 py-2.5 rounded-xl font-bold transition text-center text-xs">
             ข้ามไปก่อน (ใช้งานปกติ)
           </button>
-          <button onclick="startOfflineAssetDownload('light')" class="bg-brand-800 hover:bg-brand-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition flex items-center justify-center gap-1.5 text-xs">
+          <button onclick="startOfflineAssetDownload('light')"
+            class="bg-brand-800 hover:bg-brand-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition flex items-center justify-center gap-1.5 text-xs">
             <i data-lucide="download-cloud" class="w-4 h-4"></i>
             <span>ดาวน์โหลดข้อมูลและเริ่มใช้งาน</span>
           </button>
@@ -150,10 +170,13 @@
     </div>
 
     <!-- LOGIN PAGE -->
-    <div id="page-login" class="h-full w-full flex items-center justify-center p-4 min-h-screen" style="background: linear-gradient(135deg, #14532d 0%, #166534 50%, #14532d 100%);">
-      <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl w-full max-w-md p-8 border border-white/20 fade-in">
+    <div id="page-login" class="h-full w-full flex items-center justify-center p-4 min-h-screen"
+      style="background: linear-gradient(135deg, #14532d 0%, #166534 50%, #14532d 100%);">
+      <div
+        class="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl w-full max-w-md p-8 border border-white/20 fade-in">
         <div class="text-center mb-6">
-          <div id="login-logo-container" class="w-20 h-20 mx-auto mb-3 bg-brand-800 rounded-full flex items-center justify-center shadow-lg border border-white/20">
+          <div id="login-logo-container"
+            class="w-20 h-20 mx-auto mb-3 bg-brand-800 rounded-full flex items-center justify-center shadow-lg border border-white/20">
             <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
               <circle cx="24" cy="24" r="20" stroke="white" stroke-width="2" />
               <path d="M24 12 L24 36 M16 20 L24 12 L32 20" stroke="white" stroke-width="2" fill="none" />
@@ -162,35 +185,44 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.6</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.7</p>
           <div class="mt-2 flex justify-center">
-            <span id="db-status-login" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌 กำลังเชื่อมต่อคลาวด์...</span>
+            <span id="db-status-login"
+              class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌
+              กำลังเชื่อมต่อคลาวด์...</span>
           </div>
         </div>
-        
+
         <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
           <div>
             <label for="login-id" class="block text-sm font-medium text-slate-700 mb-1">รหัสครู / เบอร์โทรศัพท์</label>
             <div class="relative">
               <i data-lucide="user" class="absolute left-3 top-3 w-5 h-5 text-slate-400"></i>
-              <input id="login-id" type="text" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition" placeholder="กรอกรหัสครู (เช่น 1001 หรือ 2001) หรือเบอร์โทร" inputmode="latin">
+              <input id="login-id" type="text" required
+                class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition"
+                placeholder="กรอกรหัสครู (เช่น 1001 หรือ 2001) หรือเบอร์โทร" inputmode="latin">
             </div>
           </div>
           <div>
             <label for="login-pass" class="block text-sm font-medium text-slate-700 mb-1">รหัสผ่าน</label>
             <div class="relative">
               <i data-lucide="lock" class="absolute left-3 top-3 w-5 h-5 text-slate-400"></i>
-              <input id="login-pass" type="password" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition" placeholder="กรอกรหัสผ่าน" inputmode="latin">
+              <input id="login-pass" type="password" required
+                class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition"
+                placeholder="กรอกรหัสผ่าน" inputmode="latin">
             </div>
           </div>
           <div class="flex items-center justify-between text-xs">
             <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" id="login-remember" checked class="rounded border-slate-300 text-brand-600 focus:ring-brand-500"> 
+              <input type="checkbox" id="login-remember" checked
+                class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
               <span>จดจำฉัน</span>
             </label>
-            <a href="#" onclick="showToast('ระบบรองรับการเข้าสู่ระบบแบบรวดเร็วผ่านเมนูด้านล่างสำหรับการทดสอบ', 'info')" class="text-brand-700 hover:underline">ลืมรหัสผ่าน?</a>
+            <a href="#" onclick="showToast('ระบบรองรับการเข้าสู่ระบบแบบรวดเร็วผ่านเมนูด้านล่างสำหรับการทดสอบ', 'info')"
+              class="text-brand-700 hover:underline">ลืมรหัสผ่าน?</a>
           </div>
-          <button type="submit" class="w-full bg-brand-800 text-white py-3 rounded-lg font-semibold hover:bg-brand-700 shadow-md hover:shadow-lg transition">เข้าสู่ระบบ</button>
+          <button type="submit"
+            class="w-full bg-brand-800 text-white py-3 rounded-lg font-semibold hover:bg-brand-700 shadow-md hover:shadow-lg transition">เข้าสู่ระบบ</button>
         </form>
 
         <div id="quick-login-container"></div>
@@ -199,9 +231,10 @@
 
     <!-- MAIN APP LAYOUT -->
     <div id="page-main" class="h-full w-full hidden flex flex-col overflow-hidden">
-      
+
       <!-- Top Mobile Navigation Bar -->
-      <header class="bg-brand-900 text-white lg:hidden px-4 py-3 flex items-center justify-between no-print z-40 shadow-md">
+      <header
+        class="bg-brand-900 text-white lg:hidden px-4 py-3 flex items-center justify-between no-print z-40 shadow-md">
         <div class="flex items-center gap-2">
           <button onclick="toggleSidebar()" class="p-1.5 hover:bg-white/10 rounded-lg transition">
             <i data-lucide="menu" class="w-6 h-6"></i>
@@ -210,78 +243,99 @@
         </div>
         <div class="flex items-center gap-2">
           <!-- Mobile Sync Button -->
-          <button onclick="triggerManualSync()" id="sync-btn-mobile" class="p-1.5 hover:bg-white/10 rounded-lg transition" title="ดึงข้อมูลล่าสุด">
+          <button onclick="triggerManualSync()" id="sync-btn-mobile"
+            class="p-1.5 hover:bg-white/10 rounded-lg transition" title="ดึงข้อมูลล่าสุด">
             <i data-lucide="refresh-cw" class="w-4 h-4 text-white" id="sync-icon-mobile"></i>
           </button>
 
           <!-- Database status indicator on mobile header -->
-          <button onclick="openSqlModal()" id="db-status-mobile" class="text-[10px] px-2 py-0.5 rounded-full font-bold border"></button>
-          <span id="pending-sync-badge-mobile" class="hidden text-[9px] px-1.5 py-0.5 rounded-full font-bold border border-amber-400/50 bg-amber-500/20 text-amber-200"></span>
+          <button onclick="openSqlModal()" id="db-status-mobile"
+            class="text-[10px] px-2 py-0.5 rounded-full font-bold border"></button>
+          <span id="pending-sync-badge-mobile"
+            class="hidden text-[9px] px-1.5 py-0.5 rounded-full font-bold border border-amber-400/50 bg-amber-500/20 text-amber-200"></span>
 
           <button onclick="toggleNotificationPanel()" class="p-1.5 hover:bg-white/10 rounded-full relative">
             <i data-lucide="bell" class="w-5 h-5"></i>
-            <span id="mobile-notification-badge" class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full hidden"></span>
+            <span id="mobile-notification-badge"
+              class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full hidden"></span>
           </button>
         </div>
       </header>
 
       <div class="flex h-full overflow-hidden">
-        
+
         <!-- Sidebar Drawer (Large screen desktop default, side bar menu) -->
-        <aside id="sidebar" class="w-64 bg-brand-900 text-white flex-shrink-0 hidden lg:flex flex-col border-r border-brand-950 shadow-xl z-25">
+        <aside id="sidebar"
+          class="w-64 bg-brand-900 text-white flex-shrink-0 hidden lg:flex flex-col border-r border-brand-950 shadow-xl z-25">
           <div class="p-4 border-b border-brand-850">
             <div class="flex items-center gap-3">
-              <div id="sidebar-logo-container" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-sm font-bold shadow-inner">อซ</div>
+              <div id="sidebar-logo-container"
+                class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-sm font-bold shadow-inner">
+                อซ</div>
               <div>
                 <p class="font-bold text-sm text-white" id="sidebar-school">ร.ร.มูลนิธิอาซิซสถาน</p>
-                <p class="text-[10px] text-brand-200 bg-brand-950/40 px-2 py-0.5 rounded-full inline-block mt-0.5" id="sidebar-subtitle">เวรวันอังคาร (ครูชาย)</p>
+                <p class="text-[10px] text-brand-200 bg-brand-950/40 px-2 py-0.5 rounded-full inline-block mt-0.5"
+                  id="sidebar-subtitle">เวรวันอังคาร (ครูชาย)</p>
               </div>
             </div>
           </div>
           <div class="p-3 border-b border-brand-850 bg-brand-950/30 flex justify-between items-center text-[10px]">
             <span class="text-brand-200">สถานะคลาวด์:</span>
-            <button onclick="openSqlModal()" id="db-status-sidebar" class="px-2 py-0.5 font-bold rounded-full border transition hover:opacity-85"></button>
+            <button onclick="openSqlModal()" id="db-status-sidebar"
+              class="px-2 py-0.5 font-bold rounded-full border transition hover:opacity-85"></button>
           </div>
-          <div id="pending-sync-badge-sidebar" class="hidden px-3 py-1.5 border-b border-brand-850 bg-amber-500/10 text-amber-300 text-[10px] font-bold text-center"></div>
+          <div id="pending-sync-badge-sidebar"
+            class="hidden px-3 py-1.5 border-b border-brand-850 bg-amber-500/10 text-amber-300 text-[10px] font-bold text-center">
+          </div>
           <nav class="flex-1 p-3 space-y-1 overflow-y-auto" id="sidebar-nav"></nav>
           <div class="p-4 border-t border-brand-850 bg-brand-950/20">
             <div class="flex items-center justify-between gap-2 mb-3 text-xs text-brand-200">
               <span>GPS โทรศัพท์:</span>
-              <button type="button" onclick="requestGPSPermission()" id="gps-indicator" class="font-semibold text-amber-300 hover:text-white text-right">รออนุญาต</button>
+              <button type="button" onclick="requestGPSPermission()" id="gps-indicator"
+                class="font-semibold text-amber-300 hover:text-white text-right">รออนุญาต</button>
             </div>
-            <button onclick="logout()" class="flex items-center gap-2 text-sm text-brand-200 hover:text-white w-full py-2 hover:bg-white/5 rounded px-2 transition">
+            <button onclick="logout()"
+              class="flex items-center gap-2 text-sm text-brand-200 hover:text-white w-full py-2 hover:bg-white/5 rounded px-2 transition">
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.6</div>
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.7
+            </div>
           </div>
         </aside>
 
         <!-- Main Content Container -->
         <div class="flex-1 flex flex-col h-full overflow-hidden">
-          
+
           <!-- Top Sticky Title Bar (Desktop Only) -->
-          <header class="bg-white border-b border-slate-200 px-6 py-3.5 hidden lg:flex items-center justify-between no-print flex-shrink-0 z-10 shadow-sm">
+          <header
+            class="bg-white border-b border-slate-200 px-6 py-3.5 hidden lg:flex items-center justify-between no-print flex-shrink-0 z-10 shadow-sm">
             <h2 id="page-title" class="font-bold text-lg text-brand-900">Dashboard</h2>
-            
+
             <div class="flex items-center gap-4">
               <!-- Desktop Sync Button -->
-              <button onclick="triggerManualSync()" id="sync-btn-desktop" class="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 hover:text-slate-800 rounded-lg text-xs font-semibold transition border border-slate-200" title="ดึงข้อมูลล่าสุดจากคลาวด์">
+              <button onclick="triggerManualSync()" id="sync-btn-desktop"
+                class="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 hover:text-slate-800 rounded-lg text-xs font-semibold transition border border-slate-200"
+                title="ดึงข้อมูลล่าสุดจากคลาวด์">
                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="sync-icon-desktop"></i>
                 <span>🔄 ดึงข้อมูลล่าสุด</span>
               </button>
               <!-- Live Notification Panel Toggle -->
               <div class="relative">
-                <button onclick="toggleNotificationPanel()" class="p-2 hover:bg-slate-100 rounded-full text-slate-500 relative transition">
+                <button onclick="toggleNotificationPanel()"
+                  class="p-2 hover:bg-slate-100 rounded-full text-slate-500 relative transition">
                   <i data-lucide="bell" class="w-5 h-5"></i>
-                  <span id="notification-badge" class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full hidden"></span>
+                  <span id="notification-badge"
+                    class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full hidden"></span>
                 </button>
-                
+
                 <!-- Quick notification list panel -->
-                <div id="notification-panel" class="absolute right-0 mt-2 w-80 bg-white border rounded-xl shadow-xl z-[100] hidden overflow-hidden">
+                <div id="notification-panel"
+                  class="absolute right-0 mt-2 w-80 bg-white border rounded-xl shadow-xl z-[100] hidden overflow-hidden">
                   <div class="p-3 bg-brand-900 text-white font-bold text-xs flex justify-between items-center">
                     <span>ประวัติการแจ้งเตือน</span>
-                    <button onclick="clearNotificationLogs()" class="text-[10px] bg-brand-800 hover:bg-brand-700 px-2 py-0.5 rounded transition">ล้างประวัติ</button>
+                    <button onclick="clearNotificationLogs()"
+                      class="text-[10px] bg-brand-800 hover:bg-brand-700 px-2 py-0.5 rounded transition">ล้างประวัติ</button>
                   </div>
                   <div id="notification-list" class="max-h-60 overflow-y-auto divide-y text-xs">
                     <p class="p-4 text-center text-slate-400">ไม่มีประวัติการแจ้งเตือน</p>
@@ -292,7 +346,9 @@
               <!-- Real phone GPS status -->
               <div class="border-l pl-4 flex items-center gap-2">
                 <span class="text-[11px] text-slate-500 font-semibold">📍 ตำแหน่ง:</span>
-                <button type="button" onclick="requestGPSPermission()" id="gps-status-desktop" class="text-xs bg-slate-100 hover:bg-slate-200 border rounded-lg px-2.5 py-1.5 text-slate-700 font-bold">🛰️ แตะเพื่ออนุญาต GPS</button>
+                <button type="button" onclick="requestGPSPermission()" id="gps-status-desktop"
+                  class="text-xs bg-slate-100 hover:bg-slate-200 border rounded-lg px-2.5 py-1.5 text-slate-700 font-bold">🛰️
+                  แตะเพื่ออนุญาต GPS</button>
               </div>
 
               <div class="flex items-center gap-2 border-l pl-4">
@@ -308,9 +364,11 @@
           </header>
 
           <!-- Mobile real GPS status bar -->
-          <div class="bg-brand-50 border-b px-4 py-2 flex lg:hidden items-center justify-between no-print flex-shrink-0 text-[10px]">
+          <div
+            class="bg-brand-50 border-b px-4 py-2 flex lg:hidden items-center justify-between no-print flex-shrink-0 text-[10px]">
             <span class="text-slate-600 font-medium">📍 พิกัดปฏิบัติงาน:</span>
-            <button type="button" onclick="requestGPSPermission()" id="gps-status-mobile" class="bg-white border rounded px-2 py-1 text-amber-700 font-bold">🛰️ แตะเพื่ออนุญาต GPS</button>
+            <button type="button" onclick="requestGPSPermission()" id="gps-status-mobile"
+              class="bg-white border rounded px-2 py-1 text-amber-700 font-bold">🛰️ แตะเพื่ออนุญาต GPS</button>
           </div>
 
           <!-- Main Content Area -->
@@ -320,12 +378,15 @@
 
       <!-- Mobile Sidebar Overlay -->
       <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden" onclick="toggleSidebar()"></div>
-      
+
       <!-- Mobile Sidebar Drawer -->
-      <aside id="sidebar-mobile" class="fixed left-0 top-0 h-full w-64 bg-brand-900 text-white z-50 transform -translate-x-full transition-transform lg:hidden flex flex-col shadow-2xl">
+      <aside id="sidebar-mobile"
+        class="fixed left-0 top-0 h-full w-64 bg-brand-900 text-white z-50 transform -translate-x-full transition-transform lg:hidden flex flex-col shadow-2xl">
         <div class="p-4 border-b border-brand-850 flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <div id="mobile-sidebar-logo-container" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-sm font-bold shadow-inner">อซ</div>
+            <div id="mobile-sidebar-logo-container"
+              class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-sm font-bold shadow-inner">
+              อซ</div>
             <div>
               <p class="font-bold text-sm" id="mobile-sidebar-school">ร.ร.มูลนิธิอาซิซสถาน</p>
               <p class="text-[10px] text-brand-200" id="mobile-sidebar-subtitle">เวรวันอังคาร (ครูชาย)</p>
@@ -339,42 +400,52 @@
         <div class="p-4 border-t border-brand-850 bg-brand-950/20 text-xs">
           <div class="mb-3 text-[10px] flex justify-between">
             <span class="text-brand-200">ระบบฐานข้อมูล:</span>
-            <button onclick="openSqlModal()" id="db-status-mobile-drawer" class="px-2 py-0.5 rounded font-bold border"></button>
+            <button onclick="openSqlModal()" id="db-status-mobile-drawer"
+              class="px-2 py-0.5 rounded font-bold border"></button>
           </div>
-          <div id="pending-sync-badge-mobile-drawer" class="hidden mb-3 px-2 py-1 rounded font-bold border border-amber-400/50 bg-amber-500/10 text-amber-200 text-[10px] text-center"></div>
-          <button onclick="logout()" class="flex items-center gap-2 text-sm text-brand-200 hover:text-white w-full py-2 hover:bg-white/5 rounded px-2 transition">
+          <div id="pending-sync-badge-mobile-drawer"
+            class="hidden mb-3 px-2 py-1 rounded font-bold border border-amber-400/50 bg-amber-500/10 text-amber-200 text-[10px] text-center">
+          </div>
+          <button onclick="logout()"
+            class="flex items-center gap-2 text-sm text-brand-200 hover:text-white w-full py-2 hover:bg-white/5 rounded px-2 transition">
             <i data-lucide="log-out" class="w-4 h-4"></i>
             <span>ออกจากระบบ</span>
           </button>
-          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน 1.34.6</div>
+          <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน
+            1.34.7</div>
         </div>
       </aside>
 
       <!-- ★ Mobile Bottom Navigation Bar (Teacher Mode Only) ★ -->
       <nav id="mobile-bottom-nav" class="lg:hidden no-print">
         <!-- Left: History -->
-        <button class="bottom-nav-item ripple-btn" id="bnav-history" onclick="triggerRipple(event, true); navigateTo('my-history')">
+        <button class="bottom-nav-item ripple-btn" id="bnav-history"
+          onclick="triggerRipple(event, true); navigateTo('my-history')">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>ประวัติ</span>
           <div class="bottom-nav-dot"></div>
         </button>
 
         <!-- Center: FAB Report -->
-        <button class="bottom-nav-fab scale-spring-active" id="bnav-fab" onclick="const circle = this.querySelector('.fab-circle'); if (circle) { triggerRipple({ currentTarget: circle, clientX: event.clientX, clientY: event.clientY }, false); } navigateTo('my-duty');">
+        <button class="bottom-nav-fab scale-spring-active" id="bnav-fab"
+          onclick="const circle = this.querySelector('.fab-circle'); if (circle) { triggerRipple({ currentTarget: circle, clientX: event.clientX, clientY: event.clientY }, false); } navigateTo('my-duty');">
           <div class="fab-circle ripple-btn">
             <svg width="26" height="26" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
             </svg>
           </div>
           <span class="fab-label">รายงานเวร</span>
         </button>
 
         <!-- Right: Profile -->
-        <button class="bottom-nav-item ripple-btn" id="bnav-profile" onclick="triggerRipple(event, true); navigateTo('profile-settings')">
+        <button class="bottom-nav-item ripple-btn" id="bnav-profile"
+          onclick="triggerRipple(event, true); navigateTo('profile-settings')">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
           <span>โปรไฟล์</span>
           <div class="bottom-nav-dot"></div>
@@ -389,8 +460,8 @@
     // =========================================================================
     // 1. SUPABASE CONNECTION CONFIGURATION & SYNCING
     // =========================================================================
-    const supabaseUrl = 'https://zhjqkylesnhcotpkzoxr.supabase.co';
-    const supabaseKey = 'sb_publishable_3vZV2TYujjhEmQcpdSk_1A_-B3AJK0n';
+    const supabaseUrl = 'https://tfpginvtochpbacqnpkv.supabase.co';
+    const supabaseKey = 'sb_publishable_r07KOCo2bLaBhyZzUGJ6nw_mHgT0Hgd';
     let supabaseClient = null;
     let useSupabase = false;
 
@@ -715,14 +786,14 @@
           };
         });
         window.cloudTeachersFullList = merged;
-        
+
         // Find self ID to avoid pruning the logged-in user's signature/avatar
         const loginIdEl = document.getElementById('login-id');
         const currentLoginId = loginIdEl ? loginIdEl.value.trim().toLowerCase() : '';
-        
+
         const pruned = merged.map(t => {
-          const isSelf = (currentUser && t.id === currentUser.id) || 
-                         (currentLoginId && (t.id.toLowerCase() === currentLoginId || t.phone === currentLoginId));
+          const isSelf = (currentUser && t.id === currentUser.id) ||
+            (currentLoginId && (t.id.toLowerCase() === currentLoginId || t.phone === currentLoginId));
           if (isSelf) {
             return t; // Keep current user's profile complete
           }
@@ -732,7 +803,7 @@
             signature: null    // Prune base64 signature
           };
         });
-        
+
         try {
           localStorage.setItem('wen_teachers', JSON.stringify(pruned));
         } catch (err) {
@@ -770,13 +841,13 @@
           };
         });
         window.cloudReportsFullList = merged;
-        
+
         const pruned = merged.map(r => ({
           ...r,
           photo: null,      // Prune base64 photo
           signature: null    // Prune base64 signature
         }));
-        
+
         try {
           localStorage.setItem('wen_reports', JSON.stringify(pruned));
         } catch (err) {
@@ -806,7 +877,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.34.6';
+    const APP_VERSION = '1.34.7';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -818,7 +889,7 @@
       try {
         if (window.supabase && window.supabase.createClient) {
           supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-          
+
           // Verify tables by running a simple query
           const { data, error } = await supabaseClient.from('teachers').select('id').limit(1);
           if (error) {
@@ -827,7 +898,7 @@
           } else {
             useSupabase = true;
             console.log("Supabase Online Connection Successful!");
-            
+
             // Sync lightweight metadata first; heavy images/signatures are lazy-loaded when needed.
             await syncCloudDataToLocal('light');
 
@@ -870,7 +941,7 @@
         // ถ้าเคยโหลดเสร็จสิ้นแล้ว ให้ผ่านเข้าสู่ระบบได้เลย
         return;
       }
-      
+
       // แสดงโมดอลป๊อปอัปให้ดาวน์โหลดข้อมูล
       const modal = document.getElementById('offline-download-modal');
       if (modal) {
@@ -952,7 +1023,7 @@
 
         updateProgress('การดาวน์โหลดฐานข้อมูลเสร็จสมบูรณ์ 100%!', 100);
         await new Promise(r => setTimeout(r, 400));
-        
+
         closeOfflinePromptModal(true, mode);
         updateDynamicTitles();
         buildSidebar();
@@ -968,16 +1039,16 @@
     let isManualSyncing = false;
     async function triggerManualSync() {
       if (isManualSyncing) return;
-      
+
       const iconD = document.getElementById('sync-icon-desktop');
       const iconM = document.getElementById('sync-icon-mobile');
-      
+
       if (iconD) iconD.classList.add('animate-spin');
       if (iconM) iconM.classList.add('animate-spin');
-      
+
       isManualSyncing = true;
       showToast('กำลังดาวน์โหลดข้อมูลล่าสุดจากคลาวด์...', 'info');
-      
+
       try {
         if (useSupabase && supabaseClient) {
           await syncCloudDataToLocal();
@@ -1077,7 +1148,7 @@
         const points = await supabaseClient.from('duty_points').select('*').order('id');
         if (points.data && points.data.length > 0) {
           const mappedPoints = points.data.map(mapDutyPointFromDB);
-          
+
           // One-time automatic migration for female duty group assignments to Monday:
           let hasChanges = false;
           mappedPoints.forEach(p => {
@@ -1119,11 +1190,16 @@
           if (!isUserAdminOrHead() && currentUser) {
             q = q.eq('teacher_id', currentUser.id);
           }
-          if (mode === 'full') {
-            const cutoff = new Date();
-            cutoff.setDate(cutoff.getDate() - FULL_OFFLINE_REPORT_DAYS);
-            q = q.gte('date', cutoff.toISOString().slice(0, 10));
-          }
+          
+          // ป้องกันปัญหาการโหลดรายงานชนขีดจำกัด 1000 แถวของ Supabase
+          // โดยการกรองเฉพาะรายงานล่าสุด (30 วันสำหรับครูทั่วไป หรือ 60 วันสำหรับแอดมิน/หัวหน้าเวร)
+          // และสั่งเรียงลำดับจากวันที่ล่าสุดเสมอ เพื่อให้รายงานวันนี้และล่าสุดไม่ถูกตัดออก
+          const cutoffDays = isUserAdminOrHead() ? 60 : FULL_OFFLINE_REPORT_DAYS;
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - cutoffDays);
+          q = q.gte('date', cutoff.toISOString().slice(0, 10));
+          
+          q = q.order('date', { ascending: false });
           return q;
         };
 
@@ -1308,12 +1384,12 @@
 
     // Update Indicators
     function updateDatabaseStatusUI() {
-      const texts = useSupabase 
-        ? '🔌 Supabase Online' 
+      const texts = useSupabase
+        ? '🔌 Supabase Online'
         : '📁 Local Offline (ตั้งค่า)';
-      
-      const clses = useSupabase 
-        ? 'bg-green-100 border-green-300 text-green-800' 
+
+      const clses = useSupabase
+        ? 'bg-green-100 border-green-300 text-green-800'
         : 'bg-amber-100 border-amber-300 text-amber-800 animate-pulse';
 
       // Login page badge
@@ -1463,6 +1539,57 @@
     let teacherMediaPresenceSyncing = false; // กันการดึงสถานะรูป/ลายเซ็นซ้ำซ้อน
     let myDutyTimerInterval = null;
     let myDutyRenderedDate = null; // วันที่ (ISO) ที่ตอนแสดงหน้า "เวรของฉัน" ล่าสุด ใช้ตรวจวันเปลี่ยนข้ามเที่ยงคืน
+    let currentViewDate = getTodayISODate(); // วันที่ที่ระบบกำลังแสดงผลอยู่
+
+    function renderWeekSwitcher() {
+      return `
+        <!-- Week/Date Switcher Bar -->
+        <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex items-center justify-between gap-2 no-print mb-4">
+          <button onclick="changeViewDate(-7)" class="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition text-[11px]">
+            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            <span>สัปดาห์ก่อนหน้า</span>
+          </button>
+          <div class="text-center flex flex-col items-center">
+            <span class="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">สัปดาห์ที่เลือก</span>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <span class="font-bold text-brand-950 text-xs">${getTodayThaiFullDate(currentViewDate)} (วัน${getThaiDayNameForDate(currentViewDate)})</span>
+              ${currentViewDate !== getTodayISODate() ? `
+                <button onclick="resetViewDateToToday()" class="bg-brand-100 hover:bg-brand-200 text-brand-900 font-bold text-[9px] px-1.5 py-0.5 rounded transition">
+                  กลับสู่วันนี้
+                </button>
+              ` : ''}
+            </div>
+          </div>
+          <button onclick="changeViewDate(7)" class="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition text-[11px]">
+            <span>สัปดาห์ถัดไป</span>
+            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+      `;
+    }
+
+    function changeViewDate(offsetDays) {
+      currentViewDate = addDaysToISODate(currentViewDate, offsetDays);
+      
+      // เมื่อสลับสัปดาห์ ให้ซิงค์รายงานเวรของช่วงเวลานั้นลงเครื่องในเบื้องหลังด้วย
+      if (useSupabase && supabaseClient && !isSyncing && !isManualSyncing) {
+        showToast('กำลังโหลดข้อมูลของสัปดาห์ที่เลือก...', 'info');
+        Promise.all([
+          syncReportsFromCloud('light'),
+          syncLeaveRequestsFromCloud(),
+          syncDutyExemptionsFromCloud()
+        ]).then(() => {
+          renderPage(currentPage);
+        }).catch(err => console.warn("Background sync on date change failed:", err));
+      } else {
+        renderPage(currentPage);
+      }
+    }
+
+    function resetViewDateToToday() {
+      currentViewDate = getTodayISODate();
+      renderPage(currentPage);
+    }
     let currentMapInstance = null; // Leaflet map reference
     let pointCardMaps = {}; // pointId -> Leaflet map instance (mini-map inline ในการ์ดจุดเวร)
     let modalMapInstance = null; // Map picker inside the point creation/edit modal
@@ -1496,7 +1623,7 @@
     // =========================================================================
     // 3. AUTHENTICATION & NAVIGATION
     // =========================================================================
-    
+
     // Global schedule view selected day
     let currentScheduleViewDay = null;
     let activeRoleMode = 'teacher';
@@ -1511,7 +1638,7 @@
     let currentDocsGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าเอกสารรายงาน (สำหรับผู้ดูแลระบบ)
     let currentDutyApprovalsTab = 'leave'; // 'leave' | 'late' - แท็บในหน้า "งานหัวหน้าเวร"
     let currentDashboardDutyGroupFilter = 'all'; // 'all' | 'ครูชาย' | 'ครูหญิง'
-    
+
     // Mini-maps in My Duty view (teacher)
     let myDutyMaps = {};
 
@@ -1684,20 +1811,20 @@
       const isHead = isUserAdminOrHead();
       const badgeText = currentUser.role === 'admin' ? 'ผู้ดูแลระบบ'
         : currentUser.role === 'director' ? 'ผู้บริหาร'
-        : currentUser.role === 'chief' ? 'หัวหน้างานเวร'
-        : (currentUser.role === 'head' || isHead) ? 'หัวหน้าเวร' : 'ครูเวร';
+          : currentUser.role === 'chief' ? 'หัวหน้างานเวร'
+            : (currentUser.role === 'head' || isHead) ? 'หัวหน้าเวร' : 'ครูเวร';
       const badgeClass = "text-[9px] px-2 py-0.5 rounded-full font-bold " +
         (currentUser.role === 'admin' ? 'bg-red-100 text-red-800'
           : currentUser.role === 'director' ? 'bg-indigo-100 text-indigo-800'
-          : currentUser.role === 'chief' ? 'bg-purple-100 text-purple-800'
-          : (currentUser.role === 'head' || isHead) ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800');
-      
+            : currentUser.role === 'chief' ? 'bg-purple-100 text-purple-800'
+              : (currentUser.role === 'head' || isHead) ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800');
+
       const roleBadgeEl = document.getElementById('user-role-badge');
       if (roleBadgeEl) {
         roleBadgeEl.textContent = badgeText;
         roleBadgeEl.className = badgeClass;
       }
-      
+
       const nameEl = document.getElementById('user-name');
       if (nameEl) {
         nameEl.textContent = currentUser.name;
@@ -1713,20 +1840,20 @@
       } else {
         currentUser = teachers.find(t => t.id === '2001') || teachers[0];
       }
-      
+
       activeRoleMode = isUserAdminOrHead() ? 'head' : 'teacher';
-      
+
       localStorage.setItem('wen_saved_account', JSON.stringify({
         id: currentUser.id,
         name: currentUser.name,
         role: currentUser.role
       }));
-      
+
       document.getElementById('page-login').classList.add('hidden');
       document.getElementById('page-main').classList.remove('hidden');
-      
+
       updateUserRoleBadge();
-      
+
       buildSidebar();
       updateDynamicTitles();
       navigateTo(activeRoleMode === 'head' ? 'dashboard' : 'my-duty');
@@ -1797,7 +1924,7 @@
             .select(TEACHER_LIGHT_COLUMNS)
             .or(`id.eq.${loginId},phone.eq.${loginId}`)
             .limit(1);
-          
+
           if (!error && data && data.length > 0) {
             const freshTeacher = data[0];
             const localTeachers = db.getTeachers();
@@ -1844,7 +1971,7 @@
         currentUser = matched;
         activeRoleMode = isUserAdminOrHead() ? 'head' : 'teacher';
         await ensureCurrentUserHeavyProfile();
-        
+
         localStorage.setItem('wen_saved_account', JSON.stringify({
           id: currentUser.id,
           name: currentUser.name,
@@ -1853,9 +1980,9 @@
 
         document.getElementById('page-login').classList.add('hidden');
         document.getElementById('page-main').classList.remove('hidden');
-        
+
         updateUserRoleBadge();
-        
+
         buildSidebar();
         updateDynamicTitles();
         navigateTo(activeRoleMode === 'head' ? 'dashboard' : 'my-duty');
@@ -2053,7 +2180,7 @@
           </div>
         `;
       }
-      
+
       html += menus.map(m => `
         <button onclick="navigateTo('${m.id}')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition" data-page="${m.id}">
           <i data-lucide="${m.icon}" class="w-4.5 h-4.5 text-brand-200"></i>
@@ -2061,7 +2188,7 @@
           ${m.id === 'duty-head-approvals' && pendingApprovalsCount > 0 ? `<span class="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">${pendingApprovalsCount}</span>` : ''}
         </button>
       `).join('');
-      
+
       document.getElementById('sidebar-nav').innerHTML = html;
       document.getElementById('sidebar-nav-mobile').innerHTML = html;
       lucide.createIcons();
@@ -2071,7 +2198,7 @@
       if (mode === activeRoleMode) return;
       activeRoleMode = mode;
       buildSidebar();
-      
+
       if (mode === 'head') {
         // Hide bottom nav in head/admin mode
         const bnav = document.getElementById('mobile-bottom-nav');
@@ -2091,7 +2218,7 @@
     function triggerRipple(event, dark = false) {
       const btn = event.currentTarget;
       if (!btn) return;
-      
+
       const rect = btn.getBoundingClientRect();
       const circle = document.createElement("span");
       const diameter = Math.max(btn.clientWidth, btn.clientHeight);
@@ -2139,13 +2266,13 @@
       const profBtn = document.getElementById('bnav-profile');
       if (histBtn) histBtn.classList.toggle('active', page === 'my-history');
       if (profBtn) profBtn.classList.toggle('active', page === 'profile-settings');
-      
+
       // Dynamic FAB breathe pulse depending on unreported points
       if (isTeacherMode) {
         const myPoints = getMyDutyPoints();
         const reports = db.getReports().filter(r => r.date === getTodayISODate() && r.teacherId === currentUser.id);
         const remainingCount = myPoints.length - reports.length;
-        
+
         const fabCircle = document.querySelector('.fab-circle');
         if (fabCircle) {
           if (remainingCount > 0) {
@@ -2316,7 +2443,7 @@
               .select(TEACHER_LIGHT_COLUMNS)
               .eq('id', saved.id)
               .limit(1);
-            
+
             if (!error && data && data.length > 0) {
               const freshTeacher = data[0];
               const localTeachers = db.getTeachers();
@@ -2344,12 +2471,12 @@
           currentUser = matched;
           activeRoleMode = isUserAdminOrHead() ? 'head' : 'teacher';
           await ensureCurrentUserHeavyProfile();
-          
+
           document.getElementById('page-login').classList.add('hidden');
           document.getElementById('page-main').classList.remove('hidden');
-          
+
           updateUserRoleBadge();
-            
+
           buildSidebar();
           updateDynamicTitles();
           navigateTo(activeRoleMode === 'head' ? 'dashboard' : 'my-duty');
@@ -2398,6 +2525,8 @@
     }
 
     function navigateTo(page) {
+      currentViewDate = getTodayISODate(); // รีเซ็ตกลับเป็นวันที่วันนี้ทุกครั้งที่มีการกดเปลี่ยนเมนูหลัก
+
       // ถ้า session หลุด/currentUser เป็น null ให้กลับไปหน้า login แทนการ crash
       if (!currentUser) {
         document.getElementById('page-login').classList.remove('hidden');
@@ -2419,7 +2548,7 @@
       currentPage = page;
       if (sidebarOpen) toggleSidebar();
       document.querySelectorAll('.sidebar-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
-      
+
       const titles = {
         dashboard: 'แผงควบคุมหลัก (Dashboard)',
         'executive-overview': 'คะแนนการปฏิบัติหน้าที่ของครู (Executive Overview)',
@@ -2435,7 +2564,7 @@
         'my-duty': 'บันทึกรายงานการปฏิบัติเวรของฉัน',
         'my-history': 'ประวัติการบันทึกรายงานเวรย้อนหลัง'
       };
-      
+
       const titleEl = document.getElementById('page-title');
       if (titleEl) titleEl.textContent = titles[page] || page;
       renderPage(page);
@@ -2511,6 +2640,46 @@
       if ((page === 'dashboard' || page === 'today-report') && currentDashboardDutyGroupFilter !== 'all') {
         filterDashboardTable();
       }
+
+      // ดึงข้อมูลล่าสุดจากคลาวด์มาแสดงผลในหน้าหลักเมื่อผู้ใช้กดเข้ามา เพื่อให้ข้อมูลทันสมัยเสมอโดยไม่ต้องรอรอบ 5 นาทีหรือกดเอง
+      if (useSupabase && supabaseClient && !isSyncing && !isManualSyncing) {
+        if (page === 'dashboard' || page === 'today-report') {
+          Promise.all([
+            syncReportsFromCloud('light'),
+            syncLeaveRequestsFromCloud(),
+            syncDutyExemptionsFromCloud()
+          ]).then(() => {
+            if (currentPage === 'dashboard' || currentPage === 'today-report') {
+              mc.innerHTML = renderDashboardView();
+              lucide.createIcons();
+              if (currentDashboardDutyGroupFilter !== 'all') {
+                filterDashboardTable();
+              }
+            }
+          }).catch(err => console.warn("Auto sync on dashboard navigation failed:", err));
+        } else if (page === 'duty-head-approvals') {
+          Promise.all([
+            syncLeaveRequestsFromCloud(),
+            syncDutyExemptionsFromCloud(),
+            syncReportsFromCloud('light')
+          ]).then(() => {
+            if (currentPage === 'duty-head-approvals') {
+              mc.innerHTML = renderDutyHeadApprovalsView();
+              lucide.createIcons();
+              if (currentDutyApprovalsTab === 'exemption') {
+                refreshExemptionControls();
+              }
+            }
+          }).catch(err => console.warn("Auto sync on approvals navigation failed:", err));
+        } else if (page === 'executive-overview') {
+          syncReportsFromCloud('light').then(() => {
+            if (currentPage === 'executive-overview') {
+              mc.innerHTML = renderExecutiveOverviewView();
+              lucide.createIcons();
+            }
+          }).catch(err => console.warn("Auto sync on overview navigation failed:", err));
+        }
+      }
     }
 
     // =========================================================================
@@ -2520,8 +2689,8 @@
     // A. DASHBOARD VIEW (Admin / Head of Duty)
     function renderDashboardView() {
       let points = db.getDutyPoints();
-      const todayDateStr = getTodayISODate();
-      let dashboardContexts = [{ day: getTodayThaiDayName(), dateStr: todayDateStr, groups: null }];
+      const todayDateStr = currentViewDate;
+      let dashboardContexts = [{ day: getThaiDayNameForDate(currentViewDate), dateStr: todayDateStr, groups: null }];
       let reports = db.getReports().filter(r => r.date === todayDateStr);
       const getMissingDashboardStatus = (point, dateStr) => isDutyPointOverdueForDashboard(point, dateStr) ? 'not_reported_missed' : 'not_reported_upcoming';
 
@@ -2624,7 +2793,7 @@
         <div class="fade-in space-y-6">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b pb-4">
             <div>
-              <p class="text-xs text-slate-500 flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4 text-brand-700"></i> ${headDutyScopeLabel || getTodayThaiFullDate()}</p>
+              <p class="text-xs text-slate-500 flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4 text-brand-700"></i> ${headDutyScopeLabel || getTodayThaiFullDate(currentViewDate)}</p>
               <h3 class="text-lg font-bold text-slate-900 mt-1">สรุปการปฏิบัติหน้าที่เวรประจำวันนี้</h3>
             </div>
             <div class="text-[10px] text-slate-500 bg-white border px-3 py-1.5 rounded-lg inline-flex items-center gap-2">
@@ -2632,6 +2801,8 @@
               <span>เรียลไทม์ซิงค์ Supabase</span>
             </div>
           </div>
+
+          ${renderWeekSwitcher()}
 
           ${headNotOnDutyToday ? `
             <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800 flex items-center gap-2">
@@ -2670,10 +2841,10 @@
               <div class="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-slate-100">
                 <span class="text-[10px] font-bold text-slate-500 mr-1">กรองกลุ่มเวร:</span>
                 ${[
-                  { value: 'all', label: 'ทุกกลุ่ม' },
-                  { value: 'ครูชาย', label: 'เวรครูชาย' },
-                  { value: 'ครูหญิง', label: 'เวรครูหญิง' }
-                ].map(group => `
+            { value: 'all', label: 'ทุกกลุ่ม' },
+            { value: 'ครูชาย', label: 'เวรครูชาย' },
+            { value: 'ครูหญิง', label: 'เวรครูหญิง' }
+          ].map(group => `
                   <button type="button" data-dashboard-duty-group-button="${group.value}" onclick="setDashboardDutyGroupFilter('${group.value}')" class="dashboard-duty-group-button px-3 py-1.5 rounded-lg border text-[11px] font-bold transition ${currentDashboardDutyGroupFilter === group.value ? 'bg-brand-800 border-brand-800 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}">
                     ${group.label}
                   </button>
@@ -2736,21 +2907,21 @@
                 </thead>
                 <tbody class="divide-y divide-slate-150">
                   ${dashboardRows.map(row => {
-                      const p = row.point;
-                      const teacherId = row.teacherId;
-                      const rep = row.rep;
-                      const status = row.status;
-                      const thumbSrc = rep && rep.status !== 'leave' ? resolveReportPhotoSrc(rep, true) : '';
-                      
-                      let badge = '';
-                      if (status === 'reported') badge = '<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold">เรียบร้อย</span>';
-                      else if (status === 'problem') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold animate-pulse">พบปัญหา!</span>';
-                      else if (status === 'leave') badge = '<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">🏖️ ลา</span>';
-                      else if (status === 'pending') badge = '<span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-bold">รออนุมัติ</span>';
-                      else if (status === 'not_reported_missed') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold">ไม่ได้รายงาน</span>';
-                      else badge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">ยังไม่ถึงเวลา</span>';
+            const p = row.point;
+            const teacherId = row.teacherId;
+            const rep = row.rep;
+            const status = row.status;
+            const thumbSrc = rep && rep.status !== 'leave' ? resolveReportPhotoSrc(rep, true) : '';
 
-                      return `
+            let badge = '';
+            if (status === 'reported') badge = '<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold">เรียบร้อย</span>';
+            else if (status === 'problem') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold animate-pulse">พบปัญหา!</span>';
+            else if (status === 'leave') badge = '<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">🏖️ ลา</span>';
+            else if (status === 'pending') badge = '<span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-bold">รออนุมัติ</span>';
+            else if (status === 'not_reported_missed') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold">ไม่ได้รายงาน</span>';
+            else badge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">ยังไม่ถึงเวลา</span>';
+
+            return `
                         <tr class="hover:bg-slate-50 transition cursor-default dash-row" data-point-id="${p.id}" data-duty-group="${p.dutyGroup || 'ครูชาย'}" data-status="${status}" data-teacher-name="${getTeacherName(teacherId)}">
                           <td class="px-4 py-3 text-center font-bold text-brand-900">จุดที่ ${getDutyPointDisplayNumber(p)}</td>
                           <td class="px-4 py-3 font-semibold text-slate-800">${p.name}</td>
@@ -2786,7 +2957,7 @@
                           </td>
                         </tr>
                       `;
-                  }).join('')}
+          }).join('')}
                 </tbody>
               </table>
             </div>
@@ -2794,21 +2965,21 @@
             <!-- Mobile List Card View (Displays on screen sizes below md) -->
             <div class="block md:hidden p-4 space-y-3 bg-slate-50" id="dashboard-mobile-list">
               ${dashboardRows.map(row => {
-                  const p = row.point;
-                  const teacherId = row.teacherId;
-                  const rep = row.rep;
-                  const status = row.status;
-                  const thumbSrc = rep && rep.status !== 'leave' ? resolveReportPhotoSrc(rep, true) : '';
-                  
-                  let badge = '';
-                  if (status === 'reported') badge = '<span class="bg-green-155 text-green-800 px-2 py-0.5 rounded text-[10px] font-bold">เรียบร้อย</span>';
-                  else if (status === 'problem') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-[10px] font-bold">พบปัญหา!</span>';
-                  else if (status === 'leave') badge = '<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold">🏖️ ลา</span>';
-                  else if (status === 'pending') badge = '<span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-[10px] font-bold">รออนุมัติ</span>';
-                  else if (status === 'not_reported_missed') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-[10px] font-bold">ไม่ได้รายงาน</span>';
-                  else badge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-bold">ยังไม่ถึงเวลา</span>';
- 
-                  return `
+            const p = row.point;
+            const teacherId = row.teacherId;
+            const rep = row.rep;
+            const status = row.status;
+            const thumbSrc = rep && rep.status !== 'leave' ? resolveReportPhotoSrc(rep, true) : '';
+
+            let badge = '';
+            if (status === 'reported') badge = '<span class="bg-green-155 text-green-800 px-2 py-0.5 rounded text-[10px] font-bold">เรียบร้อย</span>';
+            else if (status === 'problem') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-[10px] font-bold">พบปัญหา!</span>';
+            else if (status === 'leave') badge = '<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold">🏖️ ลา</span>';
+            else if (status === 'pending') badge = '<span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-[10px] font-bold">รออนุมัติ</span>';
+            else if (status === 'not_reported_missed') badge = '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-[10px] font-bold">ไม่ได้รายงาน</span>';
+            else badge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-bold">ยังไม่ถึงเวลา</span>';
+
+            return `
                     <div class="bg-white border rounded-xl p-3 shadow-sm space-y-2 dash-row" data-point-id="${p.id}" data-duty-group="${p.dutyGroup || 'ครูชาย'}" data-status="${status}" data-teacher-name="${getTeacherName(teacherId)}">
                       <div class="flex justify-between items-center">
                         <span class="font-bold text-slate-800 text-[11px]">จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name}</span>
@@ -2840,7 +3011,7 @@
                       </div>
                     </div>
                   `;
-              }).join('')}
+          }).join('')}
             </div>
 
           </div>
@@ -3177,17 +3348,17 @@
         return `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             ${[
-              { title: 'เวรครูชาย', points: malePoints, tone: 'border-blue-100 bg-blue-50/40' },
-              { title: 'เวรครูหญิง', points: femalePoints, tone: 'border-pink-100 bg-pink-50/40' }
-            ].map(group => `
+            { title: 'เวรครูชาย', points: malePoints, tone: 'border-blue-100 bg-blue-50/40' },
+            { title: 'เวรครูหญิง', points: femalePoints, tone: 'border-pink-100 bg-pink-50/40' }
+          ].map(group => `
               <div class="rounded-xl border ${group.tone} p-3 space-y-2">
                 <div class="font-bold text-slate-800 flex items-center justify-between">
                   <span>${group.title}</span>
                   <span class="text-[10px] text-slate-500">${group.points.length} จุด</span>
                 </div>
                 ${group.points.length === 0
-                  ? '<p class="text-[11px] text-slate-400 bg-white/70 border rounded-lg p-3 text-center">ไม่มีจุดที่ต้องยกเว้น</p>'
-                  : `<div class="space-y-2">${group.points.map(renderExemptionPointCheckbox).join('')}</div>`}
+              ? '<p class="text-[11px] text-slate-400 bg-white/70 border rounded-lg p-3 text-center">ไม่มีจุดที่ต้องยกเว้น</p>'
+              : `<div class="space-y-2">${group.points.map(renderExemptionPointCheckbox).join('')}</div>`}
               </div>
             `).join('')}
           </div>
@@ -3398,13 +3569,13 @@
                   <label class="block text-slate-600 font-bold">เหตุผลที่ต้องรายงานแทน:</label>
                   <div class="flex flex-wrap gap-1.5">
                     ${[
-                      'ครูใช้งานระบบไม่คล่อง',
-                      'อุปกรณ์หรือโทรศัพท์มีปัญหา',
-                      'อินเทอร์เน็ตขัดข้อง',
-                      'ระบบไม่สามารถระบุตำแหน่ง GPS ได้',
-                      'ครูแจ้งให้หัวหน้าเวรช่วยรายงาน',
-                      'เหตุจำเป็นอื่น ๆ'
-                    ].map(reason => `<button type="button" onclick="applyOnBehalfReasonPreset('${reason}')" class="px-2.5 py-1.5 rounded-lg bg-violet-100 hover:bg-violet-200 text-violet-800 border border-violet-200 text-[10px] font-bold transition">${reason}</button>`).join('')}
+          'ครูใช้งานระบบไม่คล่อง',
+          'อุปกรณ์หรือโทรศัพท์มีปัญหา',
+          'อินเทอร์เน็ตขัดข้อง',
+          'ระบบไม่สามารถระบุตำแหน่ง GPS ได้',
+          'ครูแจ้งให้หัวหน้าเวรช่วยรายงาน',
+          'เหตุจำเป็นอื่น ๆ'
+        ].map(reason => `<button type="button" onclick="applyOnBehalfReasonPreset('${reason}')" class="px-2.5 py-1.5 rounded-lg bg-violet-100 hover:bg-violet-200 text-violet-800 border border-violet-200 text-[10px] font-bold transition">${reason}</button>`).join('')}
                   </div>
                   <textarea id="on-behalf-reason" rows="2" class="w-full border border-violet-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-violet-500 text-slate-700" placeholder="เลือกข้อความตัวอย่างด้านบน แล้วแก้ไขหรือเพิ่มรายละเอียดได้" required></textarea>
                 </div>
@@ -3481,10 +3652,10 @@
               ${myLeaveRequests.length === 0 ? `
                 <div class="p-8 text-center text-slate-400">ไม่มีคำขอลารออนุมัติ</div>
               ` : myLeaveRequests.map(req => {
-                const teacher = db.getTeachers().find(t => t.id === req.teacherId);
-                const point = req.pointId !== null ? db.getDutyPoints().find(p => p.id === req.pointId) : null;
-                const scopeLabel = req.pointId === null ? 'ลาทั้งวัน' : `เฉพาะจุดที่ ${point ? getDutyPointDisplayNumber(point) : '-'}${point ? `: ${point.name}` : ''}`;
-                return `
+          const teacher = db.getTeachers().find(t => t.id === req.teacherId);
+          const point = req.pointId !== null ? db.getDutyPoints().find(p => p.id === req.pointId) : null;
+          const scopeLabel = req.pointId === null ? 'ลาทั้งวัน' : `เฉพาะจุดที่ ${point ? getDutyPointDisplayNumber(point) : '-'}${point ? `: ${point.name}` : ''}`;
+          return `
                   <div class="p-4 border-b last:border-b-0 flex flex-col sm:flex-row sm:items-center gap-3">
                     <div class="flex-1 min-w-0">
                       <p class="font-bold text-slate-800">${teacher ? teacher.name : req.teacherId}</p>
@@ -3497,16 +3668,16 @@
                     </div>
                   </div>
                 `;
-              }).join('')}
+        }).join('')}
             </div>
           ` : currentDutyApprovalsTab === 'late' ? `
             <div class="bg-white border rounded-2xl shadow-sm overflow-hidden">
               ${myLateReports.length === 0 ? `
                 <div class="p-8 text-center text-slate-400">ไม่มีรายงานสายรออนุมัติ</div>
               ` : myLateReports.map(rep => {
-                const teacher = db.getTeachers().find(t => t.id === rep.teacherId);
-                const point = db.getDutyPoints().find(p => p.id === rep.pointId);
-                return `
+          const teacher = db.getTeachers().find(t => t.id === rep.teacherId);
+          const point = db.getDutyPoints().find(p => p.id === rep.pointId);
+          return `
                   <div class="p-4 border-b last:border-b-0 flex flex-col sm:flex-row sm:items-center gap-3">
                     <div class="flex-1 min-w-0">
                       <p class="font-bold text-slate-800">${teacher ? teacher.name : rep.teacherId}</p>
@@ -3520,7 +3691,7 @@
                     </div>
                   </div>
                 `;
-              }).join('')}
+        }).join('')}
             </div>
           ` : `
             <div class="space-y-4">
@@ -3684,10 +3855,10 @@
             <div class="flex flex-wrap items-center gap-2">
               <div class="inline-flex bg-slate-100 border rounded-xl p-1">
                 ${[
-                  { id: 'week', label: 'รายสัปดาห์' },
-                  { id: 'month', label: 'รายเดือน' },
-                  { id: 'semester', label: 'ภาคเรียน' }
-                ].map(item => `
+          { id: 'week', label: 'รายสัปดาห์' },
+          { id: 'month', label: 'รายเดือน' },
+          { id: 'semester', label: 'ภาคเรียน' }
+        ].map(item => `
                   <button type="button" onclick="changeExecutivePeriodMode('${item.id}')" class="px-3 py-1.5 rounded-lg font-bold transition ${currentExecutivePeriodMode === item.id ? 'bg-white text-brand-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}">${item.label}</button>
                 `).join('')}
               </div>
@@ -3706,16 +3877,16 @@
 
           <div class="flex border-b border-slate-200 overflow-x-auto no-scrollbar py-1 gap-1 -mx-4 px-4 sm:mx-0 sm:px-0 no-print">
             ${(lockedExecGenders
-              ? lockedExecGenders.map(g => ({ val: g, label: g === 'หญิง' ? 'เวรคณะครูหญิง' : 'เวรคณะครูชาย' }))
-              : [
-                { val: 'all', label: 'แสดงรวมทั้งหมด' },
-                { val: 'ชาย', label: 'เวรคณะครูชาย' },
-                { val: 'หญิง', label: 'เวรคณะครูหญิง' }
-              ]
-            ).map(item => {
-              const isActive = currentExecutiveGroupFilter === item.val;
-              return `<button onclick="changeExecutiveGroupFilter('${item.val}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isActive ? 'bg-brand-900 text-white border-brand-900 shadow-sm' : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'}">${item.label}</button>`;
-            }).join('')}
+          ? lockedExecGenders.map(g => ({ val: g, label: g === 'หญิง' ? 'เวรคณะครูหญิง' : 'เวรคณะครูชาย' }))
+          : [
+            { val: 'all', label: 'แสดงรวมทั้งหมด' },
+            { val: 'ชาย', label: 'เวรคณะครูชาย' },
+            { val: 'หญิง', label: 'เวรคณะครูหญิง' }
+          ]
+        ).map(item => {
+          const isActive = currentExecutiveGroupFilter === item.val;
+          return `<button onclick="changeExecutiveGroupFilter('${item.val}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isActive ? 'bg-brand-900 text-white border-brand-900 shadow-sm' : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'}">${item.label}</button>`;
+        }).join('')}
           </div>
 
           <div class="bg-green-50/70 border border-green-200 rounded-xl p-3 flex items-start gap-2 text-green-900">
@@ -3956,33 +4127,31 @@
           <!-- Duty Group Tab Switcher -->
           <div class="flex border-b border-slate-200 gap-1">
             ${['ครูชาย', 'ครูหญิง'].map(group => {
-              const isActive = currentScheduleGroupTab === group;
-              return `
-                <button onclick="onScheduleGroupTabChange('${group}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
-                  isActive
-                    ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
-                    : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
-                }">
+        const isActive = currentScheduleGroupTab === group;
+        return `
+                <button onclick="onScheduleGroupTabChange('${group}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isActive
+            ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
+            : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
+          }">
                   เวร${group}
                 </button>
               `;
-            }).join('')}
+      }).join('')}
           </div>
 
           <!-- Horizontal Day Tab Switcher -->
           <div class="flex border-b border-slate-200 overflow-x-auto no-scrollbar py-1 gap-1 -mx-4 px-4 sm:mx-0 sm:px-0">
             ${scheduleViewDays.map(day => {
-              const isActive = currentScheduleViewDay === day;
-              return `
-                <button onclick="onScheduleDayChange('${day}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
-                  isActive
-                    ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
-                    : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
-                }">
+        const isActive = currentScheduleViewDay === day;
+        return `
+                <button onclick="onScheduleDayChange('${day}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isActive
+            ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
+            : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
+          }">
                   วัน${day}
                 </button>
               `;
-            }).join('')}
+      }).join('')}
           </div>
           `}
 
@@ -4003,18 +4172,18 @@
                 <button type="button" onclick="toggleScheduleHeadDropdown(event)" class="w-full border border-slate-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-bold bg-white text-xs text-left flex justify-between items-center shadow-sm">
                   <span id="schedule-head-selected-label">
                     ${(() => {
-                      const scheduleGroupGender = currentScheduleGroupTab === 'ครูหญิง' ? 'หญิง' : 'ชาย';
-                      const dayVal = settings.headsOfDay?.[currentScheduleViewDay];
-                      let currentHeadId = "";
-                      if (typeof dayVal === 'string') {
-                        const t = teachers.find(x => x.id === dayVal);
-                        if (t) currentHeadId = dayVal;
-                      } else if (dayVal && typeof dayVal === 'object') {
-                        currentHeadId = dayVal[scheduleGroupGender] || "";
-                      }
-                      const activeHead = teachers.find(t => t.id === currentHeadId);
-                      return activeHead ? `${activeHead.name} (${activeHead.id})` : '-- ยังไม่ได้กำหนด --';
-                    })()}
+          const scheduleGroupGender = currentScheduleGroupTab === 'ครูหญิง' ? 'หญิง' : 'ชาย';
+          const dayVal = settings.headsOfDay?.[currentScheduleViewDay];
+          let currentHeadId = "";
+          if (typeof dayVal === 'string') {
+            const t = teachers.find(x => x.id === dayVal);
+            if (t) currentHeadId = dayVal;
+          } else if (dayVal && typeof dayVal === 'object') {
+            currentHeadId = dayVal[scheduleGroupGender] || "";
+          }
+          const activeHead = teachers.find(t => t.id === currentHeadId);
+          return activeHead ? `${activeHead.name} (${activeHead.id})` : '-- ยังไม่ได้กำหนด --';
+        })()}
                   </span>
                   <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
                 </button>
@@ -4057,18 +4226,18 @@
                 </thead>
                 <tbody class="divide-y">
                   ${points.map(p => {
-                    const assignedList = p.assignedTo || p.assigned_to || [];
-                    
-                    const dayTeachers = [];
-                    assignedList.forEach(item => {
-                      if (isAssignedOnDay(item, currentScheduleViewDay)) {
-                        const isDaySpecific = item.includes(':');
-                        const itemTeacherId = isDaySpecific ? item.split(':')[1] : item;
-                        dayTeachers.push({ id: itemTeacherId, isDaySpecific });
-                      }
-                    });
+          const assignedList = p.assignedTo || p.assigned_to || [];
 
-                    return `
+          const dayTeachers = [];
+          assignedList.forEach(item => {
+            if (isAssignedOnDay(item, currentScheduleViewDay)) {
+              const isDaySpecific = item.includes(':');
+              const itemTeacherId = isDaySpecific ? item.split(':')[1] : item;
+              dayTeachers.push({ id: itemTeacherId, isDaySpecific });
+            }
+          });
+
+          return `
                       <tr class="hover:bg-slate-50 transition">
                         <td class="px-4 py-3 text-center font-bold text-slate-700">จุดที่ ${getDutyPointDisplayNumber(p)}</td>
                         <td class="px-4 py-3 font-semibold text-slate-800">${p.name}</td>
@@ -4093,7 +4262,7 @@
                         </td>
                       </tr>
                     `;
-                  }).join('')}
+        }).join('')}
                 </tbody>
               </table>
             </div>
@@ -4136,7 +4305,7 @@
       const settings = db.getSettings();
       const teachers = db.getTeachers();
       const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
-      
+
       const filteredTeachers = teachers.filter(t => {
         if (t.id === 'admin' || t.id === 'chief' || t.id === 'director') return false;
         return getTeacherGender(t) === appointHeadsActiveTab;
@@ -4153,46 +4322,44 @@
           <!-- Active Gender Tabs -->
           <div class="flex border-b border-slate-200 gap-1 no-print">
             ${[
-              { val: 'ชาย', label: 'กลุ่มเวรครูชาย (Male Group)' },
-              { val: 'หญิง', label: 'กลุ่มเวรครูหญิง (Female Group)' }
-            ].map(item => {
-              const isActive = appointHeadsActiveTab === item.val;
-              return `
-                <button onclick="changeAppointHeadsTab('${item.val}')" class="px-5 py-2.5 text-xs font-bold border-b-2 transition-all ${
-                  isActive 
-                    ? 'border-brand-900 text-brand-900 font-extrabold' 
-                    : 'border-transparent text-slate-400 hover:text-slate-650 hover:border-slate-300'
-                }">
+          { val: 'ชาย', label: 'กลุ่มเวรครูชาย (Male Group)' },
+          { val: 'หญิง', label: 'กลุ่มเวรครูหญิง (Female Group)' }
+        ].map(item => {
+          const isActive = appointHeadsActiveTab === item.val;
+          return `
+                <button onclick="changeAppointHeadsTab('${item.val}')" class="px-5 py-2.5 text-xs font-bold border-b-2 transition-all ${isActive
+              ? 'border-brand-900 text-brand-900 font-extrabold'
+              : 'border-transparent text-slate-400 hover:text-slate-650 hover:border-slate-300'
+            }">
                   ${item.label}
                 </button>
               `;
-            }).join('')}
+        }).join('')}
           </div>
 
           <!-- Daily Cards List -->
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             ${days.map(day => {
-              let currentHeadId = '';
-              const val = settings.headsOfDay?.[day];
-              if (typeof val === 'string') {
-                const t = teachers.find(x => x.id === val);
-                if (t && getTeacherGender(t) === appointHeadsActiveTab) {
-                  currentHeadId = val;
-                }
-              } else if (val && typeof val === 'object') {
-                currentHeadId = val[appointHeadsActiveTab] || '';
-              }
+          let currentHeadId = '';
+          const val = settings.headsOfDay?.[day];
+          if (typeof val === 'string') {
+            const t = teachers.find(x => x.id === val);
+            if (t && getTeacherGender(t) === appointHeadsActiveTab) {
+              currentHeadId = val;
+            }
+          } else if (val && typeof val === 'object') {
+            currentHeadId = val[appointHeadsActiveTab] || '';
+          }
 
-              const headTeacher = teachers.find(t => t.id === currentHeadId);
-              
-              return `
+          const headTeacher = teachers.find(t => t.id === currentHeadId);
+
+          return `
                 <div class="bg-white border rounded-xl p-4 shadow-sm space-y-4 hover:shadow transition flex flex-col justify-between">
                   <div class="space-y-3">
                     <div class="flex items-center justify-between">
                       <span class="text-sm font-bold text-slate-800">วัน${day}</span>
-                      <span class="px-2 py-0.5 rounded text-[10px] font-bold ${
-                        appointHeadsActiveTab === 'ชาย' ? 'bg-emerald-50 text-emerald-800 border border-emerald-150' : 'bg-pink-50 text-pink-850 border border-pink-150'
-                      }">
+                      <span class="px-2 py-0.5 rounded text-[10px] font-bold ${appointHeadsActiveTab === 'ชาย' ? 'bg-emerald-50 text-emerald-800 border border-emerald-150' : 'bg-pink-50 text-pink-850 border border-pink-150'
+            }">
                         กลุ่มครู${appointHeadsActiveTab}
                       </span>
                     </div>
@@ -4200,7 +4367,7 @@
                     ${headTeacher ? `
                       <div class="bg-slate-50 border rounded-lg p-3 flex items-center gap-3">
                         <div class="w-9 h-9 rounded-full bg-brand-100 text-brand-900 flex items-center justify-center font-bold text-xs">
-                          ${headTeacher.name.split(' ')[1] ? headTeacher.name.split(' ')[1].substring(0,2) : headTeacher.name.substring(3,5)}
+                          ${headTeacher.name.split(' ')[1] ? headTeacher.name.split(' ')[1].substring(0, 2) : headTeacher.name.substring(3, 5)}
                         </div>
                         <div>
                           <p class="font-bold text-slate-800 text-xs">${headTeacher.name}</p>
@@ -4242,7 +4409,7 @@
                   </div>
                 </div>
               `;
-            }).join('')}
+        }).join('')}
           </div>
         </div>
       `;
@@ -4260,10 +4427,10 @@
     async function onAppointHeadChange(day, gender, teacherId) {
       const settings = db.getSettings();
       if (!settings.headsOfDay) settings.headsOfDay = {};
-      
+
       const currentDayVal = settings.headsOfDay[day];
       let dayObj = { "ชาย": "", "หญิง": "" };
-      
+
       if (currentDayVal && typeof currentDayVal === 'object') {
         dayObj = { ...currentDayVal };
       } else if (typeof currentDayVal === 'string') {
@@ -4271,19 +4438,19 @@
         const legacyGender = teacher ? getTeacherGender(teacher) : 'ชาย';
         dayObj[legacyGender] = currentDayVal;
       }
-      
+
       dayObj[gender] = teacherId;
       settings.headsOfDay[day] = dayObj;
-      
+
       await saveSettingsDB(settings);
-      
+
       const teacherName = teacherId ? getTeacherName(teacherId) : 'ล้างการกำหนด';
       if (teacherId) {
         showToast(`แต่งตั้งให้ ${teacherName} เป็นหัวหน้าเวรวัน${day} (กลุ่มครู${gender}) เรียบร้อย`, 'success');
       } else {
         showToast(`ล้างการแต่งตั้งหัวหน้าเวรวัน${day} (กลุ่มครู${gender}) เรียบร้อย`, 'info');
       }
-      
+
       const mc = document.getElementById('main-content');
       if (mc) {
         mc.innerHTML = renderAppointHeadsView();
@@ -4430,9 +4597,9 @@
       // Search Query
       if (teachersSearchQuery.trim() !== '') {
         const query = teachersSearchQuery.toLowerCase().trim();
-        filtered = filtered.filter(t => 
-          t.name.toLowerCase().includes(query) || 
-          t.id.toLowerCase().includes(query) || 
+        filtered = filtered.filter(t =>
+          t.name.toLowerCase().includes(query) ||
+          t.id.toLowerCase().includes(query) ||
           (t.phone && t.phone.includes(query))
         );
       }
@@ -4492,21 +4659,21 @@
             ${filtered.length === 0 ? `
               <div class="col-span-full bg-white border rounded-xl p-8 text-center text-slate-400 font-medium">ไม่พบข้อมูลตามเงื่อนไขที่ค้นหา</div>
             ` : filtered.map(t => {
-              const roleBadge = t.role === 'head'
-                ? '<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">หัวหน้าเวร</span>'
-                : t.role === 'chief'
-                  ? '<span class="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-200">หัวหน้างานเวร</span>'
-                  : t.role === 'director'
-                    ? '<span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200">ผู้บริหาร</span>'
-                    : t.role === 'admin'
-                      ? '<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">ผู้ดูแลระบบ</span>'
-                      : '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">ครูเวรทั่วไป</span>';
+          const roleBadge = t.role === 'head'
+            ? '<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">หัวหน้าเวร</span>'
+            : t.role === 'chief'
+              ? '<span class="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-200">หัวหน้างานเวร</span>'
+              : t.role === 'director'
+                ? '<span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200">ผู้บริหาร</span>'
+                : t.role === 'admin'
+                  ? '<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">ผู้ดูแลระบบ</span>'
+                  : '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">ครูเวรทั่วไป</span>';
 
-              const mediaStatus = getTeacherMediaStatus(t);
-              const sigState = mediaStatus.hasSignature ? 'yes' : mediaStatus.presenceKnown ? 'no' : 'unknown';
-              const avatarState = mediaStatus.hasAvatar ? 'yes' : mediaStatus.presenceKnown ? 'no' : 'unknown';
-              
-              return `
+          const mediaStatus = getTeacherMediaStatus(t);
+          const sigState = mediaStatus.hasSignature ? 'yes' : mediaStatus.presenceKnown ? 'no' : 'unknown';
+          const avatarState = mediaStatus.hasAvatar ? 'yes' : mediaStatus.presenceKnown ? 'no' : 'unknown';
+
+          return `
                 <div class="bg-white border rounded-xl p-4 shadow-sm space-y-4 hover:shadow-md transition">
                   <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full overflow-hidden shadow-inner flex-shrink-0">
@@ -4527,8 +4694,8 @@
 
                   <div class="${mediaStatus.presenceKnown ? 'bg-slate-50 border-slate-200 text-slate-650' : 'bg-amber-50/60 border-amber-200 text-amber-800'} border border-dashed rounded-lg p-2.5 text-center text-[9px] leading-relaxed">
                     ${mediaStatus.presenceKnown
-                      ? 'แสดงเฉพาะสถานะ ไม่โหลดรูปจริง เพื่อประหยัดโควตา Supabase'
-                      : 'ยังไม่ทราบสถานะรูปโปรไฟล์/ลายเซ็นจากคลาวด์'}
+              ? 'แสดงเฉพาะสถานะ ไม่โหลดรูปจริง เพื่อประหยัดโควตา Supabase'
+              : 'ยังไม่ทราบสถานะรูปโปรไฟล์/ลายเซ็นจากคลาวด์'}
                   </div>
                   <div class="grid grid-cols-2 gap-1 text-[9px]">
                     ${renderTeacherMediaBadge(sigState, 'มีลายเซ็น', 'ไม่มีลายเซ็น', 'ยังไม่ทราบลายเซ็น')}
@@ -4554,7 +4721,7 @@
                   </div>
                 </div>
               `;
-            }).join('')}
+        }).join('')}
           </div>
         `;
       } else {
@@ -4579,25 +4746,25 @@
                       <td colspan="7" class="p-8 text-center text-slate-400 font-medium">ไม่พบข้อมูลตามเงื่อนไขที่ค้นหา</td>
                     </tr>
                   ` : filtered.map(t => {
-                    const roleBadge = t.role === 'head'
-                      ? '<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">หัวหน้าเวร</span>'
-                      : t.role === 'chief'
-                        ? '<span class="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-200">หัวหน้างานเวร</span>'
-                        : t.role === 'director'
-                          ? '<span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200">ผู้บริหาร</span>'
-                          : t.role === 'admin'
-                            ? '<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">ผู้ดูแลระบบ</span>'
-                            : '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">ครูเวรทั่วไป</span>';
+          const roleBadge = t.role === 'head'
+            ? '<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">หัวหน้าเวร</span>'
+            : t.role === 'chief'
+              ? '<span class="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-200">หัวหน้างานเวร</span>'
+              : t.role === 'director'
+                ? '<span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200">ผู้บริหาร</span>'
+                : t.role === 'admin'
+                  ? '<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">ผู้ดูแลระบบ</span>'
+                  : '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">ครูเวรทั่วไป</span>';
 
-                    const mediaStatus = getTeacherMediaStatus(t);
-                    const sigState = mediaStatus.hasSignature ? 'yes' : mediaStatus.presenceKnown ? 'no' : 'unknown';
-                    const avatarState = mediaStatus.hasAvatar ? 'yes' : mediaStatus.presenceKnown ? 'no' : 'unknown';
-                    const gender = getTeacherGender(t);
-                    const genderBadge = gender === 'ชาย'
-                      ? '<span class="bg-emerald-50 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded font-bold border border-emerald-150">ชาย (M)</span>'
-                      : '<span class="bg-pink-50 text-pink-850 text-[10px] px-1.5 py-0.5 rounded font-bold border border-pink-150">หญิง (F)</span>';
+          const mediaStatus = getTeacherMediaStatus(t);
+          const sigState = mediaStatus.hasSignature ? 'yes' : mediaStatus.presenceKnown ? 'no' : 'unknown';
+          const avatarState = mediaStatus.hasAvatar ? 'yes' : mediaStatus.presenceKnown ? 'no' : 'unknown';
+          const gender = getTeacherGender(t);
+          const genderBadge = gender === 'ชาย'
+            ? '<span class="bg-emerald-50 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded font-bold border border-emerald-150">ชาย (M)</span>'
+            : '<span class="bg-pink-50 text-pink-850 text-[10px] px-1.5 py-0.5 rounded font-bold border border-pink-150">หญิง (F)</span>';
 
-                    return `
+          return `
                       <tr class="hover:bg-slate-50 transition">
                         <td class="p-3 text-center font-semibold text-slate-800">${t.id}</td>
                         <td class="p-3">
@@ -4638,7 +4805,7 @@
                         </td>
                       </tr>
                     `;
-                  }).join('')}
+        }).join('')}
                 </tbody>
               </table>
             </div>
@@ -4745,17 +4912,16 @@
           <!-- Duty Group Tab Switcher -->
           <div class="flex border-b border-slate-200 gap-1">
             ${dutyPointsGroupTabs.map(group => {
-              const isActive = currentDutyPointsGroupTab === group;
-              return `
-                <button onclick="onDutyPointsGroupTabChange('${group}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
-                  isActive
-                    ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
-                    : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
-                }">
+        const isActive = currentDutyPointsGroupTab === group;
+        return `
+                <button onclick="onDutyPointsGroupTabChange('${group}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isActive
+            ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
+            : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
+          }">
                   เวร${group}
                 </button>
               `;
-            }).join('')}
+      }).join('')}
           </div>
 
           <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -4796,19 +4962,19 @@
                       <span>${isMinDutyTimeEnabled() ? `ส่งรายงานได้หลังเช็คอินครบ ${getRequiredDutyMinutes(p)} นาที${p.minDutyMinutes !== undefined && p.minDutyMinutes !== null && p.minDutyMinutes !== '' ? ' (กำหนดเฉพาะจุด)' : ' (ใช้ค่ากลาง)'}` : 'ปิดการบังคับเวลาขั้นต่ำ — รายงานได้โดยไม่ต้องเช็คอินล่วงหน้า'}</span>
                     </p>
                     <p class="flex items-center gap-1"><i data-lucide="users" class="w-3.5 h-3.5 text-slate-400"></i> ผู้ดูแล: ${(() => {
-                      let assigned = p.assignedTo || p.assigned_to || [];
-                      if (headAssignedDays && headAssignedDays.length > 0) {
-                        assigned = assigned.filter(id => {
-                          if (typeof id === 'string' && id.includes(':')) {
-                            return headAssignedDays.includes(id.split(':')[0]);
-                          }
-                          return true;
-                        });
-                      }
-                      return assigned.length > 0
-                        ? assigned.map(id => getTeacherName(id)).join(', ')
-                        : '<span class="text-red-500">ยังไม่มีผู้รับผิดชอบ</span>';
-                    })()}</p>
+          let assigned = p.assignedTo || p.assigned_to || [];
+          if (headAssignedDays && headAssignedDays.length > 0) {
+            assigned = assigned.filter(id => {
+              if (typeof id === 'string' && id.includes(':')) {
+                return headAssignedDays.includes(id.split(':')[0]);
+              }
+              return true;
+            });
+          }
+          return assigned.length > 0
+            ? assigned.map(id => getTeacherName(id)).join(', ')
+            : '<span class="text-red-500">ยังไม่มีผู้รับผิดชอบ</span>';
+        })()}</p>
                   </div>
 
                   <button type="button" onclick="togglePointCardMap(${p.id})" class="w-full flex items-center justify-center gap-1 text-[10px] font-bold text-brand-700 hover:text-brand-900 hover:bg-brand-50 py-1.5 mt-2 rounded-lg border border-brand-100 transition">
@@ -5035,27 +5201,26 @@
           <!-- Duty Group Tab Switcher -->
           <div class="flex border-b border-slate-200 gap-1 no-print">
             ${['ครูชาย', 'ครูหญิง'].map(group => {
-              const isActive = currentDocsGroupTab === group;
-              return `
-                <button onclick="onDocsGroupTabChange('${group}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
-                  isActive
-                    ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
-                    : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
-                }">
+        const isActive = currentDocsGroupTab === group;
+        return `
+                <button onclick="onDocsGroupTabChange('${group}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isActive
+            ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
+            : 'bg-white text-slate-650 hover:text-slate-800 border-slate-200 hover:border-slate-350'
+          }">
                   เวร${group}
                 </button>
               `;
-            }).join('')}
+      }).join('')}
           </div>
           `}
 
           ${(() => {
-            const docsGroup = lockedDocsGroup || currentDocsGroupTab;
-            const groupPoints = docsGroup === 'ครูหญิง' ? femalePoints : malePoints;
-            const exemptions = getExemptionsForDate(currentDocumentsDate, docsGroup);
-            const page = renderDutyReportPage(docsGroup, groupPoints, docDay, docDateThai, weekNum, reports, settings, headEntry, exemptions);
-            return page || `<p class="text-center text-sm text-slate-400 py-10 no-print">ไม่มีจุดเวร${docsGroup}ที่ต้องรายงานในวันนี้</p>`;
-          })()}
+          const docsGroup = lockedDocsGroup || currentDocsGroupTab;
+          const groupPoints = docsGroup === 'ครูหญิง' ? femalePoints : malePoints;
+          const exemptions = getExemptionsForDate(currentDocumentsDate, docsGroup);
+          const page = renderDutyReportPage(docsGroup, groupPoints, docDay, docDateThai, weekNum, reports, settings, headEntry, exemptions);
+          return page || `<p class="text-center text-sm text-slate-400 py-10 no-print">ไม่มีจุดเวร${docsGroup}ที่ต้องรายงานในวันนี้</p>`;
+        })()}
         </div>
       `;
     }
@@ -5291,7 +5456,7 @@
 
     function renderMemoView() {
       const settings = db.getSettings();
-      
+
       return `
         <div class="fade-in space-y-6 text-xs">
           <div class="flex justify-between items-center border-b pb-4 no-print">
@@ -5469,18 +5634,18 @@
     function initMemoState() {
       const settings = db.getSettings();
       memoSelectedDate = getTodayISODate();
-      
+
       const thaiYear = new Date().getFullYear() + 543;
       memoDocNo = `ฝปก. พิเศษ / ${convertToArabicToThaiNumbers(thaiYear)}`;
-      
+
       memoSubject = 'ขอความร่วมมือชี้แจงเหตุผลไม่เข้ารายงานเวรดิจิทัล';
       memoTo = 'คุณครูผู้เกี่ยวข้องเวรประจำจุด';
       memoSignName = settings.headName || '';
       memoSignTitle = `หัวหน้าคณะเวรประจำวัน${getThaiDayNameForDate(memoSelectedDate)}`;
-      
+
       // Select unreported teachers automatically
       updateUnreportedTeachersList();
-      
+
       // Update form values
       const dateEl = document.getElementById('memo-date-input');
       if (dateEl) dateEl.value = memoSelectedDate;
@@ -5519,10 +5684,10 @@
           // Look for any report for this point and teacher on this date
           const rep = reports.find(r => r.pointId === p.id && r.teacherId === teacherId);
           if (!rep) {
-            unReports.push({ 
-              point: p, 
-              teacherId: teacherId, 
-              teacherName: getTeacherName(teacherId) 
+            unReports.push({
+              point: p,
+              teacherId: teacherId,
+              teacherName: getTeacherName(teacherId)
             });
           }
         });
@@ -5532,13 +5697,13 @@
 
     function updateUnreportedTeachersList() {
       const unReports = getUnreportedTeachersForDate(memoSelectedDate);
-      
+
       // Pre-select all teachers by default
       memoSelectedTeachers = [...unReports];
-      
+
       const checklistContainer = document.getElementById('memo-teachers-checklist');
       if (!checklistContainer) return;
-      
+
       if (unReports.length === 0) {
         checklistContainer.innerHTML = `
           <div class="text-center text-slate-400 py-4 font-bold text-xs">
@@ -5556,14 +5721,14 @@
             </label>
           `;
         }).join('');
-        
+
         const thaiDate = getTodayThaiFullDate(memoSelectedDate + 'T00:00:00');
         memoContent = `เนื่องด้วยฝ่ายปกครอง โรงเรียนมูลนิธิอาซิซสถาน ได้ตรวจวิเคราะห์รายงานพิกัดเวรประจำจุด จากระบบตรวจสอบเวรออนไลน์ ประจำวันที่ ${thaiDate} พบว่ามีครูเวรประจำจุดบางท่านยังไม่ได้ส่งข้อมูลรายงานตัวและลายมือชื่อเข้าระบบรายงานเวรดิจิทัล ฝ่ายปกครองจึงขอติดตามให้ชี้แจงและรายงานตัว ดังนี้:`;
       }
-      
+
       const contentInput = document.getElementById('memo-content-input');
       if (contentInput) contentInput.value = memoContent;
-      
+
       updateMemoPreview();
     }
 
@@ -5571,7 +5736,7 @@
       const unReports = getUnreportedTeachersForDate(memoSelectedDate);
       const targetTeacher = unReports[idx];
       if (!targetTeacher) return;
-      
+
       if (checked) {
         if (!memoSelectedTeachers.some(t => t.teacherId === targetTeacher.teacherId && t.point.id === targetTeacher.point.id)) {
           memoSelectedTeachers.push(targetTeacher);
@@ -5579,7 +5744,7 @@
       } else {
         memoSelectedTeachers = memoSelectedTeachers.filter(t => !(t.teacherId === targetTeacher.teacherId && t.point.id === targetTeacher.point.id));
       }
-      
+
       updateMemoPreview();
     }
 
@@ -5631,17 +5796,17 @@
       if (field === 'content') memoContent = val;
       if (field === 'signName') memoSignName = val;
       if (field === 'signTitle') memoSignTitle = val;
-      
+
       updateMemoPreview();
     }
 
     function handleMemoDateChange(val) {
       memoSelectedDate = val;
       memoSignTitle = `หัวหน้าคณะเวรประจำวัน${getThaiDayNameForDate(memoSelectedDate)}`;
-      
+
       const signTitleEl = document.getElementById('memo-sign-title-input');
       if (signTitleEl) signTitleEl.value = memoSignTitle;
-      
+
       updateUnreportedTeachersList();
     }
 
@@ -5650,7 +5815,7 @@
         showToast('กรุณาเลือกคุณครูผู้ไม่รายงานอย่างน้อย 1 คนก่อนบันทึกประวัติ', 'warning');
         return;
       }
-      
+
       const newMemo = {
         id: 'memo-' + Date.now(),
         date: memoSelectedDate,
@@ -5668,22 +5833,22 @@
         signTitle: memoSignTitle,
         created_at: new Date().toLocaleString('th-TH')
       };
-      
+
       const memos = db.getMemos();
       memos.push(newMemo);
       db.saveMemos(memos);
-      
+
       showToast('บันทึกเอกสารเตือนเวรเข้าสู่ประวัติระบบเรียบร้อย!', 'success');
       renderMemoHistoryTable();
     }
 
     function deleteMemoFromHistory(memoId) {
       if (!confirm('คุณแน่ใจว่าต้องการลบบันทึกข้อความฉบับนี้ออกจากประวัติใช่หรือไม่?')) return;
-      
+
       let memos = db.getMemos();
       memos = memos.filter(m => m.id !== memoId);
       db.saveMemos(memos);
-      
+
       showToast('ลบประวัติบันทึกข้อความเรียบร้อย', 'success');
       renderMemoHistoryTable();
     }
@@ -5695,7 +5860,7 @@
         showToast('ไม่พบข้อมูลบันทึกข้อความดังกล่าว', 'error');
         return;
       }
-      
+
       memoSelectedDate = found.date;
       memoDocNo = found.refNo;
       memoSubject = found.subject;
@@ -5703,17 +5868,17 @@
       memoContent = found.content;
       memoSignName = found.signName;
       memoSignTitle = found.signTitle;
-      
+
       const allTeachersForDay = getUnreportedTeachersForDate(found.date);
       const checklistContainer = document.getElementById('memo-teachers-checklist');
-      
+
       if (checklistContainer) {
         if (allTeachersForDay.length === 0) {
           checklistContainer.innerHTML = found.teachers.map((t, idx) => {
             return `
               <label class="flex items-center gap-2 text-xs text-slate-700 bg-white p-2 rounded border border-slate-100 cursor-not-allowed select-none">
                 <input type="checkbox" checked disabled class="rounded text-brand-600 w-3.5 h-3.5">
-                <span>จุดเวรที่ ${convertToArabicToThaiNumbers(idx+1)}: ${t.name} (${t.pointName}) [ประวัติ]</span>
+                <span>จุดเวรที่ ${convertToArabicToThaiNumbers(idx + 1)}: ${t.name} (${t.pointName}) [ประวัติ]</span>
               </label>
             `;
           }).join('');
@@ -5730,7 +5895,7 @@
           }).join('');
         }
       }
-      
+
       memoSelectedTeachers = found.teachers.map(t => ({
         teacherId: t.teacherId,
         teacherName: t.name,
@@ -5740,7 +5905,7 @@
           id: 0
         }
       }));
-      
+
       // Sync form fields
       const dateEl = document.getElementById('memo-date-input');
       if (dateEl) dateEl.value = memoSelectedDate;
@@ -5762,7 +5927,7 @@
 
       const signTitleEl = document.getElementById('memo-sign-title-input');
       if (signTitleEl) signTitleEl.value = memoSignTitle;
-      
+
       showToast('เรียกพรีวิวหนังสือประวัติแล้ว', 'success');
       updateMemoPreview();
     }
@@ -5795,9 +5960,9 @@
             </thead>
             <tbody class="divide-y divide-slate-100">
               ${memos.map(m => {
-                const names = m.teachers.map(t => t.name).join(', ');
-                const dateThai = getTodayThaiFullDate(m.date + 'T00:00:00');
-                return `
+        const names = m.teachers.map(t => t.name).join(', ');
+        const dateThai = getTodayThaiFullDate(m.date + 'T00:00:00');
+        return `
                   <tr class="hover:bg-slate-50 text-slate-700 transition">
                     <td class="p-2.5 border border-slate-100 font-semibold whitespace-nowrap">${dateThai}</td>
                     <td class="p-2.5 border border-slate-100 font-mono text-slate-500">${m.refNo}</td>
@@ -5809,7 +5974,7 @@
                     </td>
                   </tr>
                 `;
-              }).reverse().join('')}
+      }).reverse().join('')}
             </tbody>
           </table>
         </div>
@@ -5821,23 +5986,23 @@
         showToast('ไม่มีรายชื่อคุณครูที่เลือกเพื่อส่งคำเตือนกลุ่ม', 'warning');
         return;
       }
-      
+
       const thaiDate = getTodayThaiFullDate(memoSelectedDate + 'T00:00:00');
       const settings = db.getSettings();
-      
+
       let alertText = `⚠️ *แจ้งเตือนการปฏิบัติหน้าที่เวรประจำจุด*\n`;
       alertText += `เรียน คณะครูเวรประจำวันโรงเรียนมูลนิธิอาซิซสถาน\n`;
       alertText += `ประจำวัน: *${thaiDate}*\n\n`;
       alertText += `ฝ่ายปกครองได้ตรวจสอบการส่งรายงานในระบบ และขอแจ้งติดตามคุณครูที่ยังไม่ได้ส่งรูปภาพหรือเซ็นชื่อลงทะเบียนในจุดปฏิบัติหน้าที่ ดังต่อไปนี้:\n\n`;
-      
+
       memoSelectedTeachers.forEach((t, idx) => {
         const thaiNum = convertToArabicToThaiNumbers(idx + 1);
         const ptThai = convertToArabicToThaiNumbers(getDutyPointDisplayNumber(t.point));
         alertText += `${thaiNum}. คุณครู *${t.teacherName}* - จุดที่ ${ptThai} (${t.point.name}) [เวลา ${convertToArabicToThaiNumbers(t.point.time)} น.]\n`;
       });
-      
+
       alertText += `\nกรุณาเข้าระบบเพื่อบันทึกรูปถ่ายและเซ็นลายมือชื่อรายงานตัวให้เสร็จเรียบร้อยด่วนที่สุดครับ\n\n📌 ลิงก์เข้าระบบ: ${window.location.origin}`;
-      
+
       // Save notification log
       const logs = db.getNotificationLogs();
       logs.push({
@@ -5847,7 +6012,7 @@
         date: getTodayISODate()
       });
       db.saveNotificationLogs(logs);
-      
+
       // Send through Telegram when it is configured.
       if (settings.telegramToken && settings.telegramChatId) {
         const url = `https://api.telegram.org/bot${settings.telegramToken}/sendMessage`;
@@ -5861,17 +6026,17 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         })
-        .then(res => {
-          if (res.ok) {
-            showToast('ส่งข้อความแจ้งเตือนเข้ากลุ่ม Telegram เรียบร้อยแล้ว!', 'success');
-          } else {
-            showToast('ไม่สามารถส่งข้อความแจ้งเตือนได้ โปรดตรวจสอบความถูกต้องของ API Token/Chat ID', 'error');
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          showToast('การส่งข้อมูลแจ้งเตือนขัดข้อง ไม่สามารถเชื่อมต่อกับ Telegram API ได้', 'error');
-        });
+          .then(res => {
+            if (res.ok) {
+              showToast('ส่งข้อความแจ้งเตือนเข้ากลุ่ม Telegram เรียบร้อยแล้ว!', 'success');
+            } else {
+              showToast('ไม่สามารถส่งข้อความแจ้งเตือนได้ โปรดตรวจสอบความถูกต้องของ API Token/Chat ID', 'error');
+            }
+          })
+          .catch(err => {
+            console.error(err);
+            showToast('การส่งข้อมูลแจ้งเตือนขัดข้อง ไม่สามารถเชื่อมต่อกับ Telegram API ได้', 'error');
+          });
       } else {
         showToast('ยังไม่ได้ตั้งค่า Telegram จึงบันทึกเฉพาะประวัติการแจ้งเตือนในระบบ', 'warning');
       }
@@ -6143,7 +6308,7 @@
         defaultRadius: parseInt(document.getElementById('sett-radius').value),
         centerLat: parseFloat(document.getElementById('sett-center-lat').value),
         centerLng: parseFloat(document.getElementById('sett-center-lng').value),
-        
+
         // Custom branding variables
         systemLogo: document.getElementById('sett-system-logo-base64') ? document.getElementById('sett-system-logo-base64').value : (current.systemLogo || ''),
         schoolLogo: document.getElementById('sett-school-logo-base64') ? document.getElementById('sett-school-logo-base64').value : (current.schoolLogo || ''),
@@ -6181,7 +6346,7 @@
 
     async function saveSettingsDB(settings) {
       db.saveSettings(settings);
-      
+
       if (useSupabase) {
         const dbSettings = mapSettingsToDB(settings);
         const { error } = await supabaseClient.from('settings').upsert(dbSettings);
@@ -6213,7 +6378,7 @@
       } else {
         showToast('บันทึกการตั้งค่าลงเครื่องแบบออฟไลน์เรียบร้อย', 'success');
       }
-      
+
       updateDynamicTitles();
       navigateTo('settings');
     }
@@ -6221,14 +6386,14 @@
     // H. MY DUTY VIEW (Teacher View)
     function renderMyDutyView() {
       myDutyMaps = {}; // Reset mini-maps on re-render
-      myDutyRenderedDate = getTodayISODate();
+      myDutyRenderedDate = currentViewDate;
       const settings = db.getSettings();
       const ikhlasConfirmText = escapeHtml(isMinDutyTimeEnabled()
         ? (settings.ikhlasConfirmText || DEFAULT_IKHLAS_CONFIRM_TEXT)
         : 'ท่านขอยืนยันด้วยความสัตย์จริงต่อตนเองและอัลลอฮฺ (ซ.บ.) ว่า ผู้ร่วมปฏิบัติหน้าที่เวรที่เพิ่มเข้ามาในรายงานนี้ ได้ร่วมปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริง ตามที่ได้รายงานร่วมกันในวันนี้');
-      const todayDay = getTodayThaiDayName();
-      const myPoints = getMyDutyPoints();
-      const reports = db.getReports().filter(r => r.date === getTodayISODate() && r.teacherId === currentUser.id);
+      const todayDay = getThaiDayNameForDate(currentViewDate);
+      const myPoints = getMyDutyPoints(currentViewDate);
+      const reports = db.getReports().filter(r => r.date === currentViewDate && r.teacherId === currentUser.id);
       const totalWeeks = settings.totalWeeks || 20;
       const currentWeek = Math.min(getCurrentSemesterWeek(settings), totalWeeks);
       const mySelectedWeeks = Array.from({ length: currentWeek }, (_, idx) => idx + 1);
@@ -6238,14 +6403,14 @@
       const teacherDaysLabel = teacherDays.length > 0 ? teacherDays.join(' และวัน') : todayDay;
 
       // การลาของฉันวันนี้ (ทั้งวัน = pointId null, เฉพาะจุด = pointId ตรงกับจุดเวร)
-      const myLeaveRequests = getLeaveRequestsForTeacherDate(currentUser.id, getTodayISODate());
+      const myLeaveRequests = getLeaveRequestsForTeacherDate(currentUser.id, currentViewDate);
       const wholeDayLeave = myLeaveRequests.find(r => r.pointId === null);
       const wholeDayLeaveActive = wholeDayLeave && (wholeDayLeave.status === 'pending' || wholeDayLeave.status === 'approved');
 
       // ประกาศยกเว้นเวรเหตุสุดวิสัย: รองรับทั้งยกเว้นทั้งกลุ่มและเฉพาะบางจุด
       const myGroup = getTeacherDutyGroup(currentUser);
-      const allMyPointsExempted = myPoints.length > 0 && myPoints.every(p => !!getExemptionForDate(getTodayISODate(), myGroup, p.id));
-      const myExemption = allMyPointsExempted ? getExemptionForDate(getTodayISODate(), myGroup, myPoints[0].id) : null;
+      const allMyPointsExempted = myPoints.length > 0 && myPoints.every(p => !!getExemptionForDate(currentViewDate, myGroup, p.id));
+      const myExemption = allMyPointsExempted ? getExemptionForDate(currentViewDate, myGroup, myPoints[0].id) : null;
 
       // Filter & Sort My Points:
       // Sort: Active/Upcoming points first (ordered by start time), Passed points last (ordered by start time).
@@ -6292,7 +6457,7 @@
                     ${getTeacherGender(currentUser) === 'ชาย' ? 'สวัสดีครับ' : 'สวัสดีค่ะ'} คุณครูผู้ปฏิบัติหน้าที่เวรประจำวัน${teacherDaysLabel} 👋
                   </p>
                   <h3 class="text-base sm:text-xl md:text-3xl font-extrabold mt-1 text-white truncate">${currentUser.name}</h3>
-                  <p class="text-[10px] sm:text-xs md:text-sm text-brand-100 mt-1">รหัส: ${currentUser.id} &nbsp;·&nbsp; วันนี้มี <b>${myPoints.length}</b> จุดเวร (เวรวัน${todayDay})</p>
+                  <p class="text-[10px] sm:text-xs md:text-sm text-brand-100 mt-1">รหัส: ${currentUser.id} &nbsp;·&nbsp; ${currentViewDate === getTodayISODate() ? 'วันนี้มี' : `วัน${todayDay}ที่เลือกมี`} <b>${myPoints.length}</b> จุดเวร (เวรวัน${todayDay})</p>
                   <div class="mt-2 inline-flex sm:hidden ${myPerformance.badgeClass} items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black shadow-sm">
                     <i data-lucide="award" class="w-3.5 h-3.5"></i>
                     เกรด ${myPerformance.grade} · ${myPerformance.score} คะแนน
@@ -6308,6 +6473,8 @@
               </div>
             </div>
           </div>
+
+          ${renderWeekSwitcher()}
 
           <!-- ประกาศยกเว้นเวรเหตุสุดวิสัย -->
           ${myExemption ? `
@@ -6352,23 +6519,23 @@
                 </div>
               </div>
             ` : sortedPoints.map(p => {
-              const pointExemption = getExemptionForDate(getTodayISODate(), myGroup, p.id);
-              const rep = reports.find(r => r.pointId === p.id);
-              const isDone = !!rep;
-              const hasProblem = isDone && rep.status === 'problem';
-              const isLeaveReport = isDone && rep.status === 'leave';
+        const pointExemption = getExemptionForDate(currentViewDate, myGroup, p.id);
+        const rep = reports.find(r => r.pointId === p.id);
+        const isDone = !!rep;
+        const hasProblem = isDone && rep.status === 'problem';
+        const isLeaveReport = isDone && rep.status === 'leave';
 
-              const pointLeave = myLeaveRequests.find(r => r.pointId === p.id);
-              const pointLeaveActive = pointLeave && (pointLeave.status === 'pending' || pointLeave.status === 'approved');
+        const pointLeave = myLeaveRequests.find(r => r.pointId === p.id);
+        const pointLeaveActive = pointLeave && (pointLeave.status === 'pending' || pointLeave.status === 'approved');
 
-              const coTeachers = getAssignedTeacherIdsForPoint(p, getTodayISODate())
-                .filter(id => id !== currentUser.id)
-                .map(id => getTeacherName(id));
+        const coTeachers = getAssignedTeacherIdsForPoint(p, currentViewDate)
+          .filter(id => id !== currentUser.id)
+          .map(id => getTeacherName(id));
 
-              // Geo args for map toggle
-              const mapArgs = `${p.id},${p.lat},${p.lng},${p.radius},${p.lat2 ?? 'null'},${p.lng2 ?? 'null'},${p.radius2 ?? 'null'}`;
+        // Geo args for map toggle
+        const mapArgs = `${p.id},${p.lat},${p.lng},${p.radius},${p.lat2 ?? 'null'},${p.lng2 ?? 'null'},${p.radius2 ?? 'null'}`;
 
-              return `
+        return `
                 <div id="my-duty-card-${p.id}" data-is-done="${isDone || !!pointExemption}" class="premium-duty-card bg-white border-2 ${pointExemption ? 'border-sky-200' : isLeaveReport ? 'border-slate-200' : isDone ? (hasProblem ? 'border-red-200' : 'border-green-200') : 'border-slate-100'} rounded-2xl shadow-sm overflow-hidden transition">
 
                   <!-- Card Header -->
@@ -6377,16 +6544,16 @@
                       <div class="flex items-center gap-2 mb-1.5 flex-wrap">
                         <span class="bg-brand-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">จุดที่ ${getDutyPointDisplayNumber(p)}</span>
                         ${pointExemption
-                          ? '<span class="bg-sky-100 text-sky-800 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center">🌧️ ยกเว้นจุดนี้</span>'
-                          : isLeaveReport
-                          ? '<span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center">🏖️ ลา</span>'
-                          : isDone
-                          ? hasProblem
-                            ? '<span class="bg-red-500/10 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-red-500"></span>⚠️ แจ้งเหตุ</span>'
-                            : '<span class="bg-green-500/10 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-green-500"></span>✅ ส่งแล้ว</span>'
-                          : pointLeaveActive
-                          ? '<span class="bg-amber-500/10 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-amber-500"></span>🏖️ แจ้งลาจุดนี้</span>'
-                          : '<span class="bg-amber-500/10 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-amber-500"></span>⏳ รอบันทึก</span>'}
+            ? '<span class="bg-sky-100 text-sky-800 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center">🌧️ ยกเว้นจุดนี้</span>'
+            : isLeaveReport
+              ? '<span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center">🏖️ ลา</span>'
+              : isDone
+                ? hasProblem
+                  ? '<span class="bg-red-500/10 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-red-500"></span>⚠️ แจ้งเหตุ</span>'
+                  : '<span class="bg-green-500/10 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-green-500"></span>✅ ส่งแล้ว</span>'
+                : pointLeaveActive
+                  ? '<span class="bg-amber-500/10 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-amber-500"></span>🏖️ แจ้งลาจุดนี้</span>'
+                  : '<span class="bg-amber-500/10 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center"><span class="status-pulse-dot bg-amber-500"></span>⏳ รอบันทึก</span>'}
                         ${isDone && rep.isLate ? lateBadge(rep) : ''}
                         ${isDone && rep.submittedOnBehalf ? onBehalfBadge(rep) : ''}
 
@@ -6470,53 +6637,68 @@
                     ` : pointLeaveActive ? `
                       <span class="flex-1 flex items-center justify-center text-center">${leaveStatusBadge(pointLeave)}</span>
                     ` : (() => {
-                      if (!isMinDutyTimeEnabled()) {
-                        return `
+            if (currentViewDate !== getTodayISODate()) {
+              if (currentViewDate < getTodayISODate()) {
+                return `
+                  <span class="flex-1 flex items-center justify-center bg-red-50 border border-red-200 text-red-700 font-bold py-2.5 rounded-xl text-[11px] gap-1.5">
+                    <i data-lucide="x-circle" class="w-3.5 h-3.5"></i> เกินเวลาบันทึกรายงาน
+                  </span>
+                `;
+              } else {
+                return `
+                  <span class="flex-1 flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-400 font-bold py-2.5 rounded-xl text-[11px] gap-1.5">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i> ยังไม่ถึงวันปฏิบัติหน้าที่
+                  </span>
+                `;
+              }
+            }
+            if (!isMinDutyTimeEnabled()) {
+              return `
                           <button id="btn-report-point-${p.id}" onclick="triggerRipple(event, false); confirmReportPoint(${p.id})"
                             class="ripple-btn scale-spring-active flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl shadow-md transition inline-flex items-center justify-center gap-1.5 text-[11px]">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                             ถ่ายรูปส่งรายงานเวร
                           </button>`;
-                      }
-                      const checkInKey = 'checkin_' + currentUser.id + '_' + p.id + '_' + getTodayISODate();
-                      const checkInTime = localStorage.getItem(checkInKey);
-                      
-                      if (checkInTime) {
-                        const elapsedMs = Date.now() - parseInt(checkInTime);
-                        const elapsedMins = Math.floor(elapsedMs / 60000);
-                        const remainingMins = getRequiredDutyMinutes(p) - elapsedMins;
-                        
-                        if (remainingMins > 0) {
-                          return `
+            }
+            const checkInKey = 'checkin_' + currentUser.id + '_' + p.id + '_' + getTodayISODate();
+            const checkInTime = localStorage.getItem(checkInKey);
+
+            if (checkInTime) {
+              const elapsedMs = Date.now() - parseInt(checkInTime);
+              const elapsedMins = Math.floor(elapsedMs / 60000);
+              const remainingMins = getRequiredDutyMinutes(p) - elapsedMins;
+
+              if (remainingMins > 0) {
+                return `
                             <button disabled id="btn-report-point-${p.id}"
                               class="flex-1 bg-blue-900/40 text-blue-200 border border-blue-500/30 font-bold py-2.5 rounded-xl transition inline-flex items-center justify-center gap-1.5 text-[11px] cursor-not-allowed">
                               <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                               กำลังปฏิบัติหน้าที่ (เหลือ ${remainingMins} นาที)
                             </button>
                           `;
-                        } else {
-                          return `
+              } else {
+                return `
                             <button id="btn-report-point-${p.id}" onclick="triggerRipple(event, false); confirmReportPoint(${p.id})"
                               class="ripple-btn scale-spring-active flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl shadow-md transition inline-flex items-center justify-center gap-1.5 text-[11px]">
                               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                               ถ่ายรูปส่งรายงานเวร
                             </button>
                           `;
-                        }
-                      } else {
-                        return `
+              }
+            } else {
+              return `
                           <button id="btn-report-point-${p.id}" onclick="triggerRipple(event, false); checkInTeacherPoint(${p.id})"
                             class="ripple-btn scale-spring-active flex-1 bg-brand-800 hover:bg-brand-700 text-white font-bold py-2.5 rounded-xl shadow-md transition inline-flex items-center justify-center gap-1.5 text-[11px]">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                             📌 เช็คอินเริ่มปฏิบัติงาน
                           </button>
                         `;
-                      }
-                    })()}
+            }
+          })()}
                   </div>
                 </div>
               `;
-            }).join('')}
+      }).join('')}
           </div>
           `}
         </div>
@@ -6749,8 +6931,8 @@
               
               <p class="text-slate-500 text-[10px] leading-normal">
                 ${isMinDutyTimeEnabled()
-                  ? '<strong>ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่าระยะเวลาขั้นต่ำที่ระบบกำหนดสำหรับจุดเวรนี้</strong> ตามที่ได้รายงานร่วมกันในวันนี้'
-                  : '<strong>ได้ร่วมปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริง</strong> ตามที่ได้รายงานร่วมกันในวันนี้'}
+          ? '<strong>ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่าระยะเวลาขั้นต่ำที่ระบบกำหนดสำหรับจุดเวรนี้</strong> ตามที่ได้รายงานร่วมกันในวันนี้'
+          : '<strong>ได้ร่วมปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริง</strong> ตามที่ได้รายงานร่วมกันในวันนี้'}
                 <br><br>
                 <span class="text-red-500 font-semibold">*(การลงบันทึกข้อมูลที่เป็นจริงและเที่ยงตรง ถือเป็นเกียรติยศ ความอิคลาส และความรับผิดชอบอันสำคัญยิ่งต่อหน้าที่)*</span>
               </p>
@@ -6867,192 +7049,192 @@
 
       try {
 
-      const editingExistingReport = editingReportId ? db.getReports().find(r => r.id === editingReportId) : null;
-      const isEditingReport = !!editingExistingReport;
-      if (editingReportId && !editingExistingReport) {
-        showToast('ไม่พบรายงานเดิมที่ต้องการแก้ไข กรุณารีเฟรชข้อมูลแล้วลองใหม่', 'error');
-        return;
-      }
-      if (isEditingReport) {
-        const editDecision = getSelfReportEditDecision(editingExistingReport);
-        if (!editDecision.allowed) {
-          showToast(editDecision.reason || 'ไม่สามารถแก้ไขรายงานนี้ได้', 'error');
+        const editingExistingReport = editingReportId ? db.getReports().find(r => r.id === editingReportId) : null;
+        const isEditingReport = !!editingExistingReport;
+        if (editingReportId && !editingExistingReport) {
+          showToast('ไม่พบรายงานเดิมที่ต้องการแก้ไข กรุณารีเฟรชข้อมูลแล้วลองใหม่', 'error');
+          return;
+        }
+        if (isEditingReport) {
+          const editDecision = getSelfReportEditDecision(editingExistingReport);
+          if (!editDecision.allowed) {
+            showToast(editDecision.reason || 'ไม่สามารถแก้ไขรายงานนี้ได้', 'error');
+            closeReportForm();
+            return;
+          }
+        }
+
+        const teacher = db.getTeachers().find(t => t.id === currentUser.id);
+        if (!teacher || !teacher.signature) {
+          showToast('กรุณาทำการลงทะเบียนวาดลายมือชื่ออิเล็กทรอนิกส์ก่อนส่งรายงาน', 'error');
+          return;
+        }
+
+        const hasExistingReportPhoto = isEditingReport && !!(editingExistingReport.photo || editingExistingReport.photoPath);
+        if (!uploadedReportPhotoBase64 && !hasExistingReportPhoto) {
+          showToast('กรุณาถ่ายรูปหรืออัปโหลดรูปภาพหลักฐานก่อนส่งรายงาน', 'error');
+          document.getElementById('rep-photo-input').click();
+          return;
+        }
+
+        const points = db.getDutyPoints();
+        const pt = points.find(p => String(p.id) === String(reportModalActivePointId));
+        if (!pt) return;
+
+        let distance = 0;
+        let isLate = false;
+
+        // วันนี้มีประกาศยกเว้นเวรเหตุสุดวิสัยหรือไม่ → ห้ามรายงานเวร
+        const myExemption = getExemptionForDate(getTodayISODate(), getTeacherDutyGroup(currentUser), pt.id);
+        if (myExemption) {
+          showToast(`วันนี้ได้รับการยกเว้นการปฏิบัติหน้าที่เวร เนื่องจาก: ${myExemption.reason}`, 'warning');
+          return;
+        }
+
+        const gpsPosition = await ensureRealGPSLocation({ showPrompt: true, requireFresh: true });
+        if (!gpsPosition) return;
+        const geo = getDutyGeofenceDistance(pt, gpsPosition.latitude, gpsPosition.longitude);
+        distance = geo.distance;
+        if (distance > geo.radius) {
+          showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้', 'error');
+          return;
+        }
+
+        // บังคับเช็คอินเฉพาะเมื่อแอดมินเปิดใช้เวลาปฏิบัติขั้นต่ำ
+        if (!isEditingReport && currentUser.id !== 'admin' && isMinDutyTimeEnabled()) {
+          const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
+          const checkInTime = localStorage.getItem(checkInKey);
+          if (!checkInTime) {
+            showToast('ผิดพลาด: ท่านยังไม่ได้ทำการเช็คอินเริ่มปฏิบัติงานสำหรับจุดนี้', 'error');
+            return;
+          }
+          const elapsedMs = Date.now() - parseInt(checkInTime);
+          const elapsedMins = Math.floor(elapsedMs / 60000);
+          const requiredDutyMins = getRequiredDutyMinutes(pt);
+          if (elapsedMins < requiredDutyMins) {
+            showToast(`ผิดพลาด: ท่านปฏิบัติหน้าที่ยังไม่ครบ ${requiredDutyMins} นาที (ขาดอีก ${requiredDutyMins - elapsedMins} นาที)`, 'error');
+            return;
+          }
+        }
+
+        // เช็คช่วงเวลาที่รายงานได้ — ถ้าเลยช่วงผ่อนผันยังส่งได้ แต่ต้องรอหัวหน้าเวรอนุมัติ
+        const nowDate = new Date();
+        const nowMin = nowDate.getHours() * 60 + nowDate.getMinutes();
+        const timingDecision = getReportTimingDecision(pt, nowMin);
+        if (timingDecision.status === 'too_early') {
+          showToast(`ยังไม่ถึงช่วงเวลาที่รายงานได้ (${timingDecision.windowDisplay} น.) ตามนโยบายหัวหน้างานเวร`, 'error');
+          return;
+        }
+        isLate = timingDecision.isLate;
+
+        const statusSelect = document.getElementById('rep-status-select').value;
+        const resultText = document.getElementById('rep-result-text').value.trim();
+        const problemText = document.getElementById('rep-problem-text').value.trim();
+        const solutionText = document.getElementById('rep-solution-text').value.trim();
+
+        const reportDate = isEditingReport ? editingExistingReport.date : getTodayISODate();
+        const existingReport = await findExistingDutyReport(reportDate, pt.id, currentUser.id);
+        if (existingReport && (!isEditingReport || existingReport.id !== editingExistingReport.id)) {
+          showToast('วันนี้ท่านส่งรายงานสำหรับจุดเวรนี้เรียบร้อยแล้ว ระบบจึงไม่บันทึกซ้ำ', 'warning');
           closeReportForm();
+          renderPage('my-duty');
           return;
         }
-      }
 
-      const teacher = db.getTeachers().find(t => t.id === currentUser.id);
-      if (!teacher || !teacher.signature) {
-        showToast('กรุณาทำการลงทะเบียนวาดลายมือชื่ออิเล็กทรอนิกส์ก่อนส่งรายงาน', 'error');
-        return;
-      }
+        const newReportId = isEditingReport ? editingExistingReport.id : buildDutyReportId(reportDate, pt.id, currentUser.id);
+        const timeNow = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
 
-      const hasExistingReportPhoto = isEditingReport && !!(editingExistingReport.photo || editingExistingReport.photoPath);
-      if (!uploadedReportPhotoBase64 && !hasExistingReportPhoto) {
-        showToast('กรุณาถ่ายรูปหรืออัปโหลดรูปภาพหลักฐานก่อนส่งรายงาน', 'error');
-        document.getElementById('rep-photo-input').click();
-        return;
-      }
+        const signature = teacher.signature;
 
-      const points = db.getDutyPoints();
-      const pt = points.find(p => String(p.id) === String(reportModalActivePointId));
-      if (!pt) return;
+        const newReport = {
+          ...(isEditingReport ? editingExistingReport : {}),
+          id: newReportId,
+          date: reportDate,
+          pointId: pt.id,
+          teacherId: currentUser.id,
+          status: statusSelect,
+          time: isEditingReport ? (editingExistingReport.time || timeNow) : timeNow,
+          distance: distance,
+          result: resultText,
+          problem: statusSelect === 'problem' ? problemText : '',
+          solution: statusSelect === 'problem' ? solutionText : '',
+          photo: uploadedReportPhotoBase64 || (isEditingReport ? editingExistingReport.photo : null) || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="%23f1f5f9"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Sarabun" font-size="12" fill="%2394a3b8">ไม่มีภาพถ่ายประกอบ</text></svg>',
+          photoThumb: uploadedReportPhotoThumbBase64 || uploadedReportPhotoBase64 || (isEditingReport ? (editingExistingReport.photoThumb || null) : null),
+          photoPath: uploadedReportPhotoBase64 ? null : (isEditingReport ? (editingExistingReport.photoPath || null) : null),
+          photoThumbPath: uploadedReportPhotoBase64 ? null : (isEditingReport ? (editingExistingReport.photoThumbPath || null) : null),
+          signature: isEditingReport ? (editingExistingReport.signature || signature) : signature,
+          isLate: isEditingReport ? false : isLate,
+          lateReviewStatus: isEditingReport ? null : (isLate ? 'pending' : null),
+          lateReviewedBy: isEditingReport ? null : (editingExistingReport ? editingExistingReport.lateReviewedBy : null),
+          lateReviewedAt: isEditingReport ? null : (editingExistingReport ? editingExistingReport.lateReviewedAt : null)
+        };
 
-      let distance = 0;
-      let isLate = false;
+        // หากมีครูร่วมเวรและยังไม่ได้ยืนยันความอิคลาส
+        if (!isEditingReport && pendingCoReporters.length > 0 && !ikhlasConfirmed) {
+          pendingSubmitReportData = { newReport, pendingCoReportersCopy: [...pendingCoReporters], pt, alertMsgText: { statusSelect, problemText, solutionText, resultText, distance, timeNow } };
+          showIkhlasConfirmModal();
+          return;
+        }
 
-      // วันนี้มีประกาศยกเว้นเวรเหตุสุดวิสัยหรือไม่ → ห้ามรายงานเวร
-      const myExemption = getExemptionForDate(getTodayISODate(), getTeacherDutyGroup(currentUser), pt.id);
-      if (myExemption) {
-        showToast(`วันนี้ได้รับการยกเว้นการปฏิบัติหน้าที่เวร เนื่องจาก: ${myExemption.reason}`, 'warning');
-        return;
-      }
+        // Reset confirmation flag
+        ikhlasConfirmed = false;
+        pendingSubmitReportData = null;
 
-      const gpsPosition = await ensureRealGPSLocation({ showPrompt: true, requireFresh: true });
-      if (!gpsPosition) return;
-      const geo = getDutyGeofenceDistance(pt, gpsPosition.latitude, gpsPosition.longitude);
-      distance = geo.distance;
-      if (distance > geo.radius) {
-        showToast('พิกัดผิดพลาด: คุณอยู่นอกเขตรัศมีจุดปฏิบัติหน้าที่เวรนี้', 'error');
-        return;
-      }
+        // Save database (with Supabase sync)
+        const savedMainReport = await saveReportDB(newReport);
+        newReport._syncStatus = savedMainReport._syncStatus || 'queued';
 
-      // บังคับเช็คอินเฉพาะเมื่อแอดมินเปิดใช้เวลาปฏิบัติขั้นต่ำ
-      if (!isEditingReport && currentUser.id !== 'admin' && isMinDutyTimeEnabled()) {
+        // รายงานแทนกันหลายคน: บันทึกรายงานเดียวกันให้ครูร่วมเวรที่ยืนยันตัวตนไว้ทุกคน
+        if (!isEditingReport) {
+          for (const co of pendingCoReporters) {
+            const existingCoReport = await findExistingDutyReport(reportDate, pt.id, co.teacherId);
+            if (existingCoReport) continue;
+            const coReport = {
+              ...savedMainReport,
+              id: buildDutyReportId(reportDate, pt.id, co.teacherId),
+              teacherId: co.teacherId,
+              signature: co.signature
+            };
+            await saveReportDB(coReport);
+          }
+        }
+        pendingCoReporters = [];
+
+        let alertMsg = isEditingReport
+          ? `✏️ แจ้งแก้ไขผลปฏิบัติเวร โรงเรียนมูลนิธิอาซิซสถาน \n`
+          : `📢 แจ้งผลปฏิบัติเวร โรงเรียนมูลนิธิอาซิซสถาน \n`;
+        alertMsg += `จุดเวร: จุดที่ ${getDutyPointDisplayNumber(pt)} (${pt.name})\n`;
+        alertMsg += `ผู้ปฏิบัติ: ${currentUser.name}\n`;
+        alertMsg += `เวลาบันทึก: ${timeNow} น.\n`;
+        if (isLate) {
+          alertMsg += `สถานะเวลา: รายงานสายหลังหมดช่วงผ่อนผัน (รอหัวหน้าเวรอนุมัติ)\n`;
+        }
+        alertMsg += `สถานะ: ${statusSelect === 'problem' ? '⚠️ พบประเด็นขัดข้อง!' : '✅ ปกติเรียบร้อยดี'}\n`;
+        if (statusSelect === 'problem') {
+          alertMsg += `ปัญหาที่พบ: ${problemText}\nแนวทางดำเนินการ: ${solutionText}\n`;
+        } else {
+          alertMsg += `ผลตรวจเวร: ${resultText}\n`;
+        }
+        alertMsg += `GPS ตรวจสอบ: อยู่ห่าง ${distance.toFixed(1)} เมตร (ภายในรัศมี)`;
+
+        triggerTelegramNotification(alertMsg);
+
+        // เคลียร์ประวัติการเช็กอินในเครื่องของวันนี้สำหรับจุดนี้
         const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
-        const checkInTime = localStorage.getItem(checkInKey);
-        if (!checkInTime) {
-          showToast('ผิดพลาด: ท่านยังไม่ได้ทำการเช็คอินเริ่มปฏิบัติงานสำหรับจุดนี้', 'error');
-          return;
-        }
-        const elapsedMs = Date.now() - parseInt(checkInTime);
-        const elapsedMins = Math.floor(elapsedMs / 60000);
-        const requiredDutyMins = getRequiredDutyMinutes(pt);
-        if (elapsedMins < requiredDutyMins) {
-          showToast(`ผิดพลาด: ท่านปฏิบัติหน้าที่ยังไม่ครบ ${requiredDutyMins} นาที (ขาดอีก ${requiredDutyMins - elapsedMins} นาที)`, 'error');
-          return;
-        }
-      }
+        localStorage.removeItem(checkInKey);
 
-      // เช็คช่วงเวลาที่รายงานได้ — ถ้าเลยช่วงผ่อนผันยังส่งได้ แต่ต้องรอหัวหน้าเวรอนุมัติ
-      const nowDate = new Date();
-      const nowMin = nowDate.getHours() * 60 + nowDate.getMinutes();
-      const timingDecision = getReportTimingDecision(pt, nowMin);
-      if (timingDecision.status === 'too_early') {
-        showToast(`ยังไม่ถึงช่วงเวลาที่รายงานได้ (${timingDecision.windowDisplay} น.) ตามนโยบายหัวหน้างานเวร`, 'error');
-        return;
-      }
-      isLate = timingDecision.isLate;
-
-      const statusSelect = document.getElementById('rep-status-select').value;
-      const resultText = document.getElementById('rep-result-text').value.trim();
-      const problemText = document.getElementById('rep-problem-text').value.trim();
-      const solutionText = document.getElementById('rep-solution-text').value.trim();
-
-      const reportDate = isEditingReport ? editingExistingReport.date : getTodayISODate();
-      const existingReport = await findExistingDutyReport(reportDate, pt.id, currentUser.id);
-      if (existingReport && (!isEditingReport || existingReport.id !== editingExistingReport.id)) {
-        showToast('วันนี้ท่านส่งรายงานสำหรับจุดเวรนี้เรียบร้อยแล้ว ระบบจึงไม่บันทึกซ้ำ', 'warning');
         closeReportForm();
-        renderPage('my-duty');
-        return;
-      }
-
-      const newReportId = isEditingReport ? editingExistingReport.id : buildDutyReportId(reportDate, pt.id, currentUser.id);
-      const timeNow = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
-
-      const signature = teacher.signature;
-
-      const newReport = {
-        ...(isEditingReport ? editingExistingReport : {}),
-        id: newReportId,
-        date: reportDate,
-        pointId: pt.id,
-        teacherId: currentUser.id,
-        status: statusSelect,
-        time: isEditingReport ? (editingExistingReport.time || timeNow) : timeNow,
-        distance: distance,
-        result: resultText,
-        problem: statusSelect === 'problem' ? problemText : '',
-        solution: statusSelect === 'problem' ? solutionText : '',
-        photo: uploadedReportPhotoBase64 || (isEditingReport ? editingExistingReport.photo : null) || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="%23f1f5f9"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Sarabun" font-size="12" fill="%2394a3b8">ไม่มีภาพถ่ายประกอบ</text></svg>',
-        photoThumb: uploadedReportPhotoThumbBase64 || uploadedReportPhotoBase64 || (isEditingReport ? (editingExistingReport.photoThumb || null) : null),
-        photoPath: uploadedReportPhotoBase64 ? null : (isEditingReport ? (editingExistingReport.photoPath || null) : null),
-        photoThumbPath: uploadedReportPhotoBase64 ? null : (isEditingReport ? (editingExistingReport.photoThumbPath || null) : null),
-        signature: isEditingReport ? (editingExistingReport.signature || signature) : signature,
-        isLate: isEditingReport ? false : isLate,
-        lateReviewStatus: isEditingReport ? null : (isLate ? 'pending' : null),
-        lateReviewedBy: isEditingReport ? null : (editingExistingReport ? editingExistingReport.lateReviewedBy : null),
-        lateReviewedAt: isEditingReport ? null : (editingExistingReport ? editingExistingReport.lateReviewedAt : null)
-      };
-
-      // หากมีครูร่วมเวรและยังไม่ได้ยืนยันความอิคลาส
-      if (!isEditingReport && pendingCoReporters.length > 0 && !ikhlasConfirmed) {
-        pendingSubmitReportData = { newReport, pendingCoReportersCopy: [...pendingCoReporters], pt, alertMsgText: { statusSelect, problemText, solutionText, resultText, distance, timeNow } };
-        showIkhlasConfirmModal();
-        return;
-      }
-
-      // Reset confirmation flag
-      ikhlasConfirmed = false;
-      pendingSubmitReportData = null;
-
-      // Save database (with Supabase sync)
-      const savedMainReport = await saveReportDB(newReport);
-      newReport._syncStatus = savedMainReport._syncStatus || 'queued';
-
-      // รายงานแทนกันหลายคน: บันทึกรายงานเดียวกันให้ครูร่วมเวรที่ยืนยันตัวตนไว้ทุกคน
-      if (!isEditingReport) {
-        for (const co of pendingCoReporters) {
-          const existingCoReport = await findExistingDutyReport(reportDate, pt.id, co.teacherId);
-          if (existingCoReport) continue;
-          const coReport = {
-            ...savedMainReport,
-            id: buildDutyReportId(reportDate, pt.id, co.teacherId),
-            teacherId: co.teacherId,
-            signature: co.signature
-          };
-          await saveReportDB(coReport);
+        if (isEditingReport) {
+          showToast('แก้ไขรายงานเวรเรียบร้อยแล้ว', 'success');
+          renderPage('my-duty');
+          return;
         }
-      }
-      pendingCoReporters = [];
-
-      let alertMsg = isEditingReport
-        ? `✏️ แจ้งแก้ไขผลปฏิบัติเวร โรงเรียนมูลนิธิอาซิซสถาน \n`
-        : `📢 แจ้งผลปฏิบัติเวร โรงเรียนมูลนิธิอาซิซสถาน \n`;
-      alertMsg += `จุดเวร: จุดที่ ${getDutyPointDisplayNumber(pt)} (${pt.name})\n`;
-      alertMsg += `ผู้ปฏิบัติ: ${currentUser.name}\n`;
-      alertMsg += `เวลาบันทึก: ${timeNow} น.\n`;
-      if (isLate) {
-        alertMsg += `สถานะเวลา: รายงานสายหลังหมดช่วงผ่อนผัน (รอหัวหน้าเวรอนุมัติ)\n`;
-      }
-      alertMsg += `สถานะ: ${statusSelect === 'problem' ? '⚠️ พบประเด็นขัดข้อง!' : '✅ ปกติเรียบร้อยดี'}\n`;
-      if (statusSelect === 'problem') {
-        alertMsg += `ปัญหาที่พบ: ${problemText}\nแนวทางดำเนินการ: ${solutionText}\n`;
-      } else {
-        alertMsg += `ผลตรวจเวร: ${resultText}\n`;
-      }
-      alertMsg += `GPS ตรวจสอบ: อยู่ห่าง ${distance.toFixed(1)} เมตร (ภายในรัศมี)`;
-
-      triggerTelegramNotification(alertMsg);
-
-      // เคลียร์ประวัติการเช็กอินในเครื่องของวันนี้สำหรับจุดนี้
-      const checkInKey = 'checkin_' + currentUser.id + '_' + pt.id + '_' + getTodayISODate();
-      localStorage.removeItem(checkInKey);
-
-      closeReportForm();
-      if (isEditingReport) {
-        showToast('แก้ไขรายงานเวรเรียบร้อยแล้ว', 'success');
-        renderPage('my-duty');
-        return;
-      }
-      if (isLate) {
-        showToast('ส่งรายงานสายเข้าสู่คิวหัวหน้าเวรแล้ว ระบบจะนับผลหลังหัวหน้าเวรอนุมัติ', 'warning');
-        renderPage('my-duty');
-        return;
-      }
-      showAppreciationDuaModal(newReport._syncStatus || 'cloud');
+        if (isLate) {
+          showToast('ส่งรายงานสายเข้าสู่คิวหัวหน้าเวรแล้ว ระบบจะนับผลหลังหัวหน้าเวรอนุมัติ', 'warning');
+          renderPage('my-duty');
+          return;
+        }
+        showAppreciationDuaModal(newReport._syncStatus || 'cloud');
       } finally {
         reportSubmissionInProgress = false;
         setReportSubmissionBusy(false);
@@ -7101,7 +7283,7 @@
         return;
       }
       if (!pendingSubmitReportData) return;
-      
+
       ikhlasConfirmed = true;
       const modal = document.getElementById('ikhlas-confirm-modal');
       if (modal) modal.classList.add('hidden');
@@ -7109,7 +7291,7 @@
       // Restructure pendingSubmitReportData details into global states to let handleReportSubmit execute properly
       const data = pendingSubmitReportData;
       pendingCoReporters = data.pendingCoReportersCopy;
-      
+
       // Execute submit without event
       await handleReportSubmit(null);
     }
@@ -7792,8 +7974,8 @@
                       <td colspan="7" class="p-6 text-center text-slate-400 font-medium">คุณยังไม่มีข้อมูลประวัติส่งรายงาน</td>
                     </tr>
                   ` : reports.map(r => {
-                    const pt = db.getDutyPoints().find(p => p.id === r.pointId);
-                    return `
+        const pt = db.getDutyPoints().find(p => p.id === r.pointId);
+        return `
                       <tr class="hover:bg-slate-50 transition cursor-default">
                         <td class="px-4 py-3 text-center font-bold text-slate-600">${getTodayThaiFullDate(r.date)}</td>
                         <td class="px-4 py-3 font-semibold text-brand-950">${pt ? `จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}` : `จุดที่ ${r.pointId}`}</td>
@@ -7801,10 +7983,10 @@
                         <td class="px-4 py-3 text-center">${r.status === 'leave' ? '-' : r.submittedOnBehalf ? '<span class="text-violet-700 font-bold">ไม่ยืนยัน GPS</span>' : r.distance.toFixed(1) + ' ม.'}</td>
                         <td class="px-4 py-3 text-center">
                           ${r.status === 'problem'
-                            ? '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">พบปัญหา</span>'
-                            : r.status === 'leave'
-                            ? '<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold">🏖️ ลา</span>'
-                            : '<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">ปกติ</span>'}
+            ? '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">พบปัญหา</span>'
+            : r.status === 'leave'
+              ? '<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold">🏖️ ลา</span>'
+              : '<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">ปกติ</span>'}
                         </td>
                         <td class="px-4 py-3 max-w-[200px] truncate">${r.status === 'problem' ? `[ปัญหา] ${r.problem}` : r.result}</td>
                         <td class="px-4 py-3 text-center">
@@ -7814,7 +7996,7 @@
                         </td>
                       </tr>
                     `;
-                  }).join('')}
+      }).join('')}
                 </tbody>
               </table>
             </div>
@@ -7826,7 +8008,7 @@
     // =========================================================================
     // 6. DOWNLOADS AND NOTIFICATION METHODS
     // =========================================================================
-    
+
     // EXCEL EXPORTER
     function exportToExcel() {
       const reports = db.getReports().filter(r => r.date === getTodayISODate());
@@ -7861,7 +8043,7 @@
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "รายงานตรวจเวรประจำวัน");
-      
+
       const filename = `รายงานตรวจเวรประจำวัน_วัน${todayDay}_${getTodayISODate()}.xlsx`;
       XLSX.writeFile(wb, filename);
       showToast('ดาวน์โหลดเอกสาร Excel เรียบร้อยแล้ว', 'success');
@@ -7870,7 +8052,7 @@
     // TELEGRAM NOTIFICATION API
     function triggerTelegramNotification(messageText) {
       const settings = db.getSettings();
-      
+
       // Save notification log locally
       const logs = db.getNotificationLogs();
       logs.unshift({
@@ -7898,14 +8080,14 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         })
-        .then(res => {
-          if (res.ok) showToast('ส่งข้อมูลแจ้งเตือนไปยังกลุ่ม Telegram เรียบร้อยแล้ว!', 'success');
-          else showToast('การตั้งค่า Telegram ไม่ถูกต้อง หรือ API ปฏิเสธการส่งข้อความ', 'error');
-        })
-        .catch(err => {
-          console.error(err);
-          showToast('ไม่สามารถเชื่อมต่ออินเทอร์เน็ตเพื่อยิง Telegram Bot API ได้', 'error');
-        });
+          .then(res => {
+            if (res.ok) showToast('ส่งข้อมูลแจ้งเตือนไปยังกลุ่ม Telegram เรียบร้อยแล้ว!', 'success');
+            else showToast('การตั้งค่า Telegram ไม่ถูกต้อง หรือ API ปฏิเสธการส่งข้อความ', 'error');
+          })
+          .catch(err => {
+            console.error(err);
+            showToast('ไม่สามารถเชื่อมต่ออินเทอร์เน็ตเพื่อยิง Telegram Bot API ได้', 'error');
+          });
       }
     }
 
@@ -7953,7 +8135,7 @@
     function showToast(message, type = 'info') {
       const container = document.getElementById('toast-container');
       const toast = document.createElement('div');
-      
+
       const colors = {
         success: 'bg-green-800 border-green-950 text-white',
         error: 'bg-red-700 border-red-950 text-white',
@@ -7962,7 +8144,7 @@
       };
 
       toast.className = `flex items-center gap-2 px-4 py-3 border text-xs font-bold rounded-xl shadow-2xl transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto max-w-sm ${colors[type] || colors.info}`;
-      
+
       let icon = 'info';
       if (type === 'success') icon = 'check-circle';
       else if (type === 'error') icon = 'alert-octagon';
@@ -7972,7 +8154,7 @@
         <i data-lucide="${icon}" class="w-4 h-4 flex-shrink-0"></i>
         <span>${message}</span>
       `;
-      
+
       container.appendChild(toast);
       lucide.createIcons();
 
@@ -7993,21 +8175,23 @@
       const localDate = new Date(d.getTime() - (offset * 60 * 1000));
       return localDate.toISOString().split('T')[0];
     }
-    
+
     function getTodayThaiFullDate(customDateStr) {
       const d = customDateStr ? new Date(customDateStr) : new Date();
       return d.toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     }
 
     function getTodayThaiDayName() {
-      const dayStr = new Date().toLocaleDateString('th-TH', { weekday: 'long' });
-      return dayStr.replace(/^วัน/, '');
+      const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+      return days[new Date().getDay()];
     }
 
     // คืนชื่อวันไทย (ไม่มี "วัน" นำหน้า) ของวันที่ที่กำหนด (รูปแบบ YYYY-MM-DD)
     function getThaiDayNameForDate(dateStr) {
+      if (!dateStr) return '';
       const d = new Date(dateStr + 'T00:00:00');
-      return d.toLocaleDateString('th-TH', { weekday: 'long' }).replace(/^วัน/, '');
+      const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+      return days[d.getDay()];
     }
 
     // คำนวณ "สัปดาห์ที่" (เริ่ม 1) ของวันที่ที่กำหนด เทียบกับวันเริ่มต้นสัปดาห์ที่ 1 ใน settings
@@ -8116,9 +8300,9 @@
 
     // จุดเวรของ currentUser สำหรับ "วันนี้"
     // (entry แบบมี prefix วัน เช่น "อังคาร:1087" จะจำกัดเฉพาะวันนั้น ส่วนไม่มี prefix จะถือว่าปฏิบัติเวรในวันหลักของระบบ)
-    function getMyDutyPoints() {
+    function getMyDutyPoints(dateStr = currentViewDate) {
       const points = db.getDutyPoints();
-      const todayDay = getTodayThaiDayName();
+      const todayDay = getThaiDayNameForDate(dateStr);
       const myGroup = getTeacherDutyGroup(currentUser);
       const settings = db.getSettings();
       const defaultDay = settings.dutyDay || 'อังคาร';
@@ -8251,18 +8435,18 @@
     function openLeaveRequestModal() {
       const modal = document.getElementById('leave-request-modal');
       if (!modal) return;
-      
+
       const dateSelect = document.getElementById('leave-date-select');
       if (dateSelect) {
         const todayStr = getTodayISODate();
         dateSelect.value = todayStr;
         dateSelect.min = todayStr;
       }
-      
+
       document.getElementById('leave-scope-select').value = 'all';
       document.getElementById('leave-type-select').value = 'personal';
       document.getElementById('leave-reason-text').value = '';
-      
+
       onLeaveDateChanged();
       modal.classList.remove('hidden');
       if (window.lucide) lucide.createIcons();
@@ -8312,7 +8496,7 @@
         if (pointOption) {
           pointOption.setAttribute('disabled', 'true');
         }
-        
+
         if (scopeSelect.value === 'point') {
           scopeSelect.value = 'all';
         }
@@ -8383,12 +8567,12 @@
       const parts = timeStr.split('-');
       const startPart = parts[0] ? parts[0].trim() : "00:00";
       const endPart = parts[1] ? parts[1].trim() : "23:59";
-      
+
       const parseMin = (t) => {
         const [h, m] = t.split(':').map(Number);
         return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m);
       };
-      
+
       return {
         startMin: parseMin(startPart),
         endMin: parseMin(endPart)
@@ -8565,11 +8749,11 @@
       if (myDutyTimerInterval) {
         clearInterval(myDutyTimerInterval);
       }
-      
+
       // Update once immediately
       updateTeacherLocationStatus();
       updateMyDutyCountdownAndGlow();
-      
+
       myDutyTimerInterval = setInterval(() => {
         updateTeacherLocationStatus();
         updateMyDutyCountdownAndGlow();
@@ -8588,11 +8772,11 @@
 
     function setupThaiToEnglishKeyboardConverter() {
       const THAI_ENG_MAP = {
-        'ๅ':'1', 'ภ':'2', 'ถ':'3', 'ุ':'4', 'ึ':'5', 'ค':'6', 'ต':'7', 'จ':'8', 'ข':'9', 'ช':'0', 'ๆ':'q', 'ไ':'w', 'ำ':'e', 'พ':'r', 'ะ':'t', 'ั':'y', 'ี':'u', 'ร':'i', 'น':'o', 'ย':'p', 'บ':'[', 'ล':']', 'ฃ':'\\', 'ฟ':'a', 'ห':'s', 'ก':'d', 'ด':'f', 'เ':'g', '้':'h', '่':'j', 'า':'k', 'ส':'l', 'ว':';', 'ง':'\'', 'ผ':'z', 'ป':'x', 'แ':'c', 'อ':'v', 'ิ':'b', 'ื':'n', 'ท':'m', 'ม':',', 'ใ':'.', 'ฝ':'/',
-        '๑':'@', '๒':'#', '๓':'$', '๔':'%', 'ู':'^', '฿':'&', '๕':'*', '๖':'(', '๗':')', '๘':'_', '๙':'+',
-        '๊':'Q', 'ิ':'W', '์':'E', 'ื':'R', '่':'T', '๋':'Y', '้':'U', '็':'I', '็':'O', 'ิ':'P', 'ญ':'{', 'ษ':'}', 'ฅ':'|',
-        'ฤ':'A', 'ฆ':'S', 'ฏ':'D', 'โ':'F', 'ฌ':'G', '็':'H', '๋':'J', 'ษ':'K', 'ศ':'L', 'ซ':':', 'ศ':'"',
-        'ฉ':'C', 'ฮ':'V', 'ธ':'B', 'ณ':'N', 'ร':'M', 'ฒ':'<', 'ฬ':'>', 'ฦ':'?'
+        'ๅ': '1', 'ภ': '2', 'ถ': '3', 'ุ': '4', 'ึ': '5', 'ค': '6', 'ต': '7', 'จ': '8', 'ข': '9', 'ช': '0', 'ๆ': 'q', 'ไ': 'w', 'ำ': 'e', 'พ': 'r', 'ะ': 't', 'ั': 'y', 'ี': 'u', 'ร': 'i', 'น': 'o', 'ย': 'p', 'บ': '[', 'ล': ']', 'ฃ': '\\', 'ฟ': 'a', 'ห': 's', 'ก': 'd', 'ด': 'f', 'เ': 'g', '้': 'h', '่': 'j', 'า': 'k', 'ส': 'l', 'ว': ';', 'ง': '\'', 'ผ': 'z', 'ป': 'x', 'แ': 'c', 'อ': 'v', 'ิ': 'b', 'ื': 'n', 'ท': 'm', 'ม': ',', 'ใ': '.', 'ฝ': '/',
+        '๑': '@', '๒': '#', '๓': '$', '๔': '%', 'ู': '^', '฿': '&', '๕': '*', '๖': '(', '๗': ')', '๘': '_', '๙': '+',
+        '๊': 'Q', 'ิ': 'W', '์': 'E', 'ื': 'R', '่': 'T', '๋': 'Y', '้': 'U', '็': 'I', '็': 'O', 'ิ': 'P', 'ญ': '{', 'ษ': '}', 'ฅ': '|',
+        'ฤ': 'A', 'ฆ': 'S', 'ฏ': 'D', 'โ': 'F', 'ฌ': 'G', '็': 'H', '๋': 'J', 'ษ': 'K', 'ศ': 'L', 'ซ': ':', 'ศ': '"',
+        'ฉ': 'C', 'ฮ': 'V', 'ธ': 'B', 'ณ': 'N', 'ร': 'M', 'ฒ': '<', 'ฬ': '>', 'ฦ': '?'
       };
 
       const convertValue = (val) => {
@@ -8610,12 +8794,12 @@
 
       // Add dynamic translation listeners for English-only inputs
       const selectors = [
-        '#login-id', 
-        '#login-pass', 
-        '#teacher-form-id', 
+        '#login-id',
+        '#login-pass',
+        '#teacher-form-id',
         '#teacher-form-phone',
-        '#sett-line', 
-        '#sett-telegram', 
+        '#sett-line',
+        '#sett-telegram',
         '#sett-telegram-chat',
         '#sett-radius',
         '#sett-lat',
@@ -8625,14 +8809,14 @@
       document.addEventListener('input', (e) => {
         const target = e.target;
         if (!target) return;
-        
+
         const isMatched = selectors.some(sel => target.matches(sel));
         if (isMatched) {
           const start = target.selectionStart;
           const end = target.selectionEnd;
           const original = target.value;
           const converted = convertValue(original);
-          
+
           if (original !== converted) {
             target.value = converted;
             target.setSelectionRange(start, end);
@@ -8656,7 +8840,7 @@
       // Close dropdowns if user clicks outside
       document.addEventListener('click', (e) => {
         if (!e.target.closest('#schedule-head-dropdown-container') &&
-            !e.target.closest('[id^="appoint-head-dropdown-container-"]')) {
+          !e.target.closest('[id^="appoint-head-dropdown-container-"]')) {
           closeAllCustomDropdowns();
         }
       });
@@ -8699,7 +8883,7 @@
           try {
             console.log("Auto background sync initiated...");
             await syncCloudDataToLocal('light');
-            
+
             // Only update UI if the user is not actively editing to prevent form resetting or focus loss
             if (!isUserActivelyEditing()) {
               updateDynamicTitles();
@@ -8756,7 +8940,7 @@
     function uploadSignatureImage(e) {
       const file = e.target.files[0];
       if (!file) return;
-      
+
       compressImageFile(file, 300, 130, 0.9, (compressedBase64) => {
         saveSignatureToDatabase(compressedBase64);
       });
@@ -8785,7 +8969,7 @@
       setTimeout(() => {
         signatureCanvas = document.getElementById('sig-canvas');
         signatureCtx = signatureCanvas.getContext('2d');
-        
+
         signatureCtx.strokeStyle = '#14532d'; // Forest green
         signatureCtx.lineWidth = 2.5;
         signatureCtx.lineJoin = 'round';
@@ -9046,8 +9230,7 @@
         const genderColor = gender === 'ชาย' ? 'text-emerald-600 bg-emerald-50 border border-emerald-150' : 'text-pink-850 bg-pink-50 border border-pink-150';
 
         return `
-          <div onclick="selectTeacherInModal('${t.id}')" class="p-2.5 flex justify-between items-center hover:bg-slate-50 cursor-pointer transition ${
-            isSelected ? 'bg-brand-50 border-l-4 border-brand-850 font-bold' : ''
+          <div onclick="selectTeacherInModal('${t.id}')" class="p-2.5 flex justify-between items-center hover:bg-slate-50 cursor-pointer transition ${isSelected ? 'bg-brand-50 border-l-4 border-brand-850 font-bold' : ''
           }">
             <div class="space-y-0.5">
               <p class="text-slate-800 text-xs font-semibold">${t.name}</p>
@@ -9080,7 +9263,7 @@
     function saveTeacherToPoint() {
       const pointId = parseInt(document.getElementById('add-teacher-point-id').value);
       const teacherId = document.getElementById('select-new-teacher-opt').value;
-      
+
       if (!teacherId) {
         closeAddTeacherModal();
         return;
@@ -9095,7 +9278,7 @@
           currentScheduleViewDay = getTodayThaiDayName();
         }
         pt.assignedTo.push(`${currentScheduleViewDay}:${teacherId}`);
-        
+
         saveDutyPointsDB(points);
         closeAddTeacherModal();
         renderPage('schedule');
@@ -9299,11 +9482,11 @@
     async function onScheduleHeadChange(val) {
       const settings = db.getSettings();
       if (!settings.headsOfDay) settings.headsOfDay = {};
-      
+
       const scheduleGroupGender = currentScheduleGroupTab === 'ครูหญิง' ? 'หญิง' : 'ชาย';
       const currentDayVal = settings.headsOfDay[currentScheduleViewDay];
       let dayObj = { "ชาย": "", "หญิง": "" };
-      
+
       if (currentDayVal && typeof currentDayVal === 'object') {
         dayObj = { ...currentDayVal };
       } else if (typeof currentDayVal === 'string') {
@@ -9311,12 +9494,12 @@
         const legacyGender = teacher ? getTeacherGender(teacher) : 'ชาย';
         dayObj[legacyGender] = currentDayVal;
       }
-      
+
       dayObj[scheduleGroupGender] = val;
       settings.headsOfDay[currentScheduleViewDay] = dayObj;
-      
+
       await saveSettingsDB(settings);
-      
+
       const teacherName = val ? getTeacherName(val) : 'ไม่มีการระบุ';
       if (val) {
         showToast(`กำหนดให้ ${teacherName} เป็นหัวหน้าเวรวัน${currentScheduleViewDay} (กลุ่มครู${scheduleGroupGender}) เรียบร้อย`, 'success');
@@ -9517,12 +9700,12 @@
         if (tIndex !== -1) {
           teachers[tIndex].password = '1234';
           db.saveTeachers(teachers);
-          
+
           if (useSupabase) {
             const { error } = await supabaseClient.from('teachers').upsert(teachers[tIndex]);
             if (error) console.error("Cloud reset password error:", error);
           }
-          
+
           showToast('รีเซ็ตรหัสผ่านเป็น 1234 เรียบร้อยแล้ว', 'success');
         }
       }
@@ -9690,7 +9873,7 @@
       if (btn) {
         btn.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
       }
-      
+
       // Update modal picker map if active and visible
       const container = document.getElementById('modal-map-picker-container');
       if (modalMapInstance && container && !container.classList.contains('hidden')) {
@@ -9733,7 +9916,7 @@
         }).addTo(modalMapInstance);
 
         // Add map click listener
-        modalMapInstance.on('click', function(e) {
+        modalMapInstance.on('click', function (e) {
           const clickedLat = e.latlng.lat;
           const clickedLng = e.latlng.lng;
 
@@ -9840,7 +10023,7 @@
         resultsDiv.classList.add('hidden');
         return;
       }
-      
+
       resultsDiv.innerHTML = '<p class="p-2 text-slate-400 text-center">กำลังค้นหา...</p>';
       resultsDiv.classList.remove('hidden');
 
@@ -9849,7 +10032,7 @@
           headers: { 'User-Agent': 'AzizstanSchoolDutyApp/1.0' }
         });
         const data = await res.json();
-        
+
         if (data.length === 0) {
           resultsDiv.innerHTML = '<p class="p-2 text-slate-450 text-center">ไม่พบสถานที่ดังกล่าว</p>';
           return;
@@ -9869,12 +10052,12 @@
     function selectSearchResult(lat, lon, displayName) {
       document.getElementById('point-form-lat').value = lat.toFixed(6);
       document.getElementById('point-form-lng').value = lon.toFixed(6);
-      
+
       if (modalMapInstance) {
         modalMapInstance.setView([lat, lon], 17);
         updateModalMapMarker(lat, lon);
       }
-      
+
       document.getElementById('modal-map-search-input').value = displayName;
       document.getElementById('modal-map-search-results').classList.add('hidden');
       updateGmapsModalLink();
@@ -9884,7 +10067,7 @@
       const loginLogo = document.getElementById('login-logo-container');
       const sidebarLogo = document.getElementById('sidebar-logo-container');
       const mobileLogo = document.getElementById('mobile-sidebar-logo-container');
-      
+
       if (settings && settings.systemLogo) {
         if (loginLogo) loginLogo.innerHTML = `<img src="${settings.systemLogo}" class="w-full h-full object-cover rounded-full" alt="logo">`;
         if (sidebarLogo) sidebarLogo.innerHTML = `<img src="${settings.systemLogo}" class="w-full h-full object-cover rounded-full" alt="logo">`;
@@ -9966,7 +10149,7 @@
       if (sidebarSchool) {
         sidebarSchool.textContent = settings.schoolName || 'ร.ร.มูลนิธิอาซิซสถาน';
       }
-      
+
       const mobileSidebarSubtitle = document.getElementById('mobile-sidebar-subtitle');
       if (mobileSidebarSubtitle) {
         mobileSidebarSubtitle.textContent = `วันนี้: วัน${getTodayThaiDayName()}`;
@@ -10023,11 +10206,11 @@
       if (!confirm('คุณยืนยันที่จะรีเซ็ตพิกัดของจุดเวรทั้งหมด (จุดที่ 1-41) มายังจุดศูนย์กลางของโรงเรียนที่ตั้งค่าไว้หรือไม่? การดำเนินการนี้จะทดแทนพิกัดปัจจุบันทั้งหมดบนคลาวด์ด้วยพิกัดศูนย์กลางโรงเรียนทันที!')) {
         return;
       }
-      
+
       const settings = db.getSettings();
       const lat = settings.centerLat || currentLatitude;
       const lng = settings.centerLng || currentLongitude;
-      
+
       const points = db.getDutyPoints();
       points.forEach(p => {
         p.lat = lat;
@@ -10039,7 +10222,7 @@
           p.lng2 = lng;
         }
       });
-      
+
       showToast('กำลังบันทึกและซิงค์พิกัดจุดเวรชุดใหม่ไปยัง Supabase...', 'info');
       await saveDutyPointsDB(points);
       showToast('รีเซ็ตพิกัดจุดเวรทั้งหมดมายังจุดศูนย์กลางโรงเรียนและอัปเดตคลาวด์สำเร็จแล้ว', 'success');
@@ -10072,13 +10255,13 @@
         }).addTo(settingsMapInstance);
 
         // Add map click listener
-        settingsMapInstance.on('click', function(e) {
+        settingsMapInstance.on('click', function (e) {
           const clickedLat = e.latlng.lat;
           const clickedLng = e.latlng.lng;
-          
+
           document.getElementById('sett-center-lat').value = clickedLat.toFixed(6);
           document.getElementById('sett-center-lng').value = clickedLng.toFixed(6);
-          
+
           updateSettingsMapMarker(clickedLat, clickedLng);
         });
       } else {
@@ -10107,7 +10290,7 @@
         resultsDiv.classList.add('hidden');
         return;
       }
-      
+
       resultsDiv.innerHTML = '<p class="p-2 text-slate-450 text-center">กำลังค้นหา...</p>';
       resultsDiv.classList.remove('hidden');
 
@@ -10116,7 +10299,7 @@
           headers: { 'User-Agent': 'AzizstanSchoolDutyApp/1.0' }
         });
         const data = await res.json();
-        
+
         if (data.length === 0) {
           resultsDiv.innerHTML = '<p class="p-2 text-slate-450 text-center">ไม่พบสถานที่ดังกล่าว</p>';
           return;
@@ -10136,17 +10319,17 @@
     function selectSettingsSearchResult(lat, lon, displayName) {
       document.getElementById('sett-center-lat').value = lat.toFixed(6);
       document.getElementById('sett-center-lng').value = lon.toFixed(6);
-      
+
       if (settingsMapInstance) {
         settingsMapInstance.setView([lat, lon], 17);
         updateSettingsMapMarker(lat, lon);
       }
-      
+
       const resultsDiv = document.getElementById('settings-map-search-results');
       if (resultsDiv) resultsDiv.classList.add('hidden');
       const searchInput = document.getElementById('settings-map-search-input');
       if (searchInput) searchInput.value = '';
-      
+
       showToast(`เลือกสถานที่: ${displayName}`, 'success');
     }
 
@@ -10156,10 +10339,10 @@
           (pos) => {
             const browserLat = pos.coords.latitude;
             const browserLng = pos.coords.longitude;
-            
+
             document.getElementById('sett-center-lat').value = browserLat.toFixed(6);
             document.getElementById('sett-center-lng').value = browserLng.toFixed(6);
-            
+
             if (settingsMapInstance) {
               settingsMapInstance.setView([browserLat, browserLng], 18);
               updateSettingsMapMarker(browserLat, browserLng);
@@ -10259,9 +10442,9 @@
     // =========================================================================
     function compressImageFile(file, maxWidth, maxHeight, quality, callback) {
       const reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = function (e) {
         const img = new Image();
-        img.onload = function() {
+        img.onload = function () {
           let width = img.width;
           let height = img.height;
 
@@ -10288,7 +10471,7 @@
           const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
           callback(compressedDataUrl);
         };
-        img.onerror = function() {
+        img.onerror = function () {
           callback(e.target.result);
         };
         img.src = e.target.result;
@@ -10298,15 +10481,15 @@
 
     function checkTeacherDistanceToPoint(lat1, lon1, lat2, lon2) {
       const R = 6371e3; // metres
-      const φ1 = lat1 * Math.PI/180;
-      const φ2 = lat2 * Math.PI/180;
-      const Δφ = (lat2-lat1) * Math.PI/180;
-      const Δλ = (lon2-lon1) * Math.PI/180;
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
 
-      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ/2) * Math.sin(Δλ/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
       return R * c; // in metres
     }
@@ -10418,7 +10601,7 @@
       editingReportOriginal = reportToEdit ? { ...reportToEdit } : null;
       uploadedReportPhotoBase64 = null;
       uploadedReportPhotoThumbBase64 = null;
-      
+
       const previewBox = document.getElementById('rep-photo-preview-box');
       if (previewBox) {
         previewBox.classList.add('hidden');
@@ -10426,20 +10609,20 @@
       }
       const previewImg = document.getElementById('rep-photo-preview');
       if (previewImg) previewImg.src = '';
-      
+
       const fileLabel = document.getElementById('rep-photo-filename');
       if (fileLabel) {
         fileLabel.textContent = reportToEdit ? 'ใช้รูปเดิมอยู่ หากต้องการเปลี่ยนให้อัปโหลดใหม่' : '⚠ ยังไม่ได้แนบรูป (จำเป็น)';
         fileLabel.className = reportToEdit ? 'text-[9px] text-amber-600 font-bold' : 'text-[9px] text-red-400 font-bold';
       }
-      
+
       const photoInput = document.getElementById('rep-photo-input');
       if (photoInput) photoInput.value = '';
-      
+
       document.getElementById('rep-result-text').value = reportToEdit ? (reportToEdit.result || '') : '';
       document.getElementById('rep-problem-text').value = reportToEdit ? (reportToEdit.problem || '') : '';
       document.getElementById('rep-solution-text').value = reportToEdit ? (reportToEdit.solution || '') : '';
-      
+
       const selectStatus = document.getElementById('rep-status-select');
       selectStatus.value = reportToEdit && reportToEdit.status === 'problem' ? 'problem' : 'reported';
       toggleReportProblemsInput();
@@ -10748,11 +10931,11 @@
     function previewReportPhoto(e) {
       const file = e.target.files[0];
       if (!file) return;
-      
+
       const filenameEl = document.getElementById('rep-photo-filename');
       filenameEl.textContent = file.name;
       filenameEl.className = 'text-[9px] text-green-600 font-bold';
-      
+
       // Compress report photo to max 800x800 with 70% quality (ideal for mobile uploads)
       compressImageFile(file, 800, 800, 0.7, (compressedBase64) => {
         uploadedReportPhotoBase64 = compressedBase64;
@@ -10780,7 +10963,7 @@
     function renderProfileSettingsView() {
       const teacher = db.getTeachers().find(t => t.id === currentUser.id) || currentUser;
       const sigSrc = teacher.signature || '';
-      
+
       return `
         <div class="fade-in space-y-6 text-xs max-w-2xl mx-auto">
           <div class="border-b pb-4">
@@ -10887,9 +11070,9 @@
                 <div>
                   <label class="block text-slate-500 font-bold mb-2">ลายเซ็นที่เปิดใช้งานในระบบปัจจุบัน:</label>
                   <div id="prof-sig-preview-container" class="border p-4 bg-slate-50 rounded-lg flex items-center justify-center h-28">
-                    ${sigSrc 
-                      ? `<img src="${sigSrc}" class="max-h-20 object-contain p-1 border rounded bg-white shadow-sm" alt="ลายเซ็นของคุณ">` 
-                      : `<span class="text-red-500 font-medium italic">⚠️ ยังไม่มีข้อมูลลายเซ็นของคุณในระบบ</span>`}
+                    ${sigSrc
+          ? `<img src="${sigSrc}" class="max-h-20 object-contain p-1 border rounded bg-white shadow-sm" alt="ลายเซ็นของคุณ">`
+          : `<span class="text-red-500 font-medium italic">⚠️ ยังไม่มีข้อมูลลายเซ็นของคุณในระบบ</span>`}
                   </div>
                 </div>
 
@@ -10911,7 +11094,7 @@
       profSignatureCanvas = document.getElementById('prof-sig-canvas');
       if (!profSignatureCanvas) return;
       profSignatureCtx = profSignatureCanvas.getContext('2d');
-      
+
       profSignatureCtx.strokeStyle = '#14532d'; // Forest green
       profSignatureCtx.lineWidth = 2.5;
       profSignatureCtx.lineJoin = 'round';
@@ -10990,7 +11173,7 @@
     function uploadProfileSignatureImage(e) {
       const file = e.target.files[0];
       if (!file) return;
-      
+
       compressImageFile(file, 300, 130, 0.9, (compressedBase64) => {
         updateProfileSignature(compressedBase64);
       });
@@ -11094,12 +11277,12 @@
 
       const teachers = db.getTeachers();
       const tIndex = teachers.findIndex(t => t.id === currentUser.id);
-      
+
       if (tIndex !== -1) {
         teachers[tIndex].name = newName;
         teachers[tIndex].phone = newPhone;
         db.saveTeachers(teachers);
-        
+
         currentUser.name = newName;
         currentUser.phone = newPhone;
 
@@ -11149,7 +11332,7 @@
 
       const teachers = db.getTeachers();
       const tIndex = teachers.findIndex(t => t.id === currentUser.id);
-      
+
       if (tIndex !== -1) {
         teachers[tIndex].password = newPassInput;
         db.saveTeachers(teachers);
@@ -11376,10 +11559,12 @@
     <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border">
       <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
         <h3 class="font-bold text-xs">รายละเอียดข้อมูลการปฏิบัติเวร</h3>
-        <button onclick="closeReportDetails()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="closeReportDetails()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i
+            data-lucide="x" class="w-4 h-4"></i></button>
       </div>
       <div id="report-view-content" class="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs"></div>
     </div>
   </div>
 </body>
+
 </html>
