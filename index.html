@@ -185,7 +185,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.7</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.8</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login"
               class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌
@@ -299,7 +299,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.7
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.8
             </div>
           </div>
         </aside>
@@ -412,7 +412,7 @@
             <span>ออกจากระบบ</span>
           </button>
           <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน
-            1.34.7</div>
+            1.34.8</div>
         </div>
       </aside>
 
@@ -877,7 +877,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.34.7';
+    const APP_VERSION = '1.34.8';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1542,15 +1542,20 @@
     let currentViewDate = getTodayISODate(); // วันที่ที่ระบบกำลังแสดงผลอยู่
 
     function renderWeekSwitcher() {
+      const isDailyShifter = isFullAdmin(currentUser) || isOpsHead(currentUser) || currentUser.role === 'chief' || currentUser.role === 'director';
+      const offset = isDailyShifter ? 1 : 7;
+      const labelPrev = isDailyShifter ? 'วันก่อนหน้า' : 'สัปดาห์ก่อนหน้า';
+      const labelNext = isDailyShifter ? 'วันถัดไป' : 'สัปดาห์ถัดไป';
+
       return `
         <!-- Week/Date Switcher Bar -->
         <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex items-center justify-between gap-2 no-print mb-4">
-          <button onclick="changeViewDate(-7)" class="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition text-[11px]">
+          <button onclick="changeViewDate(${-offset})" class="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition text-[11px]">
             <i data-lucide="chevron-left" class="w-4 h-4"></i>
-            <span>สัปดาห์ก่อนหน้า</span>
+            <span>${labelPrev}</span>
           </button>
           <div class="text-center flex flex-col items-center">
-            <span class="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">สัปดาห์ที่เลือก</span>
+            <span class="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">${isDailyShifter ? 'วันที่เลือก' : 'สัปดาห์ที่เลือก'}</span>
             <div class="flex items-center gap-1.5 mt-0.5">
               <span class="font-bold text-brand-950 text-xs">${getTodayThaiFullDate(currentViewDate)} (วัน${getThaiDayNameForDate(currentViewDate)})</span>
               ${currentViewDate !== getTodayISODate() ? `
@@ -1560,8 +1565,8 @@
               ` : ''}
             </div>
           </div>
-          <button onclick="changeViewDate(7)" class="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition text-[11px]">
-            <span>สัปดาห์ถัดไป</span>
+          <button onclick="changeViewDate(${offset})" class="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition text-[11px]">
+            <span>${labelNext}</span>
             <i data-lucide="chevron-right" class="w-4 h-4"></i>
           </button>
         </div>
