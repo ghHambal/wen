@@ -185,7 +185,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.8</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.9</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login"
               class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌
@@ -299,7 +299,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.8
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.9
             </div>
           </div>
         </aside>
@@ -412,7 +412,7 @@
             <span>ออกจากระบบ</span>
           </button>
           <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน
-            1.34.8</div>
+            1.34.9</div>
         </div>
       </aside>
 
@@ -877,7 +877,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.34.8';
+    const APP_VERSION = '1.34.9';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1594,6 +1594,92 @@
     function resetViewDateToToday() {
       currentViewDate = getTodayISODate();
       renderPage(currentPage);
+    }
+
+    function getExecutiveDailyComment(dateStr) {
+      const reps = db.getReports();
+      const match = reps.find(r => r.date === dateStr && r.teacherId === 'executive_daily_comment' && r.status === 'daily_comment');
+      return match ? match.result : '';
+    }
+
+    function getExecutivePointComment(pointId, dateStr) {
+      const reps = db.getReports();
+      const match = reps.find(r => r.date === dateStr && String(r.pointId) === String(pointId) && r.teacherId === 'executive_point_comment' && r.status === 'point_comment');
+      return match ? match.result : '';
+    }
+
+    async function saveExecutiveDailyComment(dateStr, commentText) {
+      const reps = db.getReports();
+      const commentId = 'R_EXEC_DAILY_' + dateStr;
+      let match = reps.find(r => r.id === commentId);
+      
+      const newReport = {
+        id: commentId,
+        date: dateStr,
+        pointId: db.getDutyPoints().length > 0 ? db.getDutyPoints()[0].id : 1,
+        teacherId: 'executive_daily_comment',
+        status: 'daily_comment',
+        time: '00:00',
+        distance: 0,
+        result: commentText,
+        problem: '',
+        solution: '',
+        photo: null,
+        signature: null,
+        isLate: false
+      };
+
+      const cleanReports = reps.filter(r => r.id !== commentId);
+      cleanReports.push(newReport);
+      db.saveReports(cleanReports);
+
+      if (useSupabase && supabaseClient) {
+        try {
+          const dbReport = mapReportToDB(newReport);
+          const { error } = await supabaseClient.from('reports').upsert(dbReport);
+          if (error) throw error;
+        } catch (err) {
+          console.warn("Failed to sync daily executive comment:", err.message);
+          queuePendingSync('reports', mapReportToDB(newReport));
+        }
+      }
+    }
+
+    async function saveExecutivePointComment(pointId, dateStr, commentText) {
+      const reps = db.getReports();
+      const commentId = 'R_EXEC_POINT_' + dateStr + '_' + pointId;
+      let match = reps.find(r => r.id === commentId);
+      
+      const newReport = {
+        id: commentId,
+        date: dateStr,
+        pointId: parseInt(pointId),
+        teacherId: 'executive_point_comment',
+        status: 'point_comment',
+        time: '00:00',
+        distance: 0,
+        result: commentText,
+        problem: '',
+        solution: '',
+        photo: null,
+        signature: null,
+        isLate: false
+      };
+
+      const cleanReports = reps.filter(r => r.id !== commentId);
+      cleanReports.push(newReport);
+      db.saveReports(cleanReports);
+
+      if (useSupabase && supabaseClient) {
+        try {
+          const dbReport = mapReportToDB(newReport);
+          const { error } = await supabaseClient.from('reports').upsert(dbReport);
+          if (error) throw error;
+        } catch (err) {
+          console.warn("Failed to sync point executive comment:", err.message);
+          queuePendingSync('reports', mapReportToDB(newReport));
+        }
+      }
     }
     let currentMapInstance = null; // Leaflet map reference
     let pointCardMaps = {}; // pointId -> Leaflet map instance (mini-map inline ในการ์ดจุดเวร)
@@ -2355,6 +2441,112 @@
       } else {
         container.classList.add('hidden');
         if (btn) btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg> ดูแผนที่จุดเวร`;
+      }
+    }
+
+    let execPointMapInstance = null;
+
+    function openExecutivePointMap(pointId, lat, lng, radius, lat2, lng2, radius2, pointName) {
+      const modal = document.getElementById('exec-point-map-modal');
+      if (!modal) return;
+
+      modal.classList.remove('hidden');
+      document.getElementById('exec-point-map-title').innerText = 'พิกัดแผนที่: ' + pointName;
+
+      setTimeout(() => {
+        const mapContainer = document.getElementById('exec-point-map');
+        if (!mapContainer) return;
+
+        if (execPointMapInstance) {
+          execPointMapInstance.remove();
+          execPointMapInstance = null;
+        }
+
+        const map = L.map('exec-point-map', { zoomControl: true, attributionControl: false }).setView([lat, lng], 17);
+        execPointMapInstance = map;
+
+        L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: '© Google Maps' }).addTo(map);
+
+        L.circle([lat, lng], { color: '#14532d', fillColor: '#14532d', fillOpacity: 0.14, weight: 2, radius }).addTo(map);
+        L.marker([lat, lng], {
+          icon: L.divIcon({
+            className: '',
+            html: `<div style="width:13px;height:13px;background:#14532d;border-radius:50%;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>`,
+            iconSize: [13, 13], iconAnchor: [6.5, 6.5]
+          })
+        }).addTo(map).bindPopup('📍 จุดเวรหลัก').openPopup();
+
+        if (lat2 != null && lng2 != null) {
+          const r2 = radius2 || radius;
+          L.circle([lat2, lng2], { color: '#7c3aed', fillColor: '#7c3aed', fillOpacity: 0.12, weight: 2, radius: r2 }).addTo(map);
+          L.marker([lat2, lng2], {
+            icon: L.divIcon({
+              className: '',
+              html: `<div style="width:13px;height:13px;background:#7c3aed;border-radius:50%;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>`,
+              iconSize: [13, 13], iconAnchor: [6.5, 6.5]
+            })
+          }).addTo(map).bindPopup('📍 จุดเวรบริเวณที่ 2');
+        }
+        
+        setTimeout(() => {
+          map.invalidateSize();
+        }, 100);
+      }, 200);
+    }
+
+    function closeExecutivePointMap() {
+      const modal = document.getElementById('exec-point-map-modal');
+      if (modal) modal.classList.add('hidden');
+      if (execPointMapInstance) {
+        execPointMapInstance.remove();
+        execPointMapInstance = null;
+      }
+    }
+
+    let currentExecCommentPointId = null;
+
+    function openExecutivePointCommentModal(pointId, pointName) {
+      currentExecCommentPointId = pointId;
+      const modal = document.getElementById('exec-point-comment-modal');
+      if (!modal) return;
+
+      document.getElementById('exec-point-comment-label').innerText = pointName;
+      const existingComment = getExecutivePointComment(pointId, currentViewDate);
+      document.getElementById('exec-point-comment-textarea').value = existingComment;
+
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        document.getElementById('exec-point-comment-textarea').focus();
+      }, 100);
+    }
+
+    function closeExecutivePointCommentModal() {
+      const modal = document.getElementById('exec-point-comment-modal');
+      if (modal) modal.classList.add('hidden');
+      currentExecCommentPointId = null;
+    }
+
+    async function saveExecutivePointCommentText() {
+      if (!currentExecCommentPointId) return;
+      const text = document.getElementById('exec-point-comment-textarea').value.trim();
+      try {
+        await saveExecutivePointComment(currentExecCommentPointId, currentViewDate, text);
+        closeExecutivePointCommentModal();
+        showToast('บันทึกความคิดเห็นรายจุดเรียบร้อยแล้ว', 'success');
+        renderPage(currentPage);
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
+      }
+    }
+
+    async function saveExecutiveDailyCommentText() {
+      const text = document.getElementById('exec-daily-comment-textarea').value.trim();
+      try {
+        await saveExecutiveDailyComment(currentViewDate, text);
+        showToast('บันทึกความคิดเห็นภาพรวมประจำวันเรียบร้อยแล้ว', 'success');
+        renderPage(currentPage);
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
       }
     }
 
@@ -3922,6 +4114,22 @@
             </div>
           </div>
 
+          <!-- Daily Executive Comment -->
+          <div class="bg-white border-2 border-brand-100 rounded-xl p-4 shadow-sm space-y-3 no-print">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-slate-800 flex items-center gap-1.5">
+                <i data-lucide="edit-3" class="w-4 h-4 text-brand-700"></i>
+                <span>ความคิดเห็นภาพรวมผู้บริหารประจำวัน (${getTodayThaiFullDate(currentViewDate)})</span>
+              </h4>
+              <button onclick="saveExecutiveDailyCommentText()" class="bg-brand-900 text-white font-bold px-3 py-1.5 rounded-lg hover:bg-brand-950 transition text-[10px] shadow-sm flex items-center gap-1">
+                <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                <span>บันทึกความเห็น</span>
+              </button>
+            </div>
+            <textarea id="exec-daily-comment-textarea" placeholder="พิมพ์ความคิดเห็น หรือ ผลการลงตรวจการปฏิบัติเวรภาพรวมของโรงเรียนประจำวันนี้..." 
+                      class="w-full border border-slate-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-[11px] text-slate-700 bg-slate-50 focus:bg-white transition" rows="3">${escapeHtml(getExecutiveDailyComment(currentViewDate))}</textarea>
+          </div>
+
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="bg-white border rounded-xl p-5 shadow-sm space-y-4 md:col-span-2">
               <h4 class="font-bold text-slate-800 flex items-center gap-1.5"><i data-lucide="trending-up" class="w-4 h-4 text-brand-700"></i>อัตราความตรงต่อเวลาเฉลี่ยตามวันเวร</h4>
@@ -3971,15 +4179,36 @@
             <div class="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               ${currentDutyPoints.length === 0 ? `
                 <div class="md:col-span-2 xl:col-span-3 text-center text-slate-400 py-6">ขณะนี้ไม่มีจุดเวรของ${currentExecutiveDutyGroupTab}ที่อยู่ในช่วงเวลาปฏิบัติ</div>
-              ` : currentDutyPoints.map(({ point, assigned }) => `
-                <div class="border rounded-lg p-3 bg-slate-50">
-                  <p class="font-bold text-slate-800">จุดที่ ${getDutyPointDisplayNumber(point)}: ${point.name}</p>
-                  <p class="text-[10px] text-slate-500 mt-0.5">${point.time} น.</p>
-                  <div class="mt-2 flex flex-wrap gap-1.5">
-                    ${assigned.map(id => `<span class="bg-white border text-slate-700 rounded-full px-2 py-0.5 font-bold text-[10px]">${getTeacherName(id)}</span>`).join('')}
+              ` : currentDutyPoints.map(({ point, assigned }) => {
+                const comment = getExecutivePointComment(point.id, currentViewDate);
+                return `
+                  <div class="border rounded-lg p-3 bg-slate-50 flex flex-col justify-between">
+                    <div>
+                      <p class="font-bold text-slate-800">จุดที่ ${getDutyPointDisplayNumber(point)}: ${point.name}</p>
+                      <p class="text-[10px] text-slate-500 mt-0.5">${point.time} น.</p>
+                      <div class="mt-2 flex flex-wrap gap-1.5">
+                        ${assigned.map(id => `<span class="bg-white border text-slate-700 rounded-full px-2 py-0.5 font-bold text-[10px]">${getTeacherName(id)}</span>`).join('')}
+                      </div>
+                      ${comment ? `
+                        <div class="mt-2.5 bg-blue-50 border border-blue-100 text-blue-800 rounded-lg p-2 text-[10px]">
+                          <span class="font-bold">✍️ ความคิดเห็นผู้บริหาร:</span> ${escapeHtml(comment)}
+                        </div>
+                      ` : ''}
+                    </div>
+                    <div class="mt-3 flex items-center justify-between border-t pt-2 text-[10px]">
+                      <button onclick="openExecutivePointMap(${point.id}, ${point.lat}, ${point.lng}, ${point.radius}, ${point.lat2 ?? 'null'}, ${point.lng2 ?? 'null'}, ${point.radius2 ?? 'null'}, '${escapeHtml(point.name)}')" 
+                              class="scale-spring-active text-brand-850 hover:text-brand-950 font-bold flex items-center gap-1">
+                        <i data-lucide="map" class="w-3.5 h-3.5"></i> ดูพิกัดจุดเวร
+                      </button>
+                      <button onclick="openExecutivePointCommentModal(${point.id}, '${escapeHtml(point.name)}')"
+                              class="scale-spring-active font-bold flex items-center gap-1 ${comment ? 'text-blue-700 hover:text-blue-900' : 'text-slate-500 hover:text-slate-850'}">
+                        <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+                        <span>${comment ? 'แก้ไขความเห็น' : 'เขียนความเห็น'}</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              `).join('')}
+                `;
+              }).join('')}
             </div>
           </div>
 
@@ -6706,6 +6935,53 @@
       }).join('')}
           </div>
           `}
+        </div>
+
+        <!-- EXECUTIVE POINT MAP MODAL -->
+        <div id="exec-point-map-modal" class="fixed inset-0 bg-black/75 z-[10000] hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border flex flex-col fade-in">
+            <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
+              <h3 class="font-bold text-xs" id="exec-point-map-title">พิกัดจุดเวร</h3>
+              <button onclick="closeExecutivePointMap()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-4 space-y-3">
+              <div id="exec-point-map" class="w-full h-80 rounded-xl border border-slate-200"></div>
+              <p class="text-[10px] text-slate-500 flex items-center gap-1">
+                <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                วงกลมสีเขียวแทนพิกัด/ขอบเขตปฏิบัติงาน (Geofence) ของครูเวร ณ จุดนั้น ๆ
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- EXECUTIVE POINT COMMENT MODAL -->
+        <div id="exec-point-comment-modal" class="fixed inset-0 bg-black/75 z-[10000] hidden flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border flex flex-col fade-in">
+            <div class="bg-brand-900 text-white p-4 flex justify-between items-center">
+              <h3 class="font-bold text-xs" id="exec-point-comment-title">ความคิดเห็นผู้บริหารรายจุด</h3>
+              <button onclick="closeExecutivePointCommentModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-5 space-y-4 text-xs">
+              <div>
+                <span class="block text-slate-400 mb-1 font-bold">จุดเวร:</span>
+                <span id="exec-point-comment-label" class="font-bold text-slate-800 text-sm">จุดที่ 1</span>
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 font-bold">พิมพ์ความคิดเห็น:</label>
+                <textarea id="exec-point-comment-textarea" placeholder="พิมพ์ความคิดเห็น เช่น การปฏิบัติงานเรียบร้อยดี, ไม่พบครูประจำจุด, ครูมาสาย หรือข้อเสนอแนะสำหรับการปรับปรุง..." 
+                          class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-[11px] text-slate-700 bg-slate-50 focus:bg-white transition" rows="4"></textarea>
+              </div>
+              <div class="flex gap-2.5 pt-2">
+                <button onclick="closeExecutivePointCommentModal()" class="flex-1 border font-bold py-2.5 rounded-xl transition hover:bg-slate-50 text-[11px] text-slate-700 text-center">
+                  ยกเลิก
+                </button>
+                <button onclick="saveExecutivePointCommentText()" class="flex-1 bg-brand-900 text-white font-bold py-2.5 rounded-xl transition hover:bg-brand-950 text-[11px] text-center shadow-md flex items-center justify-center gap-1.5">
+                  <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                  บันทึก
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- LEAVE REQUEST MODAL -->
