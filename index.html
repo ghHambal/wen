@@ -185,7 +185,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.10</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.11</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login"
               class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌
@@ -299,7 +299,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.10
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.11
             </div>
           </div>
         </aside>
@@ -412,7 +412,7 @@
             <span>ออกจากระบบ</span>
           </button>
           <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน
-            1.34.10</div>
+            1.34.11</div>
         </div>
       </aside>
 
@@ -683,6 +683,27 @@
         parsedHeadPerms = local.headMenuPermissions;
       }
 
+      let parsedDirectorPerms = null;
+      if (dbSett.director_menu_permissions) {
+        if (Array.isArray(dbSett.director_menu_permissions)) {
+          parsedDirectorPerms = dbSett.director_menu_permissions;
+        } else {
+          try {
+            parsedDirectorPerms = JSON.parse(dbSett.director_menu_permissions);
+          } catch (e) {
+            console.error("Failed to parse director_menu_permissions JSON string:", e);
+          }
+        }
+      } else if (dbSett.directorMenuPermissions) {
+        parsedDirectorPerms = dbSett.directorMenuPermissions;
+      } else if (local.directorMenuPermissions) {
+        parsedDirectorPerms = local.directorMenuPermissions;
+      }
+      if (!parsedDirectorPerms) {
+        parsedDirectorPerms = ['executive-overview', 'today-report', 'schedule', 'profile-settings'];
+      }
+
+
       return {
         schoolName: dbSett.school_name || dbSett.schoolName || local.schoolName || '',
         headName: dbSett.head_name || dbSett.headName || local.headName || '',
@@ -706,6 +727,7 @@
         totalWeeks: dbSett.total_weeks !== undefined && dbSett.total_weeks !== null ? dbSett.total_weeks : (dbSett.totalWeeks !== undefined && dbSett.totalWeeks !== null ? dbSett.totalWeeks : (local.totalWeeks || 20)),
         headsOfDay: parsedHeads,
         headMenuPermissions: parsedHeadPerms,
+        directorMenuPermissions: parsedDirectorPerms,
         dutyOperationsHeadId: dbSett.duty_operations_head_id || dbSett.dutyOperationsHeadId || local.dutyOperationsHeadId || '',
         appreciationDuaText: dbSett.appreciation_dua_text || dbSett.appreciationDuaText || local.appreciationDuaText || 'ขออัลลอฮฺทรงตอบแทนความดีงามแก่ท่าน (ญะซากัลลอฮุ ค็อยร็อน) ที่มุ่งมั่นในการปฏิบัติหน้าที่ด้วยความอิคลาส และขอพระองค์ทรงให้ท่านยืนหยัดคงไว้ซึ่งความดีงามนี้ตลอดไป',
         ikhlasConfirmText: dbSett.ikhlas_confirm_text || dbSett.ikhlasConfirmText || local.ikhlasConfirmText || DEFAULT_IKHLAS_CONFIRM_TEXT
@@ -738,6 +760,7 @@
         total_weeks: jsSett.totalWeeks !== undefined ? jsSett.totalWeeks : 20,
         heads_of_day: jsSett.headsOfDay ? (typeof jsSett.headsOfDay === 'object' ? JSON.stringify(jsSett.headsOfDay) : jsSett.headsOfDay) : '{}',
         head_menu_permissions: jsSett.headMenuPermissions ? JSON.stringify(jsSett.headMenuPermissions) : JSON.stringify(adminMenus.map(m => m.id)),
+        director_menu_permissions: jsSett.directorMenuPermissions ? JSON.stringify(jsSett.directorMenuPermissions) : JSON.stringify(['executive-overview', 'today-report', 'schedule', 'profile-settings']),
         duty_operations_head_id: jsSett.dutyOperationsHeadId || null,
         appreciation_dua_text: jsSett.appreciationDuaText || '',
         ikhlas_confirm_text: jsSett.ikhlasConfirmText || DEFAULT_IKHLAS_CONFIRM_TEXT
@@ -877,7 +900,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.34.10';
+    const APP_VERSION = '1.34.11';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -2269,7 +2292,9 @@
     function buildSidebar() {
       let menus;
       if (activeRoleMode === 'director') {
-        menus = directorMenus;
+        const settings = db.getSettings();
+        const allowed = settings.directorMenuPermissions || ['executive-overview', 'today-report', 'schedule', 'profile-settings'];
+        menus = adminMenus.filter(m => m.id === 'profile-settings' || allowed.includes(m.id));
       } else if (activeRoleMode === 'head') {
         menus = adminMenus;
       } else {
@@ -6376,6 +6401,7 @@
     function renderSettingsView() {
       const settings = db.getSettings();
       const currentHeadPerms = settings.headMenuPermissions || adminMenus.map(m => m.id);
+      const currentDirectorPerms = settings.directorMenuPermissions || ['executive-overview', 'today-report', 'schedule', 'profile-settings'];
 
       return `
         <div class="fade-in space-y-6 max-w-2xl text-xs">
@@ -6592,6 +6618,20 @@
                 </div>
               </div>
 
+              <!-- สิทธิ์การเข้าถึงเมนูของผู้บริหาร (Director) -->
+              <div class="border-t pt-4 space-y-3">
+                <h4 class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="shield-check" class="w-4 h-4 text-brand-700"></i>สิทธิ์การเข้าถึงเมนูของผู้บริหาร (Director)</h4>
+                <p class="text-[10px] text-slate-400">เลือกเมนูที่จะให้บัญชีผู้ใช้งานบทบาท "ผู้บริหาร" (Director) มองเห็นและเข้าถึงได้เมื่อเข้าสู่ระบบ — เมนู "ข้อมูลส่วนตัว" จะแสดงให้เห็นเสมอโดยอัตโนมัติ</p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  ${adminMenus.filter(m => m.id !== 'profile-settings').map(m => `
+                    <label class="flex items-center gap-2 border rounded-lg p-2.5 cursor-pointer hover:bg-slate-50 transition">
+                      <input type="checkbox" id="sett-director-perm-${m.id}" ${currentDirectorPerms.includes(m.id) ? 'checked' : ''} class="rounded border-slate-300 text-brand-700 focus:ring-brand-500">
+                      <span class="flex items-center gap-1.5 text-slate-700 font-semibold"><i data-lucide="${m.icon}" class="w-3.5 h-3.5 text-brand-700"></i>${m.label}</span>
+                    </label>
+                  `).join('')}
+                </div>
+              </div>
+
               <div class="flex justify-end pt-3">
                 <button type="submit" class="bg-brand-850 hover:bg-brand-700 text-white font-bold px-6 py-2.5 rounded-lg shadow transition">
                   บันทึกข้อมูลและอัปเดต Supabase
@@ -6695,6 +6735,12 @@
           .filter(m => document.getElementById(`sett-head-perm-${m.id}`)?.checked)
           .map(m => m.id),
 
+        // สิทธิ์การเข้าถึงเมนูของผู้บริหาร
+        directorMenuPermissions: adminMenus
+          .filter(m => m.id !== 'profile-settings')
+          .filter(m => document.getElementById(`sett-director-perm-${m.id}`)?.checked)
+          .map(m => m.id),
+
         // หัวหน้างานเวร (ผู้อนุมัติลำดับสุดท้าย)
         dutyOperationsHeadId: document.getElementById('sett-duty-operations-head') ? document.getElementById('sett-duty-operations-head').value : (current.dutyOperationsHeadId || ''),
         appreciationDuaText: document.getElementById('sett-appreciation-dua-text') ? document.getElementById('sett-appreciation-dua-text').value.trim() : (current.appreciationDuaText || ''),
@@ -6719,7 +6765,21 @@
 
       if (useSupabase) {
         const dbSettings = mapSettingsToDB(settings);
-        const { error } = await supabaseClient.from('settings').upsert(dbSettings);
+        let { error } = await supabaseClient.from('settings').upsert(dbSettings);
+        if (error) {
+          // If director_menu_permissions column does not exist on server yet, retry without it
+          if (error.message && error.message.includes('director_menu_permissions')) {
+            console.warn("director_menu_permissions column missing on Supabase, retrying without it...");
+            const retrySettings = { ...dbSettings };
+            delete retrySettings.director_menu_permissions;
+            const retryResult = await supabaseClient.from('settings').upsert(retrySettings);
+            error = retryResult.error;
+            if (!error) {
+              showToast('บันทึกการตั้งค่าลงคลาวด์แล้ว (สิทธิ์เมนูผู้บริหารจะจำไว้บนเครื่องนี้ชั่วคราวจนกว่าจะรัน SQL Migration)', 'warning');
+            }
+          }
+        }
+
         if (error) {
           console.warn("Failed to upsert settings with new columns, attempting base settings upsert:", error);
           const baseDbSettings = {
@@ -6742,7 +6802,7 @@
           } else {
             showToast('บันทึกข้อมูลตั้งค่าหลักลงระบบคลาวด์แล้ว (การตั้งค่าบางส่วนจะสมบูรณ์หลังอัปเกรดคอลัมน์ Supabase)', 'warning');
           }
-        } else {
+        } else if (!error) {
           showToast('อัปเดตระบบคลาวด์และบันทึกการตั้งค่าเสร็จสิ้น', 'success');
         }
       } else {
