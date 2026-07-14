@@ -1617,12 +1617,27 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   reject_reason TEXT
 );
 
+-- 4.2 สร้างตารางประกาศยกเว้นเวรส่วนกลาง
+CREATE TABLE IF NOT EXISTS duty_exemptions (
+  id TEXT PRIMARY KEY,
+  date DATE NOT NULL,
+  duty_group TEXT,
+  point_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+  reason TEXT NOT NULL,
+  declared_by TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS duty_exemptions_date_idx
+  ON duty_exemptions (date DESC);
+
 -- 5. ปิดการตั้งค่า RLS เพื่ออนุญาตให้เขียนอ่านตรงได้สำหรับเว็บสาธิตนี้
 ALTER TABLE teachers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE duty_points DISABLE ROW LEVEL SECURITY;
 ALTER TABLE reports DISABLE ROW LEVEL SECURITY;
 ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
 ALTER TABLE leave_requests DISABLE ROW LEVEL SECURITY;
+ALTER TABLE duty_exemptions DISABLE ROW LEVEL SECURITY;
 
 -- 6. นำเข้าข้อมูลเริ่มต้นที่จำเป็นลงในตาราง (เฉพาะข้อมูลที่ยังไม่มี - จะไม่เขียนทับของเดิม)
 

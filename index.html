@@ -185,7 +185,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.12</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.13</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login"
               class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌
@@ -299,7 +299,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.12
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.13
             </div>
           </div>
         </aside>
@@ -412,7 +412,7 @@
             <span>ออกจากระบบ</span>
           </button>
           <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน
-            1.34.12</div>
+            1.34.13</div>
         </div>
       </aside>
 
@@ -900,7 +900,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.34.12';
+    const APP_VERSION = '1.34.13';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1260,14 +1260,19 @@
     }
 
     async function syncDutyExemptionsFromCloud() {
+      if (!useSupabase || !supabaseClient || !navigator.onLine) return false;
       try {
-        const dutyExemptions = await supabaseClient.from('duty_exemptions').select('*');
-        if (dutyExemptions.data) {
-          const mappedExemptions = dutyExemptions.data.map(mapDutyExemptionFromDB);
-          db.saveDutyExemptions(mappedExemptions);
-        }
+        const { data, error } = await supabaseClient
+          .from('duty_exemptions')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        const mappedExemptions = (data || []).map(mapDutyExemptionFromDB);
+        db.saveDutyExemptions(mappedExemptions);
+        return true;
       } catch (err) {
         console.warn("Failed to sync duty_exemptions table:", err);
+        return false;
       }
     }
 
@@ -2989,6 +2994,16 @@
               }
             }
           }).catch(err => console.warn("Auto sync on approvals navigation failed:", err));
+        } else if (page === 'my-duty') {
+          // ครูเวรต้องได้รับประกาศยกเว้นล่าสุดทันทีที่เปิดหน้า และทุกครั้งที่หน้ารีเฟรช
+          // เพื่อไม่ให้เดินทางไปยังจุดที่หัวหน้า/แอดมินประกาศยกเว้นแล้ว
+          syncDutyExemptionsFromCloud().then(() => {
+            if (currentPage === 'my-duty' && !isUserActivelyEditing()) {
+              mc.innerHTML = renderMyDutyView();
+              startMyDutyTimer();
+              lucide.createIcons();
+            }
+          }).catch(err => console.warn("Auto sync duty exemptions on My Duty failed:", err));
         } else if (page === 'executive-overview') {
           syncReportsFromCloud('light').then(() => {
             if (currentPage === 'executive-overview') {
@@ -3778,8 +3793,13 @@
         createdAt: new Date().toISOString()
       };
 
-      await saveExemptionDB(exemption);
-      showToast('ประกาศยกเว้นเวรเรียบร้อยแล้ว', 'success');
+      const synced = await saveExemptionDB(exemption);
+      showToast(
+        synced
+          ? 'ประกาศยกเว้นเวรถึงครูเวรทุกคนเรียบร้อยแล้ว'
+          : 'บันทึกประกาศไว้ในเครื่องแล้ว แต่ยังส่งถึงครูทุกคนไม่ได้ ระบบจะลองซิงก์ให้อัตโนมัติ',
+        synced ? 'success' : 'warning'
+      );
       navigateTo('duty-head-approvals');
     }
 
@@ -3789,8 +3809,13 @@
         showToast('ท่านไม่มีสิทธิ์ยกเลิกประกาศนี้', 'error');
         return;
       }
-      await cancelExemptionDB(id);
-      showToast('ยกเลิกประกาศยกเว้นเวรเรียบร้อยแล้ว', 'success');
+      const synced = await cancelExemptionDB(id);
+      showToast(
+        synced
+          ? 'ยกเลิกประกาศยกเว้นเวรเรียบร้อยแล้ว'
+          : 'ยกเลิกประกาศในเครื่องแล้ว แต่ยังส่งการเปลี่ยนแปลงถึงครูทุกคนไม่ได้',
+        synced ? 'success' : 'warning'
+      );
       navigateTo('duty-head-approvals');
     }
 
@@ -7920,7 +7945,7 @@
 
       if (!useSupabase || !navigator.onLine) {
         queuePendingSync('duty_exemptions', dbExemption);
-        return;
+        return false;
       }
 
       try {
@@ -7928,10 +7953,13 @@
         if (error) {
           console.error("Supabase duty_exemptions upsert failed, queueing for retry:", error);
           queuePendingSync('duty_exemptions', dbExemption);
+          return false;
         }
+        return true;
       } catch (err) {
         console.error("Supabase duty_exemptions upsert threw, queueing for retry:", err);
         queuePendingSync('duty_exemptions', dbExemption);
+        return false;
       }
     }
 
@@ -7940,7 +7968,7 @@
 
       if (!useSupabase || !navigator.onLine) {
         queuePendingSync('duty_exemptions', { id, _delete: true });
-        return;
+        return false;
       }
 
       try {
@@ -7948,10 +7976,13 @@
         if (error) {
           console.error("Supabase duty_exemptions delete failed, queueing for retry:", error);
           queuePendingSync('duty_exemptions', { id, _delete: true });
+          return false;
         }
+        return true;
       } catch (err) {
         console.error("Supabase duty_exemptions delete threw, queueing for retry:", err);
         queuePendingSync('duty_exemptions', { id, _delete: true });
+        return false;
       }
     }
 
