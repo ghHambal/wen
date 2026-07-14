@@ -185,7 +185,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.13</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.14</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login"
               class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌
@@ -299,7 +299,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.13
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.14
             </div>
           </div>
         </aside>
@@ -412,7 +412,7 @@
             <span>ออกจากระบบ</span>
           </button>
           <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน
-            1.34.13</div>
+            1.34.14</div>
         </div>
       </aside>
 
@@ -900,7 +900,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.34.13';
+    const APP_VERSION = '1.34.14';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -3004,6 +3004,18 @@
               lucide.createIcons();
             }
           }).catch(err => console.warn("Auto sync duty exemptions on My Duty failed:", err));
+        } else if (page === 'my-history') {
+          // ประวัติต้องเทียบตารางเวรกับข้อมูลล่าสุด เพื่อสร้างสถานะ "ไม่ได้รายงาน"
+          Promise.all([
+            syncReportsFromCloud('light'),
+            syncLeaveRequestsFromCloud(),
+            syncDutyExemptionsFromCloud()
+          ]).then(() => {
+            if (currentPage === 'my-history' && !isUserActivelyEditing()) {
+              mc.innerHTML = renderMyHistoryView();
+              lucide.createIcons();
+            }
+          }).catch(err => console.warn("Auto sync on My History failed:", err));
         } else if (page === 'executive-overview') {
           syncReportsFromCloud('light').then(() => {
             if (currentPage === 'executive-overview') {
@@ -8487,13 +8499,57 @@
 
     // I. MY HISTORY VIEW (Teacher View)
     function renderMyHistoryView() {
-      const reports = db.getReports().filter(r => r.teacherId === currentUser.id);
+      const today = getTodayISODate();
+      const cutoffDate = addDaysToISODate(today, -(FULL_OFFLINE_REPORT_DAYS - 1));
+      const reports = db.getReports()
+        .filter(r => r.teacherId === currentUser.id && r.date >= cutoffDate && r.date <= today);
+      const reportKeys = new Set(reports.map(r => `${r.date}|${r.pointId}`));
+      const leaveRequests = db.getLeaveRequests().filter(r =>
+        r.teacherId === currentUser.id &&
+        (r.status === 'pending' || r.status === 'approved')
+      );
+
+      const historyRows = reports.map(report => ({ type: 'report', date: report.date, pointId: report.pointId, report }));
+
+      // รายการที่ไม่ได้ส่งจะไม่มี row ใน reports จึงต้องสร้างจากตารางมอบหมายเวรย้อนหลัง
+      for (let offset = 0; offset < FULL_OFFLINE_REPORT_DAYS; offset++) {
+        const dateStr = addDaysToISODate(today, -offset);
+        getDutyPointsForTeacher(currentUser.id, dateStr).forEach(point => {
+          const key = `${dateStr}|${point.id}`;
+          if (reportKeys.has(key) || !isDutyPointOverdueForDashboard(point, dateStr)) return;
+          if (getExemptionForDate(dateStr, point.dutyGroup || 'ครูชาย', point.id)) return;
+
+          const hasActiveLeave = leaveRequests.some(req =>
+            req.date === dateStr && (req.pointId === null || String(req.pointId) === String(point.id))
+          );
+          if (hasActiveLeave) return;
+
+          historyRows.push({ type: 'missed', date: dateStr, pointId: point.id, point });
+        });
+      }
+
+      historyRows.sort((a, b) =>
+        b.date.localeCompare(a.date) || Number(a.pointId) - Number(b.pointId)
+      );
+      const missedCount = historyRows.filter(row => row.type === 'missed').length;
+      const submittedCount = historyRows.length - missedCount;
 
       return `
         <div class="fade-in space-y-6 text-xs">
           <div class="border-b pb-4">
             <h3 class="text-lg font-bold text-slate-900">ประวัติการลงบันทึกรายงานผล</h3>
-            <p class="text-slate-500 mt-1">ประวัติการยืนยันตัวตนและการตรวจเวรสะสมของคุณ</p>
+            <p class="text-slate-500 mt-1">แสดงทั้งรายการที่รายงานแล้วและไม่ได้รายงานย้อนหลัง ${FULL_OFFLINE_REPORT_DAYS} วัน</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-green-50 border border-green-100 rounded-xl p-4">
+              <p class="text-[10px] font-bold text-green-700">รายงาน/ลาแล้ว</p>
+              <p class="text-2xl font-black text-green-800 mt-1">${submittedCount}</p>
+            </div>
+            <div class="bg-red-50 border border-red-100 rounded-xl p-4">
+              <p class="text-[10px] font-bold text-red-700">ไม่ได้รายงาน (เลยเวลา)</p>
+              <p class="text-2xl font-black text-red-800 mt-1">${missedCount}</p>
+            </div>
           </div>
 
           <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
@@ -8514,30 +8570,34 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y text-slate-700">
-                  ${reports.length === 0 ? `
+                  ${historyRows.length === 0 ? `
                     <tr>
-                      <td colspan="7" class="p-6 text-center text-slate-400 font-medium">คุณยังไม่มีข้อมูลประวัติส่งรายงาน</td>
+                      <td colspan="7" class="p-6 text-center text-slate-400 font-medium">ยังไม่มีประวัติเวรย้อนหลัง ${FULL_OFFLINE_REPORT_DAYS} วัน</td>
                     </tr>
-                  ` : reports.map(r => {
-        const pt = db.getDutyPoints().find(p => p.id === r.pointId);
+                  ` : historyRows.map(row => {
+        const r = row.report || null;
+        const pt = row.point || db.getDutyPoints().find(p => p.id === row.pointId);
+        const isMissed = row.type === 'missed';
         return `
-                      <tr class="hover:bg-slate-50 transition cursor-default">
-                        <td class="px-4 py-3 text-center font-bold text-slate-600">${getTodayThaiFullDate(r.date)}</td>
-                        <td class="px-4 py-3 font-semibold text-brand-950">${pt ? `จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}` : `จุดที่ ${r.pointId}`}</td>
-                        <td class="px-4 py-3 text-center font-semibold text-slate-800">${r.status === 'leave' ? '-' : `${r.time} น.${lateBadge(r)}${onBehalfBadge(r)}`}</td>
-                        <td class="px-4 py-3 text-center">${r.status === 'leave' ? '-' : r.submittedOnBehalf ? '<span class="text-violet-700 font-bold">ไม่ยืนยัน GPS</span>' : r.distance.toFixed(1) + ' ม.'}</td>
+                      <tr class="${isMissed ? 'bg-red-50/40' : ''} hover:bg-slate-50 transition cursor-default">
+                        <td class="px-4 py-3 text-center font-bold text-slate-600">${getTodayThaiFullDate(row.date)}</td>
+                        <td class="px-4 py-3 font-semibold text-brand-950">${pt ? `จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}` : `จุดที่ ${row.pointId}`}</td>
+                        <td class="px-4 py-3 text-center font-semibold text-slate-800">${isMissed || r.status === 'leave' ? '-' : `${r.time} น.${lateBadge(r)}${onBehalfBadge(r)}`}</td>
+                        <td class="px-4 py-3 text-center">${isMissed || r.status === 'leave' ? '-' : r.submittedOnBehalf ? '<span class="text-violet-700 font-bold">ไม่ยืนยัน GPS</span>' : Number(r.distance || 0).toFixed(1) + ' ม.'}</td>
                         <td class="px-4 py-3 text-center">
-                          ${r.status === 'problem'
+                          ${isMissed
+            ? '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">ไม่ได้รายงาน</span>'
+            : r.status === 'problem'
             ? '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">พบปัญหา</span>'
             : r.status === 'leave'
               ? '<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold">🏖️ ลา</span>'
               : '<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">ปกติ</span>'}
                         </td>
-                        <td class="px-4 py-3 max-w-[200px] truncate">${r.status === 'problem' ? `[ปัญหา] ${r.problem}` : r.result}</td>
+                        <td class="px-4 py-3 max-w-[200px] truncate">${isMissed ? 'เลยเวลาปฏิบัติเวรแล้วแต่ไม่มีรายงาน' : r.status === 'problem' ? `[ปัญหา] ${r.problem}` : r.result}</td>
                         <td class="px-4 py-3 text-center">
-                          <button onclick="viewReportDetails('${r.id}')" class="text-brand-700 hover:text-brand-900 font-bold inline-flex items-center gap-0.5">
+                          ${isMissed ? '<span class="text-slate-300">-</span>' : `<button onclick="viewReportDetails('${r.id}')" class="text-brand-700 hover:text-brand-900 font-bold inline-flex items-center gap-0.5">
                             <i data-lucide="eye" class="w-3.5 h-3.5"></i>
-                          </button>
+                          </button>`}
                         </td>
                       </tr>
                     `;
