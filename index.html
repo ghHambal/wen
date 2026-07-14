@@ -185,7 +185,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.14</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.15</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login"
               class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌
@@ -299,7 +299,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.14
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.15
             </div>
           </div>
         </aside>
@@ -412,7 +412,7 @@
             <span>ออกจากระบบ</span>
           </button>
           <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน
-            1.34.14</div>
+            1.34.15</div>
         </div>
       </aside>
 
@@ -900,7 +900,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.34.14';
+    const APP_VERSION = '1.34.15';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -3518,30 +3518,74 @@
       };
     }
 
+    // สร้างรายการเวรที่ถึงวันปฏิบัติแล้วในช่วงสัปดาห์ที่เลือก
+    // ไม่นับวันข้างหน้าในสัปดาห์ปัจจุบัน เพื่อไม่ให้คะแนนลดก่อนถึงวันเข้าเวร
+    function getScheduledDutySlots(teacherId, selectedWeeks, settings, reports = db.getReports()) {
+      const today = getTodayISODate();
+      const reportKeys = new Set(reports
+        .filter(report => String(report.teacherId) === String(teacherId))
+        .map(report => `${report.date}|${report.pointId}`));
+      const slots = [];
+      selectedWeeks.forEach(weekNum => {
+        const range = getSemesterWeekRange(weekNum, settings);
+        for (let offset = 0; offset < 7; offset++) {
+          const date = new Date(range.start);
+          date.setDate(range.start.getDate() + offset);
+          const dateStr = formatDateISO(date);
+          if (dateStr > today) continue;
+          getDutyPointsForTeacher(teacherId, dateStr).forEach(point => {
+            const key = `${dateStr}|${point.id}`;
+            const isExempted = !!getExemptionForDate(dateStr, point.dutyGroup || 'ครูชาย', point.id);
+            if (dateStr === today && !isDutyPointOverdueForDashboard(point, dateStr) && !reportKeys.has(key) && !isExempted) return;
+            slots.push({ key, date: dateStr, point, weekNum });
+          });
+        }
+      });
+      return slots;
+    }
+
+    // คืนชุด key วันที่|จุดเวร ที่ได้รับยกเว้นจากรายการเวรที่ถึงวันแล้ว
+    // จุดยกเว้นถือเป็นการปฏิบัติครบและตรงเวลาโดยอัตโนมัติ (เครดิตเต็ม 1.0)
+    function getExemptedDutySlotKeys(scheduledSlots) {
+      const keys = new Set();
+      scheduledSlots
+        .filter(slot => slot.weekNum >= EXEC_FIRST_SYSTEM_WEEK)
+        .forEach(slot => {
+          if (getExemptionForDate(slot.date, slot.point.dutyGroup || 'ครูชาย', slot.point.id)) {
+            keys.add(slot.key);
+          }
+        });
+      return keys;
+    }
+
     function calculateTeacherDutyPerformance(teacherOrId, selectedWeeks, settings, reports = db.getReports()) {
       const teacherId = typeof teacherOrId === 'string' ? teacherOrId : teacherOrId.id;
       const selectedWeekSet = new Set(selectedWeeks);
-      const baselineWeeks = selectedWeeks.filter(w => w < EXEC_FIRST_SYSTEM_WEEK).length;
       const weeklyDuties = getWeeklyDutiesCount(teacherId);
-      const baselineCredit = weeklyDuties * baselineWeeks;
+      const scheduledSlots = getScheduledDutySlots(teacherId, selectedWeeks, settings, reports);
+      const baselineCredit = scheduledSlots.filter(slot => slot.weekNum < EXEC_FIRST_SYSTEM_WEEK).length;
       const actualReports = reports.filter(r =>
         r.teacherId === teacherId &&
         isReportCountableForScoring(r) &&
         isReportInSelectedWeeks(r, selectedWeekSet, settings) &&
         (getSemesterWeekNumberForDate(r.date, settings) || 0) >= EXEC_FIRST_SYSTEM_WEEK
       );
+      const exemptedSlotKeys = getExemptedDutySlotKeys(scheduledSlots);
+      // หากจุดที่ยกเว้นมีรายงานอยู่แล้ว ให้ใช้เครดิตยกเว้นเต็มแทน ไม่บวกคะแนนซ้ำ
+      const scoringReports = actualReports.filter(report => !exemptedSlotKeys.has(`${report.date}|${report.pointId}`));
+      const exemptionCredits = exemptedSlotKeys.size;
       const actualCheckins = actualReports.length;
-      const lates = actualReports.filter(r => r.isLate).length;
-      const actualOntimes = actualCheckins - lates;
-      const actualCheckinCredits = actualReports.reduce((sum, report) => sum + getReportScoreCredit(report), 0);
-      const actualOntimeCredits = actualReports
+      const lates = scoringReports.filter(r => r.isLate).length;
+      const actualOntimes = scoringReports.length - lates;
+      const actualCheckinCredits = scoringReports.reduce((sum, report) => sum + getReportScoreCredit(report), 0);
+      const actualOntimeCredits = scoringReports
         .filter(report => !report.isLate)
         .reduce((sum, report) => sum + getReportScoreCredit(report), 0);
-      const scheduled = weeklyDuties * selectedWeeks.length;
-      const checkins = baselineCredit + actualCheckins;
-      const ontimes = baselineCredit + actualOntimes;
-      const creditedCheckins = baselineCredit + actualCheckinCredits;
-      const creditedOntimes = baselineCredit + actualOntimeCredits;
+      const scheduled = scheduledSlots.length;
+      const checkins = baselineCredit + scoringReports.length + exemptionCredits;
+      const ontimes = baselineCredit + actualOntimes + exemptionCredits;
+      const creditedCheckins = baselineCredit + actualCheckinCredits + exemptionCredits;
+      const creditedOntimes = baselineCredit + actualOntimeCredits + exemptionCredits;
       const compliance = scheduled > 0 ? Math.min(100, Math.round((creditedCheckins / scheduled) * 100)) : 100;
       const punctuality = checkins > 0 ? Math.max(0, Math.round((creditedOntimes / checkins) * 100)) : 100;
       const score = Math.round((compliance * 0.6) + (punctuality * 0.4));
@@ -3553,6 +3597,7 @@
         checkins,
         actualCheckins,
         baselineCredit,
+        exemptionCredits,
         lates,
         ontimes,
         creditedCheckins,
@@ -4249,7 +4294,7 @@
 
           <div class="bg-green-50/70 border border-green-200 rounded-xl p-3 flex items-start gap-2 text-green-900">
             <i data-lucide="badge-check" class="w-4 h-4 text-green-700 mt-0.5"></i>
-            <p class="leading-relaxed"><span class="font-bold">กติกาคะแนนเริ่มระบบ:</span> สัปดาห์ที่ 1-6 ให้เครดิตเต็มอัตโนมัติทุกคน เพราะเปิดใช้งานจริงในสัปดาห์ที่ ${EXEC_FIRST_SYSTEM_WEEK}; ตั้งแต่สัปดาห์ที่ ${EXEC_FIRST_SYSTEM_WEEK} เป็นต้นไปใช้ข้อมูลรายงานจริง โดยรายงานแทนได้สูงสุด 8/10</p>
+            <p class="leading-relaxed"><span class="font-bold">กติกาคะแนนเริ่มระบบ:</span> สัปดาห์ที่ 1-6 ให้เครดิตเต็มอัตโนมัติทุกคน เพราะเปิดใช้งานจริงในสัปดาห์ที่ ${EXEC_FIRST_SYSTEM_WEEK}; ตั้งแต่สัปดาห์ที่ ${EXEC_FIRST_SYSTEM_WEEK} เป็นต้นไปใช้ข้อมูลรายงานจริง โดยรายงานแทนได้สูงสุด 8/10 และจุดที่ประกาศยกเว้นได้รับเครดิตเต็มอัตโนมัติ</p>
           </div>
 
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -6959,6 +7004,43 @@
             </div>
           </div>
 
+          <div class="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 shadow-sm space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h4 class="font-extrabold text-slate-900 flex items-center gap-2">
+                  <i data-lucide="chart-no-axes-combined" class="w-4 h-4 text-brand-700"></i>
+                  ความคืบหน้าคะแนนสะสมของฉัน
+                </h4>
+                <p class="text-[10px] text-slate-500 mt-1">ความรับผิดชอบ 60% + ความตรงต่อเวลา 40%</p>
+              </div>
+              <div class="${myPerformance.badgeClass} border rounded-xl px-3 py-2 text-center">
+                <span class="font-black text-lg">${myPerformance.score}</span>
+                <span class="font-bold text-[10px]"> คะแนน · เกรด ${myPerformance.grade}</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-2.5">
+              <div class="bg-slate-50 border rounded-xl p-3"><p class="text-[9px] text-slate-500 font-bold">เวรตามแผน</p><p class="text-lg font-black text-slate-800 mt-0.5">${myPerformance.scheduled}</p></div>
+              <div class="bg-green-50 border border-green-100 rounded-xl p-3"><p class="text-[9px] text-green-700 font-bold">เครดิตที่ได้รับ</p><p class="text-lg font-black text-green-800 mt-0.5">${Math.round(myPerformance.creditedCheckins * 10) / 10}</p></div>
+              <div class="bg-blue-50 border border-blue-100 rounded-xl p-3"><p class="text-[9px] text-blue-700 font-bold">รายงานจริง</p><p class="text-lg font-black text-blue-800 mt-0.5">${myPerformance.actualCheckins}</p></div>
+              <div class="bg-sky-50 border border-sky-100 rounded-xl p-3"><p class="text-[9px] text-sky-700 font-bold">ยกเว้น · เต็ม</p><p class="text-lg font-black text-sky-800 mt-0.5">${myPerformance.exemptionCredits}</p></div>
+              <div class="bg-red-50 border border-red-100 rounded-xl p-3 col-span-2 lg:col-span-1"><p class="text-[9px] text-red-700 font-bold">ขาดเครดิต</p><p class="text-lg font-black text-red-800 mt-0.5">${Math.max(0, Math.round((myPerformance.scheduled - myPerformance.creditedCheckins) * 10) / 10)}</p></div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <div class="flex justify-between text-[10px] mb-1"><span class="font-bold text-slate-600">ความรับผิดชอบ</span><span class="font-black text-brand-800">${myPerformance.compliance}%</span></div>
+                <div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-brand-700 rounded-full" style="width:${myPerformance.compliance}%"></div></div>
+              </div>
+              <div>
+                <div class="flex justify-between text-[10px] mb-1"><span class="font-bold text-slate-600">ความตรงต่อเวลา</span><span class="font-black text-emerald-700">${myPerformance.punctuality}%</span></div>
+                <div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-emerald-600 rounded-full" style="width:${myPerformance.punctuality}%"></div></div>
+              </div>
+            </div>
+
+            ${myPerformance.exemptionCredits > 0 ? `<p class="text-[10px] text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">🌧️ จุดเวรที่ประกาศยกเว้นได้รับเครดิตเต็มและถือว่าตรงเวลาโดยอัตโนมัติ ${myPerformance.exemptionCredits} จุด</p>` : ''}
+          </div>
+
           ${renderWeekSwitcher()}
 
           <!-- ประกาศยกเว้นเวรเหตุสุดวิสัย -->
@@ -8509,15 +8591,24 @@
         (r.status === 'pending' || r.status === 'approved')
       );
 
-      const historyRows = reports.map(report => ({ type: 'report', date: report.date, pointId: report.pointId, report }));
+      const historyRows = reports.map(report => {
+        const point = db.getDutyPoints().find(p => String(p.id) === String(report.pointId));
+        const exemption = point ? getExemptionForDate(report.date, point.dutyGroup || 'ครูชาย', point.id) : null;
+        return { type: 'report', date: report.date, pointId: report.pointId, point, report, exemption };
+      });
 
       // รายการที่ไม่ได้ส่งจะไม่มี row ใน reports จึงต้องสร้างจากตารางมอบหมายเวรย้อนหลัง
       for (let offset = 0; offset < FULL_OFFLINE_REPORT_DAYS; offset++) {
         const dateStr = addDaysToISODate(today, -offset);
         getDutyPointsForTeacher(currentUser.id, dateStr).forEach(point => {
           const key = `${dateStr}|${point.id}`;
-          if (reportKeys.has(key) || !isDutyPointOverdueForDashboard(point, dateStr)) return;
-          if (getExemptionForDate(dateStr, point.dutyGroup || 'ครูชาย', point.id)) return;
+          if (reportKeys.has(key)) return;
+          const pointExemption = getExemptionForDate(dateStr, point.dutyGroup || 'ครูชาย', point.id);
+          if (pointExemption) {
+            historyRows.push({ type: 'exempted', date: dateStr, pointId: point.id, point, exemption: pointExemption });
+            return;
+          }
+          if (!isDutyPointOverdueForDashboard(point, dateStr)) return;
 
           const hasActiveLeave = leaveRequests.some(req =>
             req.date === dateStr && (req.pointId === null || String(req.pointId) === String(point.id))
@@ -8532,7 +8623,8 @@
         b.date.localeCompare(a.date) || Number(a.pointId) - Number(b.pointId)
       );
       const missedCount = historyRows.filter(row => row.type === 'missed').length;
-      const submittedCount = historyRows.length - missedCount;
+      const exemptedCount = historyRows.filter(row => row.type === 'exempted').length;
+      const submittedCount = historyRows.filter(row => row.type === 'report').length;
 
       return `
         <div class="fade-in space-y-6 text-xs">
@@ -8541,7 +8633,7 @@
             <p class="text-slate-500 mt-1">แสดงทั้งรายการที่รายงานแล้วและไม่ได้รายงานย้อนหลัง ${FULL_OFFLINE_REPORT_DAYS} วัน</p>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-3 gap-3">
             <div class="bg-green-50 border border-green-100 rounded-xl p-4">
               <p class="text-[10px] font-bold text-green-700">รายงาน/ลาแล้ว</p>
               <p class="text-2xl font-black text-green-800 mt-1">${submittedCount}</p>
@@ -8549,6 +8641,10 @@
             <div class="bg-red-50 border border-red-100 rounded-xl p-4">
               <p class="text-[10px] font-bold text-red-700">ไม่ได้รายงาน (เลยเวลา)</p>
               <p class="text-2xl font-black text-red-800 mt-1">${missedCount}</p>
+            </div>
+            <div class="bg-sky-50 border border-sky-100 rounded-xl p-4">
+              <p class="text-[10px] font-bold text-sky-700">ยกเว้น · คะแนนเต็ม</p>
+              <p class="text-2xl font-black text-sky-800 mt-1">${exemptedCount}</p>
             </div>
           </div>
 
@@ -8565,6 +8661,7 @@
                     <th class="px-4 py-3 text-center">เวลารายงาน</th>
                     <th class="px-4 py-3 text-center">ระยะตรวจสอบ GPS</th>
                     <th class="px-4 py-3 text-center">สถานะ</th>
+                    <th class="px-4 py-3 text-center">เครดิตคะแนน</th>
                     <th class="px-4 py-3">รายละเอียดบันทึก</th>
                     <th class="px-4 py-3 text-center">รายละเอียด</th>
                   </tr>
@@ -8572,30 +8669,39 @@
                 <tbody class="divide-y text-slate-700">
                   ${historyRows.length === 0 ? `
                     <tr>
-                      <td colspan="7" class="p-6 text-center text-slate-400 font-medium">ยังไม่มีประวัติเวรย้อนหลัง ${FULL_OFFLINE_REPORT_DAYS} วัน</td>
+                      <td colspan="8" class="p-6 text-center text-slate-400 font-medium">ยังไม่มีประวัติเวรย้อนหลัง ${FULL_OFFLINE_REPORT_DAYS} วัน</td>
                     </tr>
                   ` : historyRows.map(row => {
         const r = row.report || null;
         const pt = row.point || db.getDutyPoints().find(p => p.id === row.pointId);
         const isMissed = row.type === 'missed';
+        const isExempted = row.type === 'exempted';
+        const hasExemptionCredit = isExempted || !!row.exemption;
+        const reportCredit = r && isReportCountableForScoring(r) ? getReportScoreCredit(r) : 0;
+        const credit = hasExemptionCredit ? 1 : isMissed ? 0 : reportCredit;
         return `
-                      <tr class="${isMissed ? 'bg-red-50/40' : ''} hover:bg-slate-50 transition cursor-default">
+                      <tr class="${isMissed ? 'bg-red-50/40' : isExempted ? 'bg-sky-50/50' : ''} hover:bg-slate-50 transition cursor-default">
                         <td class="px-4 py-3 text-center font-bold text-slate-600">${getTodayThaiFullDate(row.date)}</td>
                         <td class="px-4 py-3 font-semibold text-brand-950">${pt ? `จุดที่ ${getDutyPointDisplayNumber(pt)}: ${pt.name}` : `จุดที่ ${row.pointId}`}</td>
-                        <td class="px-4 py-3 text-center font-semibold text-slate-800">${isMissed || r.status === 'leave' ? '-' : `${r.time} น.${lateBadge(r)}${onBehalfBadge(r)}`}</td>
-                        <td class="px-4 py-3 text-center">${isMissed || r.status === 'leave' ? '-' : r.submittedOnBehalf ? '<span class="text-violet-700 font-bold">ไม่ยืนยัน GPS</span>' : Number(r.distance || 0).toFixed(1) + ' ม.'}</td>
+                        <td class="px-4 py-3 text-center font-semibold text-slate-800">${isMissed || isExempted || r.status === 'leave' ? '-' : `${r.time} น.${lateBadge(r)}${onBehalfBadge(r)}`}</td>
+                        <td class="px-4 py-3 text-center">${isMissed || isExempted || r.status === 'leave' ? '-' : r.submittedOnBehalf ? '<span class="text-violet-700 font-bold">ไม่ยืนยัน GPS</span>' : Number(r.distance || 0).toFixed(1) + ' ม.'}</td>
                         <td class="px-4 py-3 text-center">
                           ${isMissed
             ? '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">ไม่ได้รายงาน</span>'
+            : isExempted
+              ? '<span class="bg-sky-100 text-sky-800 px-2 py-0.5 rounded font-bold">ยกเว้น · เต็ม</span>'
             : r.status === 'problem'
             ? '<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">พบปัญหา</span>'
             : r.status === 'leave'
               ? '<span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold">🏖️ ลา</span>'
               : '<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">ปกติ</span>'}
                         </td>
-                        <td class="px-4 py-3 max-w-[200px] truncate">${isMissed ? 'เลยเวลาปฏิบัติเวรแล้วแต่ไม่มีรายงาน' : r.status === 'problem' ? `[ปัญหา] ${r.problem}` : r.result}</td>
                         <td class="px-4 py-3 text-center">
-                          ${isMissed ? '<span class="text-slate-300">-</span>' : `<button onclick="viewReportDetails('${r.id}')" class="text-brand-700 hover:text-brand-900 font-bold inline-flex items-center gap-0.5">
+                          <span class="${credit >= 1 ? 'bg-green-100 text-green-800' : credit > 0 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'} px-2 py-0.5 rounded font-black font-mono">${credit}/1</span>
+                        </td>
+                        <td class="px-4 py-3 max-w-[200px] truncate">${isMissed ? 'เลยเวลาปฏิบัติเวรแล้วแต่ไม่มีรายงาน' : isExempted ? `ได้คะแนนเต็มอัตโนมัติ: ${escapeHtml(row.exemption.reason)}` : r.status === 'problem' ? `[ปัญหา] ${r.problem}` : r.result}</td>
+                        <td class="px-4 py-3 text-center">
+                          ${isMissed || isExempted ? '<span class="text-slate-300">-</span>' : `<button onclick="viewReportDetails('${r.id}')" class="text-brand-700 hover:text-brand-900 font-bold inline-flex items-center gap-0.5">
                             <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                           </button>`}
                         </td>
