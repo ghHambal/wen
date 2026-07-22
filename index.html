@@ -185,7 +185,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.15</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.16</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login"
               class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌
@@ -299,7 +299,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.15
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.16
             </div>
           </div>
         </aside>
@@ -412,7 +412,7 @@
             <span>ออกจากระบบ</span>
           </button>
           <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน
-            1.34.15</div>
+            1.34.16</div>
         </div>
       </aside>
 
@@ -900,7 +900,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.34.15';
+    const APP_VERSION = '1.34.16';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1208,33 +1208,46 @@
     async function syncReportsFromCloud(mode = 'light') {
       if (!currentUser) return;
       try {
-        const buildQuery = (columns) => {
-          let q = supabaseClient.from('reports').select(columns);
-          if (!isUserAdminOrHead() && currentUser) {
-            q = q.eq('teacher_id', currentUser.id);
+        // กรองเฉพาะรายงานล่าสุด (30 วันสำหรับครูทั่วไป หรือ 60 วันสำหรับแอดมิน/หัวหน้าเวร)
+        // เพื่อจำกัดปริมาณข้อมูล/รูปภาพที่ต้องโหลด — แต่ภายในช่วงวันนี้เองก็อาจมีแถวเกิน 1,000
+        // รายการได้ (Supabase/PostgREST คืนผลสูงสุด 1,000 แถวต่อคำขอโดยไม่แจ้งเตือน) จึงต้อง
+        // ไล่ดึงทีละหน้าด้วย .range() จนกว่าจะครบทุกแถวในช่วงวันที่นี้ ไม่เช่นนั้นรายงานของ
+        // วันที่เก่ากว่าในช่วง (เช่นต้นสัปดาห์ของ cutoff window) จะถูกตัดทิ้งอย่างเงียบๆ
+        const cutoffDays = isUserAdminOrHead() ? 60 : FULL_OFFLINE_REPORT_DAYS;
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - cutoffDays);
+        const cutoffStr = cutoff.toISOString().slice(0, 10);
+        const PAGE_SIZE = 1000;
+
+        const fetchAllPages = async (columns) => {
+          let all = [];
+          let offset = 0;
+          while (true) {
+            let q = supabaseClient.from('reports').select(columns);
+            if (!isUserAdminOrHead() && currentUser) {
+              q = q.eq('teacher_id', currentUser.id);
+            }
+            q = q.gte('date', cutoffStr).order('date', { ascending: false }).range(offset, offset + PAGE_SIZE - 1);
+            const { data, error } = await q;
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            all = all.concat(data);
+            if (data.length < PAGE_SIZE) break;
+            offset += PAGE_SIZE;
           }
-          
-          // ป้องกันปัญหาการโหลดรายงานชนขีดจำกัด 1000 แถวของ Supabase
-          // โดยการกรองเฉพาะรายงานล่าสุด (30 วันสำหรับครูทั่วไป หรือ 60 วันสำหรับแอดมิน/หัวหน้าเวร)
-          // และสั่งเรียงลำดับจากวันที่ล่าสุดเสมอ เพื่อให้รายงานวันนี้และล่าสุดไม่ถูกตัดออก
-          const cutoffDays = isUserAdminOrHead() ? 60 : FULL_OFFLINE_REPORT_DAYS;
-          const cutoff = new Date();
-          cutoff.setDate(cutoff.getDate() - cutoffDays);
-          q = q.gte('date', cutoff.toISOString().slice(0, 10));
-          
-          q = q.order('date', { ascending: false });
-          return q;
+          return all;
         };
 
-        let query = buildQuery(mode === 'full' ? '*' : REPORT_LIGHT_COLUMNS);
-        let reports = await query;
-        if (reports.error && mode !== 'full') {
-          console.warn("Light reports sync failed, retrying with base columns:", reports.error);
-          reports = await buildQuery(REPORT_BASE_COLUMNS);
+        let reportsData;
+        try {
+          reportsData = await fetchAllPages(mode === 'full' ? '*' : REPORT_LIGHT_COLUMNS);
+        } catch (err) {
+          if (mode === 'full') throw err;
+          console.warn("Light reports sync failed, retrying with base columns:", err);
+          reportsData = await fetchAllPages(REPORT_BASE_COLUMNS);
         }
-        if (reports.error) throw reports.error;
-        if (reports.data) {
-          const mappedReports = reports.data.map(mapReportFromDB);
+        if (reportsData) {
+          const mappedReports = reportsData.map(mapReportFromDB);
           db.saveReports(mappedReports);
         }
       } catch (err) {
@@ -2997,7 +3010,11 @@
         } else if (page === 'my-duty') {
           // ครูเวรต้องได้รับประกาศยกเว้นล่าสุดทันทีที่เปิดหน้า และทุกครั้งที่หน้ารีเฟรช
           // เพื่อไม่ให้เดินทางไปยังจุดที่หัวหน้า/แอดมินประกาศยกเว้นแล้ว
-          syncDutyExemptionsFromCloud().then(() => {
+          // ซิงค์รายงานด้วย เพราะหน้านี้แสดงคะแนน/เกรดสะสมของครู ต้องคำนวณจากข้อมูลล่าสุดเสมอ
+          Promise.all([
+            syncDutyExemptionsFromCloud(),
+            syncReportsFromCloud('light')
+          ]).then(() => {
             if (currentPage === 'my-duty' && !isUserActivelyEditing()) {
               mc.innerHTML = renderMyDutyView();
               startMyDutyTimer();
@@ -3023,6 +3040,13 @@
               lucide.createIcons();
             }
           }).catch(err => console.warn("Auto sync on overview navigation failed:", err));
+        } else if (page === 'documents') {
+          syncReportsFromCloud('light').then(() => {
+            if (currentPage === 'documents') {
+              mc.innerHTML = renderDocumentsView();
+              lucide.createIcons();
+            }
+          }).catch(err => console.warn("Auto sync on documents navigation failed:", err));
         }
       }
     }
