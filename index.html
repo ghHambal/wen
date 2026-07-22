@@ -185,7 +185,7 @@
           </div>
           <h1 class="text-xl font-bold text-brand-900" id="login-title">ระบบบันทึกและติดตามการปฏิบัติเวร</h1>
           <p class="text-xs text-slate-500 mt-1" id="login-subtitle">เวรวันอังคาร ครูชาย โรงเรียนมูลนิธิอาซิซสถาน</p>
-          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.16</p>
+          <p class="text-[10px] text-slate-400 mt-1" id="login-version">เวอร์ชัน 1.34.17</p>
           <div class="mt-2 flex justify-center">
             <span id="db-status-login"
               class="text-[10px] px-2.5 py-0.5 rounded-full font-bold border bg-slate-100 text-slate-600 animate-pulse">🔌
@@ -299,7 +299,7 @@
               <i data-lucide="log-out" class="w-4 h-4"></i>
               <span>ออกจากระบบ</span>
             </button>
-            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.16
+            <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="sidebar-version">เวอร์ชัน 1.34.17
             </div>
           </div>
         </aside>
@@ -412,7 +412,7 @@
             <span>ออกจากระบบ</span>
           </button>
           <div class="text-[10px] text-brand-300 text-center mt-2.5 opacity-60" id="mobile-sidebar-version">เวอร์ชัน
-            1.34.16</div>
+            1.34.17</div>
         </div>
       </aside>
 
@@ -900,7 +900,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.34.16';
+    const APP_VERSION = '1.34.17';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -6997,10 +6997,10 @@
             <div class="pointer-events-none absolute inset-y-0 right-0 z-0 flex w-28 sm:w-40 md:w-56 items-center justify-center pr-1 sm:pr-3">
               <span class="${myPerformance.watermarkClass} select-none font-black font-mono leading-none text-[8rem] sm:text-[11rem] md:text-[14rem] tracking-normal">${myPerformance.grade}</span>
             </div>
-            <div class="pointer-events-none absolute right-3 top-3 z-20 hidden sm:flex ${myPerformance.badgeClass} items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black shadow-sm">
+            <button type="button" onclick="openScoreDetailModal()" title="แตะเพื่อดูวิธีคำนวณคะแนน" class="absolute right-3 top-3 z-20 hidden sm:flex ${myPerformance.badgeClass} items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black shadow-sm cursor-pointer hover:brightness-95 transition">
               <i data-lucide="award" class="w-3.5 h-3.5"></i>
               เกรด ${myPerformance.grade} · ${myPerformance.score} คะแนน
-            </div>
+            </button>
             <div class="relative z-10 flex flex-row items-stretch gap-3 md:gap-5">
               <div class="profile-glossy-frame w-20 sm:w-28 md:w-40 flex-shrink-0">
                 ${getTeacherAvatar(currentUser, "w-full h-full object-cover")}
@@ -7012,10 +7012,10 @@
                   </p>
                   <h3 class="text-base sm:text-xl md:text-3xl font-extrabold mt-1 text-white truncate">${currentUser.name}</h3>
                   <p class="text-[10px] sm:text-xs md:text-sm text-brand-100 mt-1">รหัส: ${currentUser.id} &nbsp;·&nbsp; ${currentViewDate === getTodayISODate() ? 'วันนี้มี' : `วัน${todayDay}ที่เลือกมี`} <b>${myPoints.length}</b> จุดเวร (เวรวัน${todayDay})</p>
-                  <div class="mt-2 inline-flex sm:hidden ${myPerformance.badgeClass} items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black shadow-sm">
+                  <button type="button" onclick="openScoreDetailModal()" class="mt-2 inline-flex sm:hidden ${myPerformance.badgeClass} items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black shadow-sm cursor-pointer active:brightness-95 transition">
                     <i data-lucide="award" class="w-3.5 h-3.5"></i>
                     เกรด ${myPerformance.grade} · ${myPerformance.score} คะแนน
-                  </div>
+                  </button>
                 </div>
                 <div class="bg-white/10 border border-white/20 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 flex items-center gap-2 sm:gap-3 max-w-full sm:max-w-sm">
                   <div class="bg-white/5 border border-emerald-400/40 rounded-full p-1.5 sm:p-2 flex-shrink-0">
@@ -7028,41 +7028,81 @@
             </div>
           </div>
 
-          <div class="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 shadow-sm space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <button type="button" onclick="openScoreDetailModal()" class="w-full text-left bg-white border border-slate-200 hover:border-brand-300 rounded-2xl p-4 md:p-5 shadow-sm hover:shadow transition group">
+            <div class="flex items-center justify-between gap-2">
               <div>
                 <h4 class="font-extrabold text-slate-900 flex items-center gap-2">
                   <i data-lucide="chart-no-axes-combined" class="w-4 h-4 text-brand-700"></i>
-                  ความคืบหน้าคะแนนสะสมของฉัน
+                  คะแนนสะสมของฉัน
                 </h4>
-                <p class="text-[10px] text-slate-500 mt-1">ความรับผิดชอบ 60% + ความตรงต่อเวลา 40%</p>
+                <p class="text-[10px] text-slate-500 mt-1 group-hover:text-brand-700 transition">แตะเพื่อดูรายละเอียดวิธีคำนวณคะแนน</p>
               </div>
-              <div class="${myPerformance.badgeClass} border rounded-xl px-3 py-2 text-center">
-                <span class="font-black text-lg">${myPerformance.score}</span>
-                <span class="font-bold text-[10px]"> คะแนน · เกรด ${myPerformance.grade}</span>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 lg:grid-cols-5 gap-2.5">
-              <div class="bg-slate-50 border rounded-xl p-3"><p class="text-[9px] text-slate-500 font-bold">เวรตามแผน</p><p class="text-lg font-black text-slate-800 mt-0.5">${myPerformance.scheduled}</p></div>
-              <div class="bg-green-50 border border-green-100 rounded-xl p-3"><p class="text-[9px] text-green-700 font-bold">เครดิตที่ได้รับ</p><p class="text-lg font-black text-green-800 mt-0.5">${Math.round(myPerformance.creditedCheckins * 10) / 10}</p></div>
-              <div class="bg-blue-50 border border-blue-100 rounded-xl p-3"><p class="text-[9px] text-blue-700 font-bold">รายงานจริง</p><p class="text-lg font-black text-blue-800 mt-0.5">${myPerformance.actualCheckins}</p></div>
-              <div class="bg-sky-50 border border-sky-100 rounded-xl p-3"><p class="text-[9px] text-sky-700 font-bold">ยกเว้น · เต็ม</p><p class="text-lg font-black text-sky-800 mt-0.5">${myPerformance.exemptionCredits}</p></div>
-              <div class="bg-red-50 border border-red-100 rounded-xl p-3 col-span-2 lg:col-span-1"><p class="text-[9px] text-red-700 font-bold">ขาดเครดิต</p><p class="text-lg font-black text-red-800 mt-0.5">${Math.max(0, Math.round((myPerformance.scheduled - myPerformance.creditedCheckins) * 10) / 10)}</p></div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <div class="flex justify-between text-[10px] mb-1"><span class="font-bold text-slate-600">ความรับผิดชอบ</span><span class="font-black text-brand-800">${myPerformance.compliance}%</span></div>
-                <div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-brand-700 rounded-full" style="width:${myPerformance.compliance}%"></div></div>
-              </div>
-              <div>
-                <div class="flex justify-between text-[10px] mb-1"><span class="font-bold text-slate-600">ความตรงต่อเวลา</span><span class="font-black text-emerald-700">${myPerformance.punctuality}%</span></div>
-                <div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-emerald-600 rounded-full" style="width:${myPerformance.punctuality}%"></div></div>
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <div class="${myPerformance.badgeClass} border rounded-xl px-3 py-2 text-center">
+                  <span class="font-black text-lg">${myPerformance.score}</span>
+                  <span class="font-bold text-[10px]"> คะแนน · เกรด ${myPerformance.grade}</span>
+                </div>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition"></i>
               </div>
             </div>
+            ${myPerformance.exemptionCredits > 0 ? `<p class="text-[10px] text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2 mt-3">🌧️ จุดเวรที่ประกาศยกเว้นได้รับเครดิตเต็มและถือว่าตรงเวลาโดยอัตโนมัติ ${myPerformance.exemptionCredits} จุด</p>` : ''}
+          </button>
 
-            ${myPerformance.exemptionCredits > 0 ? `<p class="text-[10px] text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">🌧️ จุดเวรที่ประกาศยกเว้นได้รับเครดิตเต็มและถือว่าตรงเวลาโดยอัตโนมัติ ${myPerformance.exemptionCredits} จุด</p>` : ''}
+          <!-- Score Detail Modal -->
+          <div id="score-detail-modal" class="fixed inset-0 bg-black/75 z-[10000] hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border flex flex-col fade-in max-h-[90vh]">
+              <div class="bg-brand-900 text-white p-4 flex justify-between items-center flex-shrink-0">
+                <h3 class="font-bold text-xs flex items-center gap-2"><i data-lucide="calculator" class="w-4 h-4"></i>คะแนนของคุณคำนวณอย่างไร</h3>
+                <button onclick="closeScoreDetailModal()" class="p-1 hover:bg-white/10 rounded-lg text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+              </div>
+              <div class="p-5 space-y-4 overflow-y-auto text-xs text-slate-700 leading-relaxed">
+                <div class="${myPerformance.badgeClass} border rounded-xl px-4 py-3 text-center">
+                  <span class="font-black text-2xl">${myPerformance.score}</span>
+                  <span class="font-bold text-xs"> คะแนน · เกรด ${myPerformance.grade} (${myPerformance.label})</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                  <div class="bg-slate-50 border rounded-xl p-3"><p class="text-[9px] text-slate-500 font-bold">เวรตามแผนสะสม</p><p class="text-lg font-black text-slate-800 mt-0.5">${myPerformance.scheduled}</p></div>
+                  <div class="bg-green-50 border border-green-100 rounded-xl p-3"><p class="text-[9px] text-green-700 font-bold">เครดิตที่ได้รับ</p><p class="text-lg font-black text-green-800 mt-0.5">${Math.round(myPerformance.creditedCheckins * 10) / 10}</p></div>
+                  <div class="bg-blue-50 border border-blue-100 rounded-xl p-3"><p class="text-[9px] text-blue-700 font-bold">รายงานจริงที่ส่งแล้ว</p><p class="text-lg font-black text-blue-800 mt-0.5">${myPerformance.actualCheckins}</p></div>
+                  <div class="bg-sky-50 border border-sky-100 rounded-xl p-3"><p class="text-[9px] text-sky-700 font-bold">ยกเว้นเวร · เครดิตเต็ม</p><p class="text-lg font-black text-sky-800 mt-0.5">${myPerformance.exemptionCredits}</p></div>
+                  <div class="bg-red-50 border border-red-100 rounded-xl p-3 col-span-2"><p class="text-[9px] text-red-700 font-bold">ขาดเครดิต (ไม่ได้รายงานและไม่ได้รับยกเว้น)</p><p class="text-lg font-black text-red-800 mt-0.5">${Math.max(0, Math.round((myPerformance.scheduled - myPerformance.creditedCheckins) * 10) / 10)}</p></div>
+                </div>
+
+                <div class="space-y-3 pt-1">
+                  <div>
+                    <div class="flex justify-between text-[10px] mb-1"><span class="font-bold text-slate-600">ความรับผิดชอบ (60% ของคะแนนรวม)</span><span class="font-black text-brand-800">${myPerformance.compliance}%</span></div>
+                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-brand-700 rounded-full" style="width:${myPerformance.compliance}%"></div></div>
+                    <p class="text-[9px] text-slate-400 mt-1">= เครดิตที่ได้รับ (${Math.round(myPerformance.creditedCheckins * 10) / 10}) ÷ เวรตามแผน (${myPerformance.scheduled}) × 100</p>
+                  </div>
+                  <div>
+                    <div class="flex justify-between text-[10px] mb-1"><span class="font-bold text-slate-600">ความตรงต่อเวลา (40% ของคะแนนรวม)</span><span class="font-black text-emerald-700">${myPerformance.punctuality}%</span></div>
+                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-emerald-600 rounded-full" style="width:${myPerformance.punctuality}%"></div></div>
+                    <p class="text-[9px] text-slate-400 mt-1">= เครดิตที่ตรงเวลา ÷ จำนวนที่นับเช็คอินทั้งหมด × 100</p>
+                  </div>
+                </div>
+
+                <div class="bg-brand-50 border border-brand-100 rounded-xl p-3">
+                  <p class="font-bold text-brand-900 mb-1">📐 สูตรคะแนนรวม</p>
+                  <p class="font-mono text-[11px] text-brand-800">คะแนนรวม = (ความรับผิดชอบ × 0.6) + (ความตรงต่อเวลา × 0.4)</p>
+                  <p class="font-mono text-[11px] text-brand-800 mt-1">= (${myPerformance.compliance} × 0.6) + (${myPerformance.punctuality} × 0.4) = ${myPerformance.score} คะแนน</p>
+                </div>
+
+                <div class="space-y-1.5 border-t pt-3">
+                  <p class="font-bold text-slate-800">กติกาที่มีผลต่อคะแนน:</p>
+                  <ul class="space-y-1.5 list-disc list-inside text-slate-600">
+                    <li>สัปดาห์ที่ 1-${EXEC_FIRST_SYSTEM_WEEK - 1}: ให้เครดิตเต็มอัตโนมัติทุกคน เพราะระบบเริ่มใช้ข้อมูลรายงานจริงตั้งแต่สัปดาห์ที่ ${EXEC_FIRST_SYSTEM_WEEK}</li>
+                    <li>จุดเวรที่ประกาศ "ยกเว้นเวรเหตุสุดวิสัย" ได้เครดิตเต็มและถือว่าตรงเวลาโดยอัตโนมัติ</li>
+                    <li>รายงานที่ให้เพื่อนครูรายงานแทน (กรณี GPS ขัดข้อง) ได้เครดิตสูงสุด 8/10</li>
+                    <li>รายงานที่มาสาย แต่หัวหน้าเวรตรวจสอบแล้ว "รับรองเป็นปกติ" จะนับเป็นเครดิตเต็มและถือว่าตรงเวลา</li>
+                    <li>รายงานที่มาสายและยังรอหัวหน้าเวรตรวจสอบ (หรือถูกปฏิเสธ) จะยังไม่ถูกนับเป็นเครดิตจนกว่าจะได้รับการรับรอง</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="p-4 border-t flex-shrink-0">
+                <button onclick="closeScoreDetailModal()" class="w-full bg-slate-100 hover:bg-slate-200 py-2.5 rounded-lg text-slate-700 font-semibold transition">ปิดหน้าต่าง</button>
+              </div>
+            </div>
           </div>
 
           ${renderWeekSwitcher()}
@@ -9247,6 +9287,19 @@
 
     function closeLeaveRequestModal() {
       const modal = document.getElementById('leave-request-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function openScoreDetailModal() {
+      const modal = document.getElementById('score-detail-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        lucide.createIcons();
+      }
+    }
+
+    function closeScoreDetailModal() {
+      const modal = document.getElementById('score-detail-modal');
       if (modal) modal.classList.add('hidden');
     }
 
