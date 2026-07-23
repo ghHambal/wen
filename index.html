@@ -902,7 +902,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.35.1';
+    const APP_VERSION = '1.35.2';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1793,6 +1793,7 @@
     let currentExecutiveMonth = null; // YYYY-MM
     let currentExecutiveDutyGroupTab = 'ครูชาย';
     let currentDutyPointsGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าตั้งค่าพิกัด
+    let currentDutyPointsDayFilter = null; // null = ทั้งหมด, หรือชื่อวันไทย - กรองเฉพาะจุดเวรเฉพาะวันนั้นในหน้าตั้งค่าพิกัด
     let currentScheduleGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าจัดการตารางเวร
     let currentDocumentsDate = null; // วันที่เลือกในหน้าเอกสารรายงานทางการ (YYYY-MM-DD)
     let currentDocsGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าเอกสารรายงาน (สำหรับผู้ดูแลระบบ)
@@ -5364,7 +5365,12 @@
         }
       }
 
-      const points = db.getDutyPoints().filter(p => dutyGroupMatches(p.dutyGroup, currentDutyPointsGroupTab));
+      const groupPoints = db.getDutyPoints().filter(p => dutyGroupMatches(p.dutyGroup, currentDutyPointsGroupTab));
+      // จุดเวรเฉพาะวันที่มีอยู่จริงในระบบ (นับจากทุกจุด ไม่ใช่แค่คณะที่เลือกอยู่) ใช้สร้างปุ่มกรองด่วน
+      const restrictedDayCounts = {};
+      db.getDutyPoints().forEach(p => { if (p.restrictedDay) restrictedDayCounts[p.restrictedDay] = (restrictedDayCounts[p.restrictedDay] || 0) + 1; });
+      const availableRestrictedDays = Object.keys(restrictedDayCounts).sort((a, b) => THAI_DUTY_DAYS.indexOf(a) - THAI_DUTY_DAYS.indexOf(b));
+      const points = currentDutyPointsDayFilter ? groupPoints.filter(p => p.restrictedDay === currentDutyPointsDayFilter) : groupPoints;
 
       return `
         <div class="fade-in space-y-6">
@@ -5392,6 +5398,26 @@
               `;
       }).join('')}
           </div>
+
+          ${availableRestrictedDays.length > 0 ? `
+          <!-- Restricted-day Quick Filter -->
+          <div class="flex flex-wrap items-center gap-1.5 -mt-2">
+            <span class="text-[10px] text-slate-400 font-bold mr-1">กรองด่วน:</span>
+            <button onclick="onDutyPointsDayFilterChange(null)" class="whitespace-nowrap px-3 py-1 text-[11px] font-bold rounded-full border transition-all ${!currentDutyPointsDayFilter
+        ? 'bg-slate-800 text-white border-slate-800'
+        : 'bg-white text-slate-500 hover:text-slate-800 border-slate-200 hover:border-slate-350'
+      }">ทั้งหมด</button>
+            ${availableRestrictedDays.map(day => {
+        const isActive = currentDutyPointsDayFilter === day;
+        return `
+                <button onclick="onDutyPointsDayFilterChange('${day}')" class="whitespace-nowrap px-3 py-1 text-[11px] font-bold rounded-full border transition-all ${isActive
+            ? 'bg-amber-600 text-white border-amber-600'
+            : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200'
+          }">📅 เฉพาะวัน${day} (${restrictedDayCounts[day]})</button>
+              `;
+      }).join('')}
+          </div>
+          ` : ''}
 
           <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <!-- Duty Points Grid -->
@@ -10346,6 +10372,11 @@
 
     function onDutyPointsGroupTabChange(group) {
       currentDutyPointsGroupTab = group;
+      renderPage('duty-points');
+    }
+
+    function onDutyPointsDayFilterChange(day) {
+      currentDutyPointsDayFilter = day;
       renderPage('duty-points');
     }
 
