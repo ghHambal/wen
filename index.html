@@ -902,7 +902,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.35.0';
+    const APP_VERSION = '1.35.1';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1902,7 +1902,7 @@
     // คืน Set ของรหัสครูที่ถูกมอบหมาย (assignedTo) ในจุดเวรที่มี dutyGroup ตรงกับ dutyGroups ที่ระบุ (ไม่จำกัดวัน)
     function getTeacherIdsInDutyGroups(dutyGroups) {
       const ids = new Set();
-      db.getDutyPoints().filter(p => dutyGroups.includes(p.dutyGroup || 'ครูชาย')).forEach(p => {
+      db.getDutyPoints().filter(p => dutyGroups.some(g => dutyGroupMatches(p.dutyGroup, g))).forEach(p => {
         (p.assignedTo || p.assigned_to || []).forEach(item => {
           ids.add(item.includes(':') ? item.split(':')[1] : item);
         });
@@ -1920,7 +1920,7 @@
         groups.forEach(group => {
           dayGroups.push({ day, group });
           points
-            .filter(p => (p.dutyGroup || 'ครูชาย') === group)
+            .filter(p => dutyGroupMatches(p.dutyGroup, group))
             .forEach(point => {
               (point.assignedTo || point.assigned_to || [])
                 .filter(item => isAssignedOnDay(item, day))
@@ -3074,7 +3074,7 @@
         if (headWindows.length > 0) {
           dashboardContexts = headWindows;
           const allowedGroups = new Set(headWindows.flatMap(w => w.groups || []));
-          points = points.filter(p => allowedGroups.has(p.dutyGroup || 'ครูชาย'));
+          points = points.filter(p => [...allowedGroups].some(g => dutyGroupMatches(p.dutyGroup, g)));
           const allowedDates = new Set(headWindows.map(w => w.dateStr));
           const pointIds = new Set(points.map(p => p.id));
           reports = db.getReports().filter(r => allowedDates.has(r.date) && pointIds.has(r.pointId));
@@ -3090,7 +3090,7 @@
 
       // หัวหน้างานเวรและผู้ดูแลระบบสามารถกรองภาพรวมทั้งสถิติและรายการตามกลุ่มเวรได้
       if ((isFullAdmin(currentUser) || isOpsHead(currentUser)) && currentDashboardDutyGroupFilter !== 'all') {
-        points = points.filter(p => (p.dutyGroup || 'ครูชาย') === currentDashboardDutyGroupFilter);
+        points = points.filter(p => dutyGroupMatches(p.dutyGroup, currentDashboardDutyGroupFilter));
         const visiblePointIds = new Set(points.map(p => p.id));
         reports = reports.filter(r => visiblePointIds.has(r.pointId));
       }
@@ -3098,7 +3098,7 @@
       const dashboardRows = points.flatMap(p => {
         const assignedList = p.assignedTo || p.assigned_to || [];
         return dashboardContexts.flatMap(ctx => {
-          if (ctx.groups && !ctx.groups.includes(p.dutyGroup || 'ครูชาย')) return [];
+          if (ctx.groups && !ctx.groups.some(g => dutyGroupMatches(p.dutyGroup, g))) return [];
           const assignedToday = assignedList.filter(item => isAssignedOnDay(item, ctx.day));
           return assignedToday.map(item => {
             const teacherId = getAssignedEntryTeacherId(item);
@@ -3707,7 +3707,7 @@
       const dayName = getThaiDayNameForDate(dateStr);
       const groups = dutyGroup ? [dutyGroup] : getExemptionManageGroupsForDate(dateStr);
       return db.getDutyPoints()
-        .filter(p => groups.includes(p.dutyGroup || 'ครูชาย'))
+        .filter(p => groups.some(g => dutyGroupMatches(p.dutyGroup, g)))
         .filter(p => (p.assignedTo || p.assigned_to || []).some(item => isAssignedOnDay(item, dayName)))
         .filter(p => isDutyPointPendingForExemption(p, dateStr))
         .filter(p => isDutyPointCurrentOrUpcomingForExemption(p, dateStr))
@@ -3759,8 +3759,8 @@
         return '<p class="text-slate-400 bg-slate-50 border rounded-lg p-3">ไม่มีจุดเวรที่ยังไม่รายงานหรือยังอยู่ในช่วงเวลาที่สามารถยกเว้นได้</p>';
       }
       if (showGenderColumns) {
-        const malePoints = points.filter(point => (point.dutyGroup || 'ครูชาย') === 'ครูชาย');
-        const femalePoints = points.filter(point => (point.dutyGroup || 'ครูชาย') === 'ครูหญิง');
+        const malePoints = points.filter(point => dutyGroupMatches(point.dutyGroup, 'ครูชาย'));
+        const femalePoints = points.filter(point => dutyGroupMatches(point.dutyGroup, 'ครูหญิง'));
         return `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             ${[
@@ -3848,7 +3848,7 @@
       const groupVal = document.getElementById('exemption-group').value;
       const scopeVal = document.getElementById('exemption-scope')?.value || 'all';
       const pointIds = scopeVal === 'points'
-        ? Array.from(document.querySelectorAll('input[name="exemption-point"]:checked')).map(input => Number(input.value)).filter(Boolean)
+        ? [...new Set(Array.from(document.querySelectorAll('input[name="exemption-point"]:checked')).map(input => Number(input.value)).filter(Boolean))]
         : [];
       const reason = document.getElementById('exemption-reason').value.trim();
 
@@ -4257,7 +4257,7 @@
       const nowMin = now.getHours() * 60 + now.getMinutes();
       const todayDay = getTodayThaiDayName();
       const currentDutyPoints = db.getDutyPoints()
-        .filter(p => (p.dutyGroup || 'ครูชาย') === currentExecutiveDutyGroupTab)
+        .filter(p => dutyGroupMatches(p.dutyGroup, currentExecutiveDutyGroupTab))
         .filter(p => {
           const range = parseTimeRange(p.time);
           return nowMin >= range.startMin && nowMin <= range.endMin;
@@ -4581,7 +4581,7 @@
       }
 
       const points = db.getDutyPoints().filter(p =>
-        (p.dutyGroup || 'ครูชาย') === currentScheduleGroupTab &&
+        dutyGroupMatches(p.dutyGroup, currentScheduleGroupTab) &&
         (!p.restrictedDay || p.restrictedDay === currentScheduleViewDay)
       );
 
@@ -5364,7 +5364,7 @@
         }
       }
 
-      const points = db.getDutyPoints().filter(p => (p.dutyGroup || 'ครูชาย') === currentDutyPointsGroupTab);
+      const points = db.getDutyPoints().filter(p => dutyGroupMatches(p.dutyGroup, currentDutyPointsGroupTab));
 
       return `
         <div class="fade-in space-y-6">
@@ -5492,6 +5492,7 @@
                 <select id="point-form-duty-group" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
                   <option value="ครูชาย">ครูชาย</option>
                   <option value="ครูหญิง">ครูหญิง</option>
+                  <option value="ผสม">ผสม (ชาย-หญิงร่วมกัน)</option>
                 </select>
               </div>
               <div>
@@ -5642,8 +5643,8 @@
       const weekNum = getWeekNumber(currentDocumentsDate, settings);
       const reports = db.getReports().filter(r => r.date === currentDocumentsDate);
 
-      const malePoints = points.filter(p => (p.dutyGroup || 'ครูชาย') === 'ครูชาย');
-      const femalePoints = points.filter(p => (p.dutyGroup || 'ครูชาย') === 'ครูหญิง');
+      const malePoints = points.filter(p => dutyGroupMatches(p.dutyGroup, 'ครูชาย'));
+      const femalePoints = points.filter(p => dutyGroupMatches(p.dutyGroup, 'ครูหญิง'));
 
       const headEntry = settings.headsOfDay?.[docDay];
 
@@ -8326,8 +8327,7 @@
       if (!point || !teacherId) return false;
       if (isAllOnBehalfScopeUser()) return true;
       const dayName = getThaiDayNameForDate(dateStr);
-      const group = point.dutyGroup || 'ครูชาย';
-      return getHeadAssignedDutyGroupsForDay(currentUser.id, dayName).includes(group);
+      return getHeadAssignedDutyGroupsForDay(currentUser.id, dayName).some(g => dutyGroupMatches(point.dutyGroup, g));
     }
 
     function getOnBehalfAvailablePointEntries(teacherId) {
@@ -8337,7 +8337,7 @@
 
       getOnBehalfDutyWindowsForCurrentUser().forEach(window => {
         getDutyPointsForTeacher(teacherId, window.dateStr)
-          .filter(point => window.groups.includes(point.dutyGroup || 'ครูชาย'))
+          .filter(point => window.groups.some(g => dutyGroupMatches(point.dutyGroup, g)))
           .filter(point => isOnBehalfPointAllowedForCurrentUser(point, teacherId, window.dateStr))
           .forEach(point => {
             const alreadyReported = reports.some(report =>
@@ -9045,6 +9045,13 @@
       return getTeacherGender(t) === 'ชาย' ? 'ครูชาย' : 'ครูหญิง';
     }
 
+    // คืน true ถ้าจุดเวรกลุ่ม pointGroup ควรนับรวมในมุมมองของ targetGroup
+    // ('ผสม' = ชาย-หญิงทำงานร่วมกัน จึงนับรวมทั้งฝั่งครูชายและครูหญิงเสมอ)
+    function dutyGroupMatches(pointGroup, targetGroup) {
+      const g = pointGroup || 'ครูชาย';
+      return g === targetGroup || g === 'ผสม';
+    }
+
     // entry แบบไม่มี prefix วัน (เช่น "1087") = มอบหมายในวันหลักของระบบ (settings.dutyDay เช่น อังคาร)
     // entry แบบมี prefix วัน (เช่น "อังคาร:1087") = มอบหมายเฉพาะวันนั้น
     function isAssignedOnDay(item, day) {
@@ -9096,7 +9103,7 @@
       const defaultDay = settings.dutyDay || 'อังคาร';
 
       return points.filter(p => {
-        if ((p.dutyGroup || 'ครูชาย') !== myGroup) return false;
+        if (!dutyGroupMatches(p.dutyGroup, myGroup)) return false;
         const list = p.assignedTo || p.assigned_to || [];
         return list.some(item => {
           if (item.includes(':')) {
@@ -9120,7 +9127,7 @@
       const defaultDay = settings.dutyDay || 'อังคาร';
 
       return points.filter(p => {
-        if ((p.dutyGroup || 'ครูชาย') !== group) return false;
+        if (!dutyGroupMatches(p.dutyGroup, group)) return false;
         const list = p.assignedTo || p.assigned_to || [];
         return list.some(item => {
           if (item.includes(':')) {
@@ -10353,7 +10360,7 @@
         attribution: '&copy; Google Maps'
       }).addTo(currentMapInstance);
 
-      const points = db.getDutyPoints().filter(p => (p.dutyGroup || 'ครูชาย') === currentDutyPointsGroupTab);
+      const points = db.getDutyPoints().filter(p => dutyGroupMatches(p.dutyGroup, currentDutyPointsGroupTab));
       points.forEach(p => {
         L.marker([p.lat, p.lng]).addTo(currentMapInstance)
           .bindPopup(`<b>จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name}</b><br>เวลาเวร: ${p.time}`);
@@ -12437,7 +12444,7 @@
         if (teachQ && !tName.includes(teachQ)) show = false;
         if (pointQ !== 'all' && pId !== pointQ) show = false;
         if (statusQ !== 'all' && rStatus !== statusQ) show = false;
-        if ((isFullAdmin(currentUser) || isOpsHead(currentUser)) && currentDashboardDutyGroupFilter !== 'all' && dutyGroup !== currentDashboardDutyGroupFilter) show = false;
+        if ((isFullAdmin(currentUser) || isOpsHead(currentUser)) && currentDashboardDutyGroupFilter !== 'all' && !dutyGroupMatches(dutyGroup, currentDashboardDutyGroupFilter)) show = false;
 
         row.classList.toggle('hidden', !show);
       });
