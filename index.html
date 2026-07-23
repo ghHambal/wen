@@ -902,7 +902,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.35.2';
+    const APP_VERSION = '1.35.3';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -5366,11 +5366,15 @@
       }
 
       const groupPoints = db.getDutyPoints().filter(p => dutyGroupMatches(p.dutyGroup, currentDutyPointsGroupTab));
-      // จุดเวรเฉพาะวันที่มีอยู่จริงในระบบ (นับจากทุกจุด ไม่ใช่แค่คณะที่เลือกอยู่) ใช้สร้างปุ่มกรองด่วน
+      // จุดเวรเฉพาะวันที่มีอยู่จริงในระบบ (นับจากทุกจุด ไม่ใช่แค่คณะที่เลือกอยู่) ใช้สร้างแท็บเวรวันนั้นๆ แยกต่างหาก
       const restrictedDayCounts = {};
       db.getDutyPoints().forEach(p => { if (p.restrictedDay) restrictedDayCounts[p.restrictedDay] = (restrictedDayCounts[p.restrictedDay] || 0) + 1; });
-      const availableRestrictedDays = Object.keys(restrictedDayCounts).sort((a, b) => THAI_DUTY_DAYS.indexOf(a) - THAI_DUTY_DAYS.indexOf(b));
-      const points = currentDutyPointsDayFilter ? groupPoints.filter(p => p.restrictedDay === currentDutyPointsDayFilter) : groupPoints;
+      // หัวหน้าเวรทั่วไปเห็นแท็บวันเฉพาะที่ตนได้รับแต่งตั้งเป็นหัวหน้าวันนั้นเท่านั้น (แอดมิน/หัวหน้างานเวรเห็นทุกวัน)
+      const canSeeDayTab = (day) => isFullAdmin(currentUser) || isOpsHead(currentUser) || (headAssignedDays || []).includes(day);
+      const visibleRestrictedDays = Object.keys(restrictedDayCounts)
+        .filter(canSeeDayTab)
+        .sort((a, b) => THAI_DUTY_DAYS.indexOf(a) - THAI_DUTY_DAYS.indexOf(b));
+      const points = currentDutyPointsDayFilter ? db.getDutyPoints().filter(p => p.restrictedDay === currentDutyPointsDayFilter) : groupPoints;
 
       return `
         <div class="fade-in space-y-6">
@@ -5384,10 +5388,10 @@
             </button>
           </div>
 
-          <!-- Duty Group Tab Switcher -->
-          <div class="flex border-b border-slate-200 gap-1">
+          <!-- Duty Group / Restricted-day Tab Switcher -->
+          <div class="flex flex-wrap border-b border-slate-200 gap-1">
             ${dutyPointsGroupTabs.map(group => {
-        const isActive = currentDutyPointsGroupTab === group;
+        const isActive = !currentDutyPointsDayFilter && currentDutyPointsGroupTab === group;
         return `
                 <button onclick="onDutyPointsGroupTabChange('${group}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isActive
             ? 'bg-brand-900 text-white border-brand-900 shadow-sm'
@@ -5397,27 +5401,18 @@
                 </button>
               `;
       }).join('')}
-          </div>
-
-          ${availableRestrictedDays.length > 0 ? `
-          <!-- Restricted-day Quick Filter -->
-          <div class="flex flex-wrap items-center gap-1.5 -mt-2">
-            <span class="text-[10px] text-slate-400 font-bold mr-1">กรองด่วน:</span>
-            <button onclick="onDutyPointsDayFilterChange(null)" class="whitespace-nowrap px-3 py-1 text-[11px] font-bold rounded-full border transition-all ${!currentDutyPointsDayFilter
-        ? 'bg-slate-800 text-white border-slate-800'
-        : 'bg-white text-slate-500 hover:text-slate-800 border-slate-200 hover:border-slate-350'
-      }">ทั้งหมด</button>
-            ${availableRestrictedDays.map(day => {
+            ${visibleRestrictedDays.map(day => {
         const isActive = currentDutyPointsDayFilter === day;
         return `
-                <button onclick="onDutyPointsDayFilterChange('${day}')" class="whitespace-nowrap px-3 py-1 text-[11px] font-bold rounded-full border transition-all ${isActive
-            ? 'bg-amber-600 text-white border-amber-600'
+                <button onclick="onDutyPointsDayFilterChange('${day}')" class="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isActive
+            ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
             : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200'
-          }">📅 เฉพาะวัน${day} (${restrictedDayCounts[day]})</button>
+          }">
+                  📅 เวรวัน${day} (${restrictedDayCounts[day]})
+                </button>
               `;
       }).join('')}
           </div>
-          ` : ''}
 
           <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <!-- Duty Points Grid -->
@@ -10372,6 +10367,7 @@
 
     function onDutyPointsGroupTabChange(group) {
       currentDutyPointsGroupTab = group;
+      currentDutyPointsDayFilter = null;
       renderPage('duty-points');
     }
 
