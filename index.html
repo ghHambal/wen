@@ -902,7 +902,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.35.5';
+    const APP_VERSION = '1.35.6';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -9215,8 +9215,12 @@
       if (!teacher) return null;
       const dayName = getThaiDayNameForDate(dateStr);
       const gender = getTeacherGender(teacher);
+      const otherGender = gender === 'ชาย' ? 'หญิง' : 'ชาย';
       const dayHeads = (settings.headsOfDay || {})[dayName];
-      const headId = dayHeads ? (dayHeads[gender] || null) : null;
+      // ปกติใช้หัวหน้าเวรกลุ่มเพศเดียวกับครูที่ยื่นคำขอ — แต่ถ้าวันนั้นยังไม่มีใครถูกแต่งตั้ง
+      // เป็นหัวหน้ากลุ่มนี้เลย (เช่น ยังไม่มีหัวหน้าเวรหญิงวันศุกร์) ให้ตกไปใช้หัวหน้าอีกกลุ่มที่
+      // มีอยู่แทน กันไม่ให้ครูกลุ่มที่ยังไม่มีหัวหน้าไม่มีใครดูแลเลย (ไม่ทับหัวหน้าที่แต่งตั้งไว้จริง)
+      const headId = dayHeads ? (dayHeads[gender] || dayHeads[otherGender] || null) : null;
 
       if (headId === teacherId) return settings.dutyOperationsHeadId || null;
       return headId;
