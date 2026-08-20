@@ -902,7 +902,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.35.4';
+    const APP_VERSION = '1.35.5';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -5059,6 +5059,14 @@
                 <input type="text" id="teacher-form-name" required placeholder="เช่น นายมูฮัมหมัด ดอเลาะ" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
               </div>
               <div>
+                <label class="block text-slate-500 mb-1 font-bold">เพศ:</label>
+                <select id="teacher-form-gender" required class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+                  <option value="ชาย">ชาย</option>
+                  <option value="หญิง">หญิง</option>
+                </select>
+                <p class="text-[10px] text-slate-400 mt-1">ใช้กำหนดกลุ่มเวร/สายอนุมัติ (แจ้งลา, รายงานย้อนหลัง) — ระบุตรงนี้แทนการเดาจากคำนำหน้าชื่อ</p>
+              </div>
+              <div>
                 <label class="block text-slate-500 mb-1 font-bold">เบอร์โทรศัพท์ติดต่อ:</label>
                 <input type="text" id="teacher-form-phone" required placeholder="เช่น 089xxxxxxx" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500" inputmode="tel">
               </div>
@@ -9075,6 +9083,10 @@
 
     function getTeacherGender(t) {
       if (!t) return 'ชาย';
+      // ฟิลด์เพศจริงที่ตั้งค่าไว้ในหน้าข้อมูลครู — เชื่อค่านี้ก่อนเสมอ
+      if (t.gender === 'ชาย' || t.gender === 'หญิง') return t.gender;
+      // ครูเก่าที่ยังไม่เคยตั้งค่าฟิลด์นี้ (ก่อนอัปเดตระบบ) — fallback เดาจากคำนำหน้าชื่อไปก่อน
+      // (ไม่แม่นยำ 100% เพราะบางชื่อไม่มีคำนำหน้าตรงเงื่อนไข — ควรให้แอดมินเข้าไปตั้งค่าเพศให้ตรงในหน้าแก้ไขข้อมูลครู)
       if (t.id === 'admin' || t.id === 'chief' || t.id === 'director' || t.id === '1087') return 'ชาย';
       const name = t.name || '';
       if (name.startsWith('นาย') || name.startsWith('MR.') || name.startsWith('Mr.') || name.startsWith('mr.') || name.startsWith('Kru') || name.startsWith('kru')) {
@@ -10530,6 +10542,7 @@
       const idFlag = document.getElementById('teacher-form-id-flag');
       const idInput = document.getElementById('teacher-form-id');
       const nameInput = document.getElementById('teacher-form-name');
+      const genderSelect = document.getElementById('teacher-form-gender');
       const phoneInput = document.getElementById('teacher-form-phone');
       const roleSelect = document.getElementById('teacher-form-role');
       const resetPassContainer = document.getElementById('teacher-reset-password-container');
@@ -10541,6 +10554,8 @@
         idInput.value = t.id;
         idInput.disabled = true;
         nameInput.value = t.name;
+        // ครูเก่าที่ยังไม่เคยตั้งค่าฟิลด์นี้ตรงๆ ให้เดาจากคำนำหน้าชื่อไปก่อน (ค่าเดียวกับที่ระบบใช้อยู่แล้ว) แล้วให้แอดมินตรวจ/แก้ให้ถูกต้องอีกที
+        genderSelect.value = t.gender || getTeacherGender(t);
         phoneInput.value = t.phone;
         roleSelect.value = t.role;
         if (resetPassContainer) resetPassContainer.classList.remove('hidden');
@@ -10550,6 +10565,7 @@
         idInput.value = '';
         idInput.disabled = false;
         nameInput.value = '';
+        genderSelect.value = 'ชาย';
         phoneInput.value = '';
         roleSelect.value = 'teacher';
         if (resetPassContainer) resetPassContainer.classList.add('hidden');
@@ -10588,6 +10604,7 @@
       const idFlag = document.getElementById('teacher-form-id-flag').value;
       const idInput = document.getElementById('teacher-form-id').value.trim();
       const nameInput = document.getElementById('teacher-form-name').value.trim();
+      const genderSelect = document.getElementById('teacher-form-gender').value;
       const phoneInput = document.getElementById('teacher-form-phone').value.trim();
       const roleSelect = document.getElementById('teacher-form-role').value;
 
@@ -10598,6 +10615,7 @@
         const tIndex = teachers.findIndex(x => x.id === idFlag);
         if (tIndex !== -1) {
           teachers[tIndex].name = nameInput;
+          teachers[tIndex].gender = genderSelect;
           teachers[tIndex].phone = phoneInput;
           teachers[tIndex].role = roleSelect;
           tObj = teachers[tIndex];
@@ -10610,6 +10628,7 @@
         tObj = {
           id: idInput,
           name: nameInput,
+          gender: genderSelect,
           phone: phoneInput,
           role: roleSelect,
           signature: null,
