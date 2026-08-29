@@ -36,6 +36,16 @@
       overflow: hidden;
       font-size: 14px;
     }
+    /* จอนี้ออกแบบไว้สำหรับทีวี/มอนิเตอร์จอกว้างที่พอดีความสูงจอเดียว (overflow:hidden ตัดเนื้อหา
+       ที่ล้นทิ้งเงียบๆ) — บนมือถือจอแคบ/สูงไม่พอ ต้องปล่อยให้เลื่อนได้แทนการตัดทิ้ง ไม่งั้นข้อความ/
+       การ์ดบางส่วนจะหายไปเลย (เจอจริง: "ประเด็นปัญหาที่พบ: undefined" โดนตัดขอบขวาจอ) */
+    @media (max-width: 767px) {
+      body { overflow-y: auto; height: auto; min-height: 100vh; }
+      main { min-height: 60vh; }
+      .carousel-item { position: static !important; display: none; }
+      .carousel-item.active { display: grid !important; }
+      #tv-carousel-container { overflow: visible !important; height: auto !important; }
+    }
     .glass-panel {
       background: rgba(255, 255, 255, 0.025);
       backdrop-filter: blur(20px);
@@ -112,7 +122,7 @@
   </header>
 
   <!-- METRICS STRIP -->
-  <section class="grid grid-cols-4 gap-4 my-4 flex-shrink-0">
+  <section class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 my-4 flex-shrink-0">
     <!-- Card 1: Check-in rate -->
     <div class="glass-panel rounded-2xl p-4 flex items-center justify-between">
       <div>
