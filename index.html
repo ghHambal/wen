@@ -902,7 +902,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.35.6';
+    const APP_VERSION = '1.35.8';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1829,6 +1829,12 @@
     let currentScheduleGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าจัดการตารางเวร
     let currentDocumentsDate = null; // วันที่เลือกในหน้าเอกสารรายงานทางการ (YYYY-MM-DD)
     let currentDocsGroupTab = 'ครูชาย'; // 'ครูชาย' | 'ครูหญิง' - แท็บกลุ่มเวรในหน้าเอกสารรายงาน (สำหรับผู้ดูแลระบบ)
+    let currentDocumentsMode = 'daily'; // 'daily' | 'semester' | 'individual'
+    let currentPerformanceReportStart = null;
+    let currentPerformanceReportEnd = null;
+    let currentPerformanceReportTeacherId = 'all';
+    let currentPerformanceReportGroup = 'all';
+    let performanceReportCache = { key: '', reports: [], source: 'local', warning: '', loading: false };
     let currentDutyApprovalsTab = 'leave'; // 'leave' | 'late' - แท็บในหน้า "งานหัวหน้าเวร"
     let currentDashboardDutyGroupFilter = 'all'; // 'all' | 'ครูชาย' | 'ครูหญิง'
 
@@ -3077,7 +3083,10 @@
             }
           }).catch(err => console.warn("Auto sync on overview navigation failed:", err));
         } else if (page === 'documents') {
-          syncReportsFromCloud('light').then(() => {
+          const documentsRefresh = currentDocumentsMode === 'daily'
+            ? syncReportsFromCloud('light')
+            : Promise.all([loadPerformanceReportData(), syncDutyExemptionsFromCloud()]);
+          documentsRefresh.then(() => {
             if (currentPage === 'documents') {
               mc.innerHTML = renderDocumentsView();
               lucide.createIcons();
@@ -3710,6 +3719,14 @@
       return isFullAdmin(currentUser) || isOpsHead(currentUser) || getHeadAssignedDays(currentUser.id).length > 0;
     }
 
+    function canManageRetroactiveExemption() {
+      return !!currentUser && (isFullAdmin(currentUser) || isOpsHead(currentUser));
+    }
+
+    function canManageFullWeekExemption() {
+      return canManageRetroactiveExemption();
+    }
+
     function getExemptionManageGroupsForDate(dateStr) {
       if (!dateStr || !currentUser) return [];
       if (isFullAdmin(currentUser) || isOpsHead(currentUser)) return ['ครูชาย', 'ครูหญิง'];
@@ -3768,7 +3785,7 @@
     function isDutyPointCurrentOrUpcomingForExemption(point, dateStr) {
       const today = getTodayISODate();
       if (dateStr > today) return true;
-      if (dateStr < today) return false;
+      if (dateStr < today) return canManageRetroactiveExemption();
       const now = new Date();
       const currentMin = now.getHours() * 60 + now.getMinutes();
       const range = parseTimeRange(point.reportWindow || point.time);
@@ -3920,6 +3937,66 @@
       navigateTo('duty-head-approvals');
     }
 
+    async function submitWeekDutyExemption(e) {
+      e.preventDefault();
+      if (!canManageFullWeekExemption()) {
+        showToast('เฉพาะแอดมินหรือหัวหน้างานเวรเท่านั้นที่ยกเว้นได้ทั้งสัปดาห์', 'error');
+        return;
+      }
+
+      const weekNum = Number(document.getElementById('exemption-week')?.value || 0);
+      const reason = document.getElementById('week-exemption-reason')?.value.trim() || '';
+      const settings = db.getSettings();
+      const totalWeeks = settings.totalWeeks || 20;
+      if (!weekNum || weekNum < 1 || weekNum > totalWeeks || !reason) {
+        showToast('กรุณาเลือกสัปดาห์และระบุเหตุผล', 'error');
+        return;
+      }
+
+      const range = getSemesterWeekRange(weekNum, settings);
+      const dateList = [];
+      const cursor = new Date(range.start);
+      while (cursor <= range.end) {
+        dateList.push(formatDateISO(cursor));
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      const confirmed = window.confirm(`ยืนยันยกเว้นเวรทั้งสัปดาห์ที่ ${weekNum} (${getTodayThaiFullDate(range.startISO)} - ${getTodayThaiFullDate(range.endISO)})?\nระบบจะยกเว้นทุกกลุ่มและทุกจุดเวรในแต่ละวัน และคงประกาศเดิมที่มีอยู่แล้วไว้`);
+      if (!confirmed) return;
+
+      const existing = db.getDutyExemptions();
+      let createdCount = 0;
+      let keptCount = 0;
+      let unsyncedCount = 0;
+      for (const date of dateList) {
+        const alreadyAllDay = existing.some(exm =>
+          exm.date === date && exm.dutyGroup === null && (!Array.isArray(exm.pointIds) || exm.pointIds.length === 0)
+        );
+        if (alreadyAllDay) {
+          keptCount++;
+          continue;
+        }
+
+        const exemption = {
+          id: `EXM_${date}_ALL_ALLPOINTS`,
+          date,
+          dutyGroup: null,
+          pointIds: [],
+          reason,
+          declaredBy: currentUser.id,
+          createdAt: new Date().toISOString()
+        };
+        const synced = await saveExemptionDB(exemption);
+        existing.push(exemption);
+        createdCount++;
+        if (!synced) unsyncedCount++;
+      }
+
+      const syncText = unsyncedCount > 0 ? ` ยังรอซิงก์ ${unsyncedCount} วัน` : ' ซิงก์ถึงครูทุกคนแล้ว';
+      showToast(`ยกเว้นเวรสัปดาห์ที่ ${weekNum} แล้ว ${createdCount} วัน${keptCount ? ` (คงประกาศเดิม ${keptCount} วัน)` : ''}${syncText}`, unsyncedCount > 0 ? 'warning' : 'success');
+      navigateTo('duty-head-approvals');
+    }
+
     async function cancelExemptionAction(id) {
       const exm = db.getDutyExemptions().find(e => e.id === id);
       if (exm && !canCurrentUserManageExemption(exm)) {
@@ -3962,7 +4039,6 @@
       const canSelectAllExemptionGroups = exemptionGroups.includes('ครูชาย') && exemptionGroups.includes('ครูหญิง');
 
       const upcomingExemptions = db.getDutyExemptions()
-        .filter(e => e.date >= todayDate)
         .filter(e => canCurrentUserManageExemption(e))
         .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -4158,11 +4234,11 @@
               <!-- ฟอร์มประกาศยกเว้นเวร -->
               <div class="bg-white border rounded-2xl shadow-sm p-4 space-y-3">
                 <h4 class="font-bold text-slate-700 flex items-center gap-1.5"><i data-lucide="cloud-rain" class="w-4 h-4 text-sky-600"></i>ประกาศยกเว้นการปฏิบัติหน้าที่เวร (เหตุสุดวิสัย)</h4>
-                <p class="text-[10px] text-slate-400">เช่น วันหยุดราชการกะทันหัน, ภัยพิบัติ, ปิดบางอาคาร หรือยกเว้นเฉพาะบางจุด — หัวหน้าเวรทั่วไปทำได้เฉพาะวัน/กลุ่มที่ตนรับผิดชอบ</p>
+                <p class="text-[10px] text-slate-400">เช่น วันหยุดราชการกะทันหัน, ภัยพิบัติ, ปิดบางอาคาร หรือยกเว้นเฉพาะบางจุด — แอดมิน/หัวหน้างานเวรสามารถประกาศย้อนหลังได้</p>
                 <form onsubmit="submitDutyExemption(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label class="block text-slate-500 mb-1 font-bold">วันที่ยกเว้น:</label>
-                    <input type="date" id="exemption-date" value="${defaultExemptionDate}" min="${todayDate}" onchange="refreshExemptionControls()" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-bold" required>
+                    <input type="date" id="exemption-date" value="${defaultExemptionDate}" ${canManageRetroactiveExemption() ? '' : `min="${todayDate}"`} onchange="refreshExemptionControls()" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500 text-slate-700 font-bold" required>
                   </div>
                   <div>
                     <label class="block text-slate-500 mb-1 font-bold">กลุ่มที่ยกเว้น:</label>
@@ -4194,10 +4270,41 @@
                 </form>
               </div>
 
-              <!-- รายการประกาศที่ยังมีผล -->
+              ${canManageFullWeekExemption() ? `
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl shadow-sm p-4 space-y-3">
+                  <div class="flex items-start gap-2">
+                    <i data-lucide="calendar-range" class="w-5 h-5 text-sky-700 mt-0.5"></i>
+                    <div>
+                      <h4 class="font-bold text-sky-950">ยกเว้นเวรทั้งสัปดาห์</h4>
+                      <p class="text-[10px] text-sky-700 mt-0.5">ใช้สำหรับช่วงสอบหรือช่วงที่ไม่มีการปฏิบัติเวร ระบบจะสร้างประกาศทุกวันในสัปดาห์ที่เลือก และไม่เขียนทับประกาศเดิม</p>
+                    </div>
+                  </div>
+                  <form onsubmit="submitWeekDutyExemption(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-sky-800 mb-1 font-bold">สัปดาห์ที่:</label>
+                      <select id="exemption-week" class="w-full border border-sky-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-sky-500 text-slate-700 font-bold">
+                        ${Array.from({ length: settings.totalWeeks || 20 }, (_, index) => index + 1).map(weekNum => {
+                          const range = getSemesterWeekRange(weekNum, settings);
+                          const selected = weekNum === Math.min(getCurrentSemesterWeek(settings), settings.totalWeeks || 20) ? 'selected' : '';
+                          return `<option value="${weekNum}" ${selected}>สัปดาห์ที่ ${weekNum} (${range.startISO} - ${range.endISO})</option>`;
+                        }).join('')}
+                      </select>
+                    </div>
+                    <div>
+                      <label class="block text-sky-800 mb-1 font-bold">เหตุผล:</label>
+                      <input type="text" id="week-exemption-reason" value="สอบปลายภาค" placeholder="เช่น สอบปลายภาค" class="w-full border border-sky-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-sky-500 text-slate-700 font-bold" required>
+                    </div>
+                    <div class="sm:col-span-2">
+                      <button type="submit" class="w-full bg-sky-700 hover:bg-sky-800 text-white font-bold py-2.5 rounded-lg shadow hover:shadow-md transition">ยกเว้นเวรทั้งสัปดาห์ที่เลือก</button>
+                    </div>
+                  </form>
+                </div>
+              ` : ''}
+
+              <!-- รายการประกาศทั้งหมดที่ผู้ใช้มีสิทธิ์จัดการ -->
               <div class="bg-white border rounded-2xl shadow-sm overflow-hidden">
                 ${upcomingExemptions.length === 0 ? `
-                  <div class="p-8 text-center text-slate-400">ไม่มีประกาศยกเว้นเวรที่ยังมีผล</div>
+                  <div class="p-8 text-center text-slate-400">ไม่มีประกาศยกเว้นเวร</div>
                 ` : upcomingExemptions.map(exm => `
                   <div class="p-4 border-b last:border-b-0 flex flex-col sm:flex-row sm:items-center gap-3">
                     <div class="flex-1 min-w-0">
@@ -5675,6 +5782,7 @@
 
     // E. DRAFT REPORT PRINT DOCUMENT VIEW
     function renderDocumentsView() {
+      if (currentDocumentsMode !== 'daily') return renderPerformanceDocumentsView();
       const settings = db.getSettings();
       const points = db.getDutyPoints();
       if (!currentDocumentsDate) currentDocumentsDate = getTodayISODate();
@@ -5712,6 +5820,7 @@
 
       return `
         <div class="fade-in space-y-6">
+          ${renderDocumentsModeSwitcher('daily')}
           <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-4 no-print">
             <div>
               <h3 class="text-lg font-bold text-slate-900">เอกสารรายงานผลปฏิบัติงานเวรราชการ</h3>
@@ -5765,6 +5874,30 @@
       `;
     }
 
+    function renderDocumentsModeSwitcher(activeMode) {
+      const items = [
+        ['daily', 'calendar-days', 'รายงานประจำวัน'],
+        ['semester', 'chart-no-axes-combined', 'สรุปผลภาคเรียน'],
+        ['individual', 'user-round-search', 'รายงานรายบุคคล']
+      ];
+      return `
+        <div class="flex flex-wrap items-center gap-1 rounded-xl bg-slate-100 border border-slate-200 p-1 no-print">
+          ${items.map(([mode, icon, label]) => `
+            <button type="button" onclick="onDocumentsModeChange('${mode}')"
+              class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition ${activeMode === mode ? 'bg-white text-brand-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}">
+              <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>${label}
+            </button>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function onDocumentsModeChange(mode) {
+      currentDocumentsMode = ['daily', 'semester', 'individual'].includes(mode) ? mode : 'daily';
+      if (currentDocumentsMode !== 'daily') ensurePerformanceReportDateDefaults();
+      renderPage('documents');
+    }
+
     // เปลี่ยนแท็บกลุ่มเวร (ครูชาย/ครูหญิง) ในหน้าเอกสารรายงานทางการ แล้ว re-render
     function onDocsGroupTabChange(group) {
       currentDocsGroupTab = group;
@@ -5786,6 +5919,378 @@
       const dd = String(cur.getDate()).padStart(2, '0');
       currentDocumentsDate = `${yyyy}-${mm}-${dd}`;
       renderPage('documents');
+    }
+
+    function formatPerformanceDate(dateStr) {
+      if (!dateStr) return '-';
+      return new Date(dateStr + 'T00:00:00').toLocaleDateString('th-TH', {
+        day: 'numeric', month: 'short', year: 'numeric'
+      });
+    }
+
+    function getPerformanceReportDefaultRange(settings = db.getSettings()) {
+      const today = getTodayISODate();
+      const start = settings.weekStartDate
+        ? new Date(settings.weekStartDate + 'T00:00:00')
+        : new Date(today + 'T00:00:00');
+      const end = settings.weekStartDate
+        ? getSemesterWeekRange(settings.totalWeeks || 20, settings).end
+        : new Date(today + 'T00:00:00');
+      return {
+        start: formatDateISO(start),
+        end: formatDateISO(end) < today ? formatDateISO(end) : today
+      };
+    }
+
+    function ensurePerformanceReportDateDefaults() {
+      const range = getPerformanceReportDefaultRange();
+      if (!currentPerformanceReportStart) currentPerformanceReportStart = range.start;
+      if (!currentPerformanceReportEnd) currentPerformanceReportEnd = range.end;
+      if (currentPerformanceReportStart > currentPerformanceReportEnd) {
+        currentPerformanceReportStart = range.start;
+        currentPerformanceReportEnd = range.end;
+      }
+    }
+
+    // โหลดเฉพาะคอลัมน์เบาและแบ่งหน้า เพื่อให้รายงานภาคเรียนไม่ถูกตัดที่ 1,000 แถว
+    // และไม่ดึงรูปหลักฐาน/ลายเซ็นซึ่งไม่จำเป็นต่อการสรุปผล
+    async function loadPerformanceReportData() {
+      ensurePerformanceReportDateDefaults();
+      const start = currentPerformanceReportStart;
+      const end = currentPerformanceReportEnd;
+      const key = `${start}|${end}`;
+      if (performanceReportCache.key === key && !performanceReportCache.loading) return performanceReportCache;
+
+      performanceReportCache = { key, reports: [], source: 'local', warning: '', loading: true };
+      const localReports = db.getReports().filter(r => r.date >= start && r.date <= end);
+
+      if (!useSupabase || !supabaseClient || !navigator.onLine) {
+        if (performanceReportCache.key !== key) return performanceReportCache;
+        performanceReportCache = {
+          key,
+          reports: localReports,
+          source: 'local',
+          warning: 'กำลังใช้ข้อมูลที่ดาวน์โหลดไว้ในเครื่อง อาจยังไม่ใช่ข้อมูลล่าสุดหรืออาจมีประวัติไม่ครบช่วงที่เลือก',
+          loading: false
+        };
+        return performanceReportCache;
+      }
+
+      try {
+        const PAGE_SIZE = 1000;
+        const all = [];
+        let offset = 0;
+        while (true) {
+          const { data, error } = await supabaseClient
+            .from('reports')
+            .select(REPORT_LIGHT_COLUMNS)
+            .gte('date', start)
+            .lte('date', end)
+            .order('date', { ascending: true })
+            .range(offset, offset + PAGE_SIZE - 1);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          all.push(...data.map(mapReportFromDB));
+          if (data.length < PAGE_SIZE) break;
+          offset += PAGE_SIZE;
+        }
+        if (performanceReportCache.key !== key) return performanceReportCache;
+        performanceReportCache = { key, reports: all, source: 'cloud', warning: '', loading: false };
+      } catch (err) {
+        console.warn('Failed to load performance report history:', err);
+        if (performanceReportCache.key !== key) return performanceReportCache;
+        performanceReportCache = {
+          key,
+          reports: localReports,
+          source: 'local',
+          warning: `โหลดข้อมูลคลาวด์ไม่สำเร็จ จึงแสดงข้อมูลในเครื่องแทน${err?.message ? `: ${err.message}` : ''}`,
+          loading: false
+        };
+      }
+      return performanceReportCache;
+    }
+
+    function getPerformanceReportTeachers() {
+      let teachers = db.getTeachers().filter(t => !['admin', 'chief', 'director'].includes(String(t.id)));
+      if (activeRoleMode === 'head' && !isFullAdmin(currentUser) && !isOpsHead(currentUser)) {
+        const scope = getHeadTeacherVisibilityScope(currentUser.id);
+        teachers = teachers.filter(t => scope.teacherIds.has(t.id));
+      }
+      return teachers;
+    }
+
+    function createPerformanceTeacherRow(teacher) {
+      return {
+        teacherId: teacher.id,
+        teacher,
+        name: teacher.name || teacher.id,
+        group: getTeacherDutyGroup(teacher),
+        scheduled: 0,
+        submitted: 0,
+        normal: 0,
+        problem: 0,
+        leave: 0,
+        late: 0,
+        onBehalf: 0,
+        exempted: 0,
+        missing: 0,
+        details: []
+      };
+    }
+
+    function buildPerformanceReportModel(reports) {
+      ensurePerformanceReportDateDefaults();
+      const settings = db.getSettings();
+      const selectedStart = currentPerformanceReportStart;
+      const selectedEnd = currentPerformanceReportEnd;
+      const today = getTodayISODate();
+      const effectiveEnd = selectedEnd < today ? selectedEnd : today;
+      const teachers = getPerformanceReportTeachers();
+      const rowsById = new Map(teachers.map(t => [t.id, createPerformanceTeacherRow(t)]));
+      const reportMap = new Map();
+
+      reports.filter(r => r.date >= selectedStart && r.date <= effectiveEnd).forEach(report => {
+        const key = `${report.date}|${report.pointId}|${report.teacherId}`;
+        if (!reportMap.has(key)) reportMap.set(key, report);
+      });
+
+      if (selectedStart <= effectiveEnd) {
+        const cursor = new Date(selectedStart + 'T00:00:00');
+        const endDate = new Date(effectiveEnd + 'T00:00:00');
+        while (cursor <= endDate) {
+          const dateStr = formatDateISO(cursor);
+          teachers.forEach(teacher => {
+            const teacherRow = rowsById.get(teacher.id);
+            const points = getDutyPointsForTeacher(teacher.id, dateStr)
+              .filter(point => currentPerformanceReportGroup === 'all' || dutyGroupMatches(point.dutyGroup, currentPerformanceReportGroup));
+            const seenPointIds = new Set();
+
+            points.forEach(point => {
+              if (seenPointIds.has(String(point.id))) return;
+              seenPointIds.add(String(point.id));
+              const key = `${dateStr}|${point.id}|${teacher.id}`;
+              const report = reportMap.get(key) || null;
+              const exempted = !!getExemptionForDate(dateStr, point.dutyGroup || 'ครูชาย', point.id);
+              const detail = {
+                date: dateStr,
+                week: getSemesterWeekNumberForDate(dateStr, settings),
+                point,
+                report,
+                exempted,
+                status: report
+                  ? (report.status === 'problem' ? 'problem' : report.status === 'leave' ? 'leave' : report.isLate ? 'late' : 'reported')
+                  : exempted ? 'exempted' : 'missing'
+              };
+              teacherRow.scheduled++;
+              teacherRow.details.push(detail);
+
+              if (report) {
+                teacherRow.submitted++;
+                if (report.status === 'problem') teacherRow.problem++;
+                else if (report.status === 'leave') teacherRow.leave++;
+                else teacherRow.normal++;
+                if (report.isLate) teacherRow.late++;
+                if (report.submittedOnBehalf) teacherRow.onBehalf++;
+              } else if (exempted) {
+                teacherRow.exempted++;
+              } else {
+                teacherRow.missing++;
+              }
+            });
+          });
+          cursor.setDate(cursor.getDate() + 1);
+        }
+      }
+
+      const rows = Array.from(rowsById.values()).filter(row => row.scheduled > 0).map(row => ({
+        ...row,
+        operationRate: Math.round(((row.normal + row.problem) / row.scheduled) * 100),
+        reportRate: Math.round((row.submitted / row.scheduled) * 100),
+        completionRate: Math.round(((row.submitted + row.exempted) / row.scheduled) * 100)
+      })).sort((a, b) => b.completionRate - a.completionRate || a.name.localeCompare(b.name, 'th'));
+
+      const totals = rows.reduce((sum, row) => {
+        ['scheduled', 'submitted', 'normal', 'problem', 'leave', 'late', 'onBehalf', 'exempted', 'missing'].forEach(key => { sum[key] += row[key]; });
+        return sum;
+      }, { scheduled: 0, submitted: 0, normal: 0, problem: 0, leave: 0, late: 0, onBehalf: 0, exempted: 0, missing: 0 });
+      totals.reportRate = totals.scheduled ? Math.round((totals.submitted / totals.scheduled) * 100) : 0;
+      totals.completionRate = totals.scheduled ? Math.round(((totals.submitted + totals.exempted) / totals.scheduled) * 100) : 0;
+      totals.operationRate = totals.scheduled ? Math.round(((totals.normal + totals.problem) / totals.scheduled) * 100) : 0;
+
+      return { rows, totals, selectedStart, selectedEnd, effectiveEnd };
+    }
+
+    function performanceStatusLabel(detail) {
+      if (detail.status === 'reported') return 'รายงานแล้ว';
+      if (detail.status === 'problem') return 'พบปัญหา';
+      if (detail.status === 'leave') return 'ลา';
+      if (detail.status === 'late') return 'รายงานสาย';
+      if (detail.status === 'exempted') return 'ยกเว้นเวร';
+      return 'ยังไม่ได้รายงาน';
+    }
+
+    function performanceStatusClass(status) {
+      if (status === 'reported') return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+      if (status === 'problem') return 'bg-red-50 text-red-700 border-red-100';
+      if (status === 'leave') return 'bg-slate-100 text-slate-700 border-slate-200';
+      if (status === 'late') return 'bg-orange-50 text-orange-700 border-orange-100';
+      if (status === 'exempted') return 'bg-sky-50 text-sky-700 border-sky-100';
+      return 'bg-rose-50 text-rose-700 border-rose-100';
+    }
+
+    function renderPerformanceMetric(label, value, tone = 'slate') {
+      const colors = {
+        slate: 'bg-slate-50 border-slate-200 text-slate-800',
+        blue: 'bg-blue-50 border-blue-100 text-blue-800',
+        emerald: 'bg-emerald-50 border-emerald-100 text-emerald-800',
+        amber: 'bg-amber-50 border-amber-100 text-amber-800',
+        rose: 'bg-rose-50 border-rose-100 text-rose-800',
+        sky: 'bg-sky-50 border-sky-100 text-sky-800'
+      };
+      return `<div class="rounded-xl border px-3 py-2 ${colors[tone] || colors.slate}"><p class="text-[10px] font-bold opacity-70">${label}</p><p class="text-lg font-black mt-0.5">${value}</p></div>`;
+    }
+
+    function renderPerformanceSummaryTable(rows) {
+      if (!rows.length) return '<div class="p-10 text-center text-sm text-slate-400">ไม่พบข้อมูลเวรในช่วงที่เลือก</div>';
+      return `
+        <div class="overflow-x-auto">
+          <table class="w-full text-[11px] min-w-[1080px] border-collapse">
+            <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
+              <tr>
+                <th class="px-3 py-3 text-center">ที่</th><th class="px-3 py-3 text-left">รหัส</th><th class="px-3 py-3 text-left">ชื่อ-นามสกุล</th><th class="px-3 py-3 text-left">กลุ่มเวร</th>
+                <th class="px-3 py-3 text-center">ตามแผน</th><th class="px-3 py-3 text-center">ส่งรายงาน</th><th class="px-3 py-3 text-center">ปฏิบัติจริง</th><th class="px-3 py-3 text-center">ลา</th><th class="px-3 py-3 text-center">ยกเว้น</th><th class="px-3 py-3 text-center">ขาดรายงาน</th><th class="px-3 py-3 text-center">สาย</th><th class="px-3 py-3 text-center">อัตราครบ</th><th class="px-3 py-3 text-center no-print">เอกสาร</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              ${rows.map((row, index) => `
+                <tr class="hover:bg-slate-50">
+                  <td class="px-3 py-2 text-center">${index + 1}</td><td class="px-3 py-2 font-mono font-bold text-slate-500">${escapeHtml(row.teacherId)}</td><td class="px-3 py-2 font-bold text-slate-800">${escapeHtml(row.name)}</td><td class="px-3 py-2">${escapeHtml(row.group)}</td>
+                  <td class="px-3 py-2 text-center font-bold">${row.scheduled}</td><td class="px-3 py-2 text-center text-blue-700 font-bold">${row.submitted}</td><td class="px-3 py-2 text-center text-emerald-700 font-bold">${row.normal + row.problem}</td><td class="px-3 py-2 text-center">${row.leave}</td><td class="px-3 py-2 text-center text-sky-700">${row.exempted}</td><td class="px-3 py-2 text-center text-rose-700 font-bold">${row.missing}</td><td class="px-3 py-2 text-center text-orange-700">${row.late}</td><td class="px-3 py-2 text-center font-black">${row.completionRate}%</td>
+                  <td class="px-3 py-2 text-center no-print"><button type="button" onclick="printPerformanceTeacherReport('${escapeHtml(row.teacherId)}')" class="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-brand-800 text-white font-bold hover:bg-brand-700"><i data-lucide="printer" class="w-3 h-3"></i> รายบุคคล</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderPerformanceDetail(row) {
+      return `
+        <div class="bg-white border border-slate-300 rounded-xl p-5 md:p-7 print-container text-black" style="font-family:'Sarabun',sans-serif">
+          <div class="text-center border-b border-slate-300 pb-4 mb-4">
+            <div class="w-14 h-14 mx-auto rounded-full overflow-hidden flex items-center justify-center text-white font-bold border border-black/15 bg-brand-850 mb-2">${db.getSettings().schoolLogo ? `<img src="${escapeHtml(db.getSettings().schoolLogo)}" class="w-full h-full object-cover">` : 'อซ'}</div>
+            <h2 class="text-base font-bold">${escapeHtml(db.getSettings().schoolName)}</h2>
+            <h3 class="text-sm font-bold mt-1">รายงานสรุปการปฏิบัติและการรายงานเวรรายบุคคล</h3>
+            <p class="text-xs mt-1">${escapeHtml(row.name)} · รหัส ${escapeHtml(row.teacherId)} · ${escapeHtml(row.group)}</p>
+            <p class="text-xs text-slate-600">ช่วงวันที่ ${formatPerformanceDate(currentPerformanceReportStart)} ถึง ${formatPerformanceDate(currentPerformanceReportEnd)}</p>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
+            ${renderPerformanceMetric('เวรตามแผน', row.scheduled, 'blue')}
+            ${renderPerformanceMetric('ส่งรายงาน', row.submitted, 'emerald')}
+            ${renderPerformanceMetric('ปฏิบัติจริง', row.normal + row.problem, 'emerald')}
+            ${renderPerformanceMetric('ขาดรายงาน', row.missing, 'rose')}
+            ${renderPerformanceMetric('ลา', row.leave, 'slate')}
+            ${renderPerformanceMetric('ยกเว้นเวร', row.exempted, 'sky')}
+            ${renderPerformanceMetric('รายงานสาย', row.late, 'amber')}
+            ${renderPerformanceMetric('อัตราครบ', `${row.completionRate}%`, 'blue')}
+          </div>
+          <table class="w-full text-[10px] border-collapse border border-slate-400">
+            <thead class="bg-slate-50"><tr><th class="border border-slate-400 px-2 py-2">วันที่</th><th class="border border-slate-400 px-2 py-2">สัปดาห์</th><th class="border border-slate-400 px-2 py-2 text-left">จุดเวร</th><th class="border border-slate-400 px-2 py-2">เวลาเวร</th><th class="border border-slate-400 px-2 py-2">สถานะ</th><th class="border border-slate-400 px-2 py-2">เวลารายงาน/หมายเหตุ</th></tr></thead>
+            <tbody>
+              ${row.details.map(detail => {
+                const report = detail.report;
+                const note = report ? (report.status === 'problem' ? report.problem : report.status === 'leave' ? report.result : `${report.time || '-'} น.${report.submittedOnBehalf ? ' · รายงานแทน' : ''}`) : detail.exempted ? 'ประกาศยกเว้นการปฏิบัติเวร' : '-';
+                return `<tr><td class="border border-slate-400 px-2 py-1.5 text-center">${formatPerformanceDate(detail.date)}</td><td class="border border-slate-400 px-2 py-1.5 text-center">${detail.week || '-'}</td><td class="border border-slate-400 px-2 py-1.5">จุดที่ ${getDutyPointDisplayNumber(detail.point)} · ${escapeHtml(detail.point.name)}</td><td class="border border-slate-400 px-2 py-1.5 text-center">${escapeHtml(detail.point.time || '-')}</td><td class="border border-slate-400 px-2 py-1.5 text-center"><span class="inline-block rounded-full border px-2 py-0.5 font-bold ${performanceStatusClass(detail.status)}">${performanceStatusLabel(detail)}${report?.isLate && detail.status !== 'late' ? ' · สาย' : ''}</span></td><td class="border border-slate-400 px-2 py-1.5">${escapeHtml(note || '-')}</td></tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+          <div class="grid grid-cols-2 gap-8 text-center text-xs mt-10"><div>ลงชื่อ..........................................................<br><span class="font-bold">(${escapeHtml(row.name)})</span><br>ผู้ปฏิบัติหน้าที่เวร</div><div>ลงชื่อ..........................................................<br><span class="font-bold">(${escapeHtml(db.getSettings().headName || '..........................................')})</span><br>ผู้รับรองผล</div></div>
+        </div>
+      `;
+    }
+
+    function renderPerformanceDocumentsView() {
+      ensurePerformanceReportDateDefaults();
+      const data = buildPerformanceReportModel(performanceReportCache.reports || []);
+      const teachers = data.rows;
+      const selectedRow = currentPerformanceReportTeacherId !== 'all'
+        ? teachers.find(row => String(row.teacherId) === String(currentPerformanceReportTeacherId))
+        : null;
+      const totals = data.totals;
+      const cacheKey = `${currentPerformanceReportStart}|${currentPerformanceReportEnd}`;
+      const isLoading = performanceReportCache.loading && performanceReportCache.key === cacheKey;
+
+      return `
+        <div class="fade-in space-y-5 text-xs">
+          ${renderDocumentsModeSwitcher(currentDocumentsMode)}
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 border-b pb-4 ${currentDocumentsMode === 'individual' && selectedRow ? 'no-print' : ''}">
+            <div><p class="text-xs text-slate-500 flex items-center gap-1.5"><i data-lucide="chart-no-axes-combined" class="w-4 h-4 text-brand-700"></i> รายงานจากข้อมูลการมอบหมายและรายงานเวรจริง</p><h3 class="text-lg font-bold text-slate-900 mt-1">${currentDocumentsMode === 'individual' ? 'รายงานการปฏิบัติและการรายงานเวรรายบุคคล' : 'สรุปผลการปฏิบัติงานเวรประจำภาคเรียน'}</h3><p class="text-[10px] text-slate-500 mt-1">ช่วงวันที่ ${formatPerformanceDate(currentPerformanceReportStart)} ถึง ${formatPerformanceDate(currentPerformanceReportEnd)}${data.effectiveEnd < currentPerformanceReportEnd ? ' · คำนวณถึงวันที่ปัจจุบัน' : ''}</p></div>
+            <div class="flex flex-wrap gap-2 no-print"><button type="button" onclick="refreshPerformanceReportView(true)" class="bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg font-bold hover:bg-slate-50"><i data-lucide="refresh-cw" class="w-3.5 h-3.5 inline-block"></i> โหลดข้อมูลใหม่</button><button type="button" onclick="window.print()" class="bg-brand-800 text-white px-3 py-2 rounded-lg font-bold hover:bg-brand-700"><i data-lucide="printer" class="w-3.5 h-3.5 inline-block"></i> พิมพ์เอกสาร</button></div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm no-print">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+              <label class="block"><span class="block text-[10px] font-bold text-slate-500 mb-1">ตั้งแต่วันที่</span><input id="performance-report-start" type="date" value="${escapeHtml(currentPerformanceReportStart)}" onchange="onPerformanceReportDateChange()" class="w-full border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-brand-500"></label>
+              <label class="block"><span class="block text-[10px] font-bold text-slate-500 mb-1">ถึงวันที่</span><input id="performance-report-end" type="date" value="${escapeHtml(currentPerformanceReportEnd)}" onchange="onPerformanceReportDateChange()" class="w-full border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-brand-500"></label>
+              <label class="block"><span class="block text-[10px] font-bold text-slate-500 mb-1">กลุ่มเวร</span><select id="performance-report-group" onchange="onPerformanceReportFilterChange()" class="w-full border rounded-lg px-3 py-2 bg-white outline-none focus:ring-1 focus:ring-brand-500"><option value="all" ${currentPerformanceReportGroup === 'all' ? 'selected' : ''}>ทุกกลุ่ม</option><option value="ครูชาย" ${currentPerformanceReportGroup === 'ครูชาย' ? 'selected' : ''}>เวรครูชาย</option><option value="ครูหญิง" ${currentPerformanceReportGroup === 'ครูหญิง' ? 'selected' : ''}>เวรครูหญิง</option></select></label>
+              <label class="block"><span class="block text-[10px] font-bold text-slate-500 mb-1">เลือกครูรายบุคคล</span><select id="performance-report-teacher" onchange="onPerformanceReportTeacherChange(this.value)" class="w-full border rounded-lg px-3 py-2 bg-white outline-none focus:ring-1 focus:ring-brand-500"><option value="all">แสดงสรุปทุกคน</option>${teachers.map(row => `<option value="${escapeHtml(row.teacherId)}" ${String(currentPerformanceReportTeacherId) === String(row.teacherId) ? 'selected' : ''}>${escapeHtml(row.name)} (${escapeHtml(row.teacherId)})</option>`).join('')}</select></label>
+              <button type="button" onclick="resetPerformanceReportFilters()" class="border border-slate-300 bg-white text-slate-600 rounded-lg px-3 py-2 font-bold hover:bg-slate-50">ล้างตัวกรอง</button>
+            </div>
+            ${performanceReportCache.warning ? `<div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 px-3 py-2 text-[10px]">⚠️ ${escapeHtml(performanceReportCache.warning)}</div>` : ''}
+            ${isLoading ? '<div class="mt-3 text-[10px] text-brand-700 font-bold">กำลังโหลดประวัติรายงานเวรจาก Supabase...</div>' : ''}
+          </div>
+          ${currentDocumentsMode === 'individual' && selectedRow ? renderPerformanceDetail(selectedRow) : `
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 no-print">
+              ${renderPerformanceMetric('ครูที่มีเวร', teachers.length, 'blue')}${renderPerformanceMetric('เวรตามแผน', totals.scheduled, 'slate')}${renderPerformanceMetric('ส่งรายงาน', totals.submitted, 'emerald')}${renderPerformanceMetric('ปฏิบัติจริง', totals.normal + totals.problem, 'emerald')}${renderPerformanceMetric('ลา', totals.leave, 'slate')}${renderPerformanceMetric('ยกเว้น', totals.exempted, 'sky')}${renderPerformanceMetric('ขาดรายงาน', totals.missing, 'rose')}${renderPerformanceMetric('อัตราครบ', `${totals.completionRate}%`, 'blue')}
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden print-container"><div class="px-4 py-3 border-b bg-slate-50 flex items-center justify-between"><h4 class="font-bold text-slate-800">สรุปผลรายบุคคล</h4><span class="text-[10px] text-slate-500">อัตราครบ = ส่งรายงานหรือได้รับยกเว้น ÷ เวรตามแผน</span></div>${renderPerformanceSummaryTable(teachers)}</div>
+          `}
+        </div>
+      `;
+    }
+
+    function onPerformanceReportDateChange() {
+      const start = document.getElementById('performance-report-start')?.value;
+      const end = document.getElementById('performance-report-end')?.value;
+      if (!start || !end || start > end) { showToast('กรุณาเลือกช่วงวันที่ให้ถูกต้อง', 'warning'); return; }
+      currentPerformanceReportStart = start;
+      currentPerformanceReportEnd = end;
+      performanceReportCache = { key: '', reports: [], source: 'local', warning: '', loading: false };
+      renderPage('documents');
+    }
+
+    function onPerformanceReportFilterChange() {
+      currentPerformanceReportGroup = document.getElementById('performance-report-group')?.value || 'all';
+      currentPerformanceReportTeacherId = 'all';
+      renderPage('documents');
+    }
+
+    function onPerformanceReportTeacherChange(value) {
+      currentPerformanceReportTeacherId = value || 'all';
+      currentDocumentsMode = currentPerformanceReportTeacherId === 'all' ? 'semester' : 'individual';
+      renderPage('documents');
+    }
+
+    function resetPerformanceReportFilters() {
+      const range = getPerformanceReportDefaultRange();
+      currentPerformanceReportStart = range.start;
+      currentPerformanceReportEnd = range.end;
+      currentPerformanceReportTeacherId = 'all';
+      currentPerformanceReportGroup = 'all';
+      performanceReportCache = { key: '', reports: [], source: 'local', warning: '', loading: false };
+      renderPage('documents');
+    }
+
+    function refreshPerformanceReportView(force = false) {
+      if (force) performanceReportCache = { key: '', reports: [], source: 'local', warning: '', loading: false };
+      renderPage('documents');
+    }
+
+    function printPerformanceTeacherReport(teacherId) {
+      currentPerformanceReportTeacherId = teacherId;
+      currentDocumentsMode = 'individual';
+      renderPage('documents');
+      setTimeout(() => window.print(), 300);
     }
 
     async function prepareDocumentsForPrint() {
