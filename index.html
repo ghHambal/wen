@@ -921,7 +921,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.35.10';
+    const APP_VERSION = '1.35.12';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -6106,7 +6106,11 @@
       const selectedEnd = currentPerformanceReportEnd;
       const today = getTodayISODate();
       const effectiveEnd = selectedEnd < today ? selectedEnd : today;
-      const teachers = getPerformanceReportTeachers();
+      // กรองผู้ปฏิบัติงานตามกลุ่มครูด้วย ไม่ใช่กรองเฉพาะจุดเวร
+      // เพราะจุดเวร "ผสม" อาจถูกนับได้ทั้งสองฝั่ง แต่รายชื่อในเอกสารต้องแยกตามเพศครูที่เลือก
+      const teachers = getPerformanceReportTeachers().filter(teacher =>
+        currentPerformanceReportGroup === 'all' || getTeacherDutyGroup(teacher) === currentPerformanceReportGroup
+      );
       const rowsById = new Map(teachers.map(t => [t.id, createPerformanceTeacherRow(t)]));
       const reportMap = new Map();
 
@@ -6264,8 +6268,12 @@
       if (!rows.length) return '<div class="p-10 text-center text-sm text-slate-400">ไม่พบข้อมูลเวรในช่วงที่เลือก</div>';
       const sortedRows = sortPerformanceRows(rows);
       return `
-        <div class="overflow-x-auto">
-          <table class="w-full text-[11px] min-w-[1420px] border-collapse performance-summary-table">
+        <div class="overflow-x-auto performance-summary-table-wrap">
+          <table class="w-full text-[12px] min-w-[1420px] border-collapse performance-summary-table">
+            <colgroup>
+              <col class="col-rank"><col class="col-id"><col class="col-name">
+              <col class="col-number" span="7"><col class="col-rate" span="3"><col class="col-score"><col class="col-grade"><col class="col-action">
+            </colgroup>
             <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
               <tr>
                 <th class="px-3 py-3 text-center">ที่</th>${renderPerformanceSortHeader('รหัส', 'teacherId', 'text-left')}${renderPerformanceSortHeader('ชื่อ-นามสกุล', 'name', 'text-left')}
@@ -6360,9 +6368,9 @@
       const isLoading = performanceReportCache.loading && performanceReportCache.key === cacheKey;
 
       return `
-        <div class="fade-in space-y-5 text-xs print-performance-page ${currentPrintOrientation === 'landscape' ? 'print-landscape' : 'print-portrait'}">
+        <div class="fade-in space-y-5 text-xs">
           ${renderDocumentsModeSwitcher(currentDocumentsMode)}
-          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 border-b pb-4 ${currentDocumentsMode === 'individual' && selectedRow ? 'no-print' : ''}">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 border-b pb-4 no-print">
             <div><p class="text-xs text-slate-500 flex items-center gap-1.5"><i data-lucide="chart-no-axes-combined" class="w-4 h-4 text-brand-700"></i> รายงานจากข้อมูลการมอบหมายและรายงานเวรจริง</p><h3 class="text-lg font-bold text-slate-900 mt-1">${currentDocumentsMode === 'individual' ? 'รายงานการปฏิบัติและการรายงานเวรรายบุคคล' : 'สรุปผลการปฏิบัติงานเวรประจำภาคเรียน'}</h3><p class="text-[10px] text-slate-500 mt-1">ช่วงวันที่ ${formatPerformanceDate(currentPerformanceReportStart)} ถึง ${formatPerformanceDate(currentPerformanceReportEnd)}${data.effectiveEnd < currentPerformanceReportEnd ? ' · คำนวณถึงวันที่ปัจจุบัน' : ''}</p></div>
             <div class="flex flex-wrap gap-2 no-print"><label class="inline-flex items-center gap-2 border border-slate-300 bg-white px-3 py-2 rounded-lg font-bold text-slate-700"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i><span>กระดาษ</span><select onchange="onPrintOrientationChange(this.value)" class="bg-transparent outline-none"><option value="portrait" ${currentPrintOrientation === 'portrait' ? 'selected' : ''}>แนวตั้ง</option><option value="landscape" ${currentPrintOrientation === 'landscape' ? 'selected' : ''}>แนวนอน</option></select></label><button type="button" onclick="refreshPerformanceReportView(true)" class="bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg font-bold hover:bg-slate-50"><i data-lucide="refresh-cw" class="w-3.5 h-3.5 inline-block"></i> โหลดข้อมูลใหม่</button><button type="button" onclick="window.print()" class="bg-brand-800 text-white px-3 py-2 rounded-lg font-bold hover:bg-brand-700"><i data-lucide="printer" class="w-3.5 h-3.5 inline-block"></i> พิมพ์เอกสาร</button></div>
           </div>

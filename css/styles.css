@@ -55,8 +55,19 @@
         height: auto !important;
       }
       .print-container { padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
-      .performance-summary-table { min-width: 0 !important; table-layout: fixed; font-size: 8px !important; }
-      .performance-summary-table th, .performance-summary-table td { padding: 2px 1px !important; line-height: 1.15 !important; word-break: break-word; }
+      .performance-summary-table-wrap { overflow: visible !important; width: 100% !important; }
+      .performance-summary-table { width: 100% !important; min-width: 0 !important; table-layout: fixed; font-size: 10px !important; }
+      .performance-summary-table .col-action { display: none !important; }
+      .performance-summary-table th, .performance-summary-table td { padding: 4px 2px !important; line-height: 1.2 !important; word-break: normal; }
+      .performance-summary-table th button { font-size: 10px !important; line-height: 1.1 !important; }
+      .performance-summary-table .col-rank { width: 3%; }
+      .performance-summary-table .col-id { width: 7%; }
+      .performance-summary-table .col-name { width: 26%; }
+      .performance-summary-table .col-number { width: 4.1%; }
+      .performance-summary-table .col-rate { width: 6%; }
+      .performance-summary-table .col-score { width: 5%; }
+      .performance-summary-table .col-grade { width: 4%; }
+      .performance-summary-table th:nth-child(n+4):nth-child(-n+15), .performance-summary-table td:nth-child(n+4):nth-child(-n+15) { white-space: nowrap; }
       .doc-page { page-break-after: always; }
       .doc-page:last-of-type { page-break-after: auto; }
       .doc-table thead { display: table-header-group; }
@@ -86,6 +97,13 @@
     }
     .print-performance-page.print-portrait { page: performance-portrait; }
     .print-performance-page.print-landscape { page: performance-landscape; }
+    .performance-summary-table .col-rank { width: 4%; }
+    .performance-summary-table .col-id { width: 8%; }
+    .performance-summary-table .col-name { width: 24%; }
+    .performance-summary-table .col-number { width: 5%; }
+    .performance-summary-table .col-rate { width: 6.5%; }
+    .performance-summary-table .col-score { width: 6%; }
+    .performance-summary-table .col-grade { width: 5%; }
     .fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
     @keyframes fadeIn { 
       from { opacity: 0; transform: translateY(8px); } 
