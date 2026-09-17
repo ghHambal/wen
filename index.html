@@ -798,6 +798,7 @@
     const FULL_OFFLINE_REPORT_DAYS = 30;
     window.cloudTeachersFullList = null;
     window.cloudReportsFullList = null;
+    let teacherGenderColumnAvailable = null;
 
     // Local DB backup
     const db = {
@@ -921,7 +922,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.35.14';
+    const APP_VERSION = '1.35.15';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1137,6 +1138,9 @@
         const columns = isFullAdminDownload ? '*' : TEACHER_LIGHT_COLUMNS;
         const teachers = await supabaseClient.from('teachers').select(columns);
         if (teachers.data && teachers.data.length > 0) db.saveTeachers(teachers.data);
+        // รองรับฐานข้อมูลรุ่นเก่าที่ยังไม่มี teachers.gender: ถ้ามีคอลัมน์นี้แล้ว
+        // จะนำมาใช้จริง แต่ถ้ายังไม่มีให้ข้ามอย่างเงียบ ๆ และใช้กลุ่มจากการมอบหมายเวรแทน
+        if (!isFullAdminDownload) await syncTeacherGenderMetadata();
         if (!isFullAdminDownload && currentUser && isUserAdminOrHead()) {
           await syncTeacherMediaPresenceFromCloud();
         }
@@ -1145,6 +1149,26 @@
         }
       } catch (err) {
         console.warn("Failed to sync teachers table:", err);
+      }
+    }
+
+    async function syncTeacherGenderMetadata() {
+      if (!supabaseClient || !navigator.onLine || teacherGenderColumnAvailable === false) return;
+      try {
+        const result = await supabaseClient.from('teachers').select('id,gender');
+        if (result.error) {
+          teacherGenderColumnAvailable = false;
+          return;
+        }
+        teacherGenderColumnAvailable = true;
+        if (!Array.isArray(result.data) || result.data.length === 0) return;
+        const genderById = new Map(result.data.map(row => [String(row.id), row.gender]));
+        const teachers = db.getTeachers().map(teacher => genderById.has(String(teacher.id))
+          ? { ...teacher, gender: genderById.get(String(teacher.id)) }
+          : teacher);
+        db.saveTeachers(teachers);
+      } catch (_) {
+        // คอลัมน์ gender อาจยังไม่ถูกเพิ่มในฐานข้อมูลรุ่นเก่า — ใช้ fallback ของรายงานต่อได้
       }
     }
 
@@ -6208,7 +6232,7 @@
       // กรองผู้ปฏิบัติงานตามกลุ่มครูด้วย ไม่ใช่กรองเฉพาะจุดเวร
       // เพราะจุดเวร "ผสม" อาจถูกนับได้ทั้งสองฝั่ง แต่รายชื่อในเอกสารต้องแยกตามเพศครูที่เลือก
       const teachers = getPerformanceReportTeachers().filter(teacher =>
-        currentPerformanceReportGroup === 'all' || getTeacherDutyGroup(teacher) === currentPerformanceReportGroup
+        currentPerformanceReportGroup === 'all' || getPerformanceTeacherGroups(teacher).includes(currentPerformanceReportGroup)
       );
       const rowsById = new Map(teachers.map(t => [t.id, createPerformanceTeacherRow(t)]));
       const reportMap = new Map();
@@ -6225,7 +6249,7 @@
           const dateStr = formatDateISO(cursor);
           teachers.forEach(teacher => {
             const teacherRow = rowsById.get(teacher.id);
-            const points = getDutyPointsForTeacher(teacher.id, dateStr)
+            const points = getDutyPointsForTeacher(teacher.id, dateStr, currentPerformanceReportGroup)
               .filter(point => currentPerformanceReportGroup === 'all' || dutyGroupMatches(point.dutyGroup, currentPerformanceReportGroup));
             const seenPointIds = new Set();
 
@@ -10060,6 +10084,30 @@
       return getTeacherGender(t) === 'ชาย' ? 'ครูชาย' : 'ครูหญิง';
     }
 
+    // รายงานภาคเรียนต้องแยกครูให้ครบแม้ฐานข้อมูลรุ่นเก่ายังไม่มี teachers.gender
+    // จึงใช้กลุ่มของจุดเวรที่ครูถูกมอบหมายเป็นหลักก่อน fallback ไปที่คำนำหน้าชื่อ
+    function getPerformanceTeacherGroups(t) {
+      if (!t) return ['ครูชาย'];
+      if (t.gender === 'ชาย' || t.gender === 'หญิง') return [getTeacherDutyGroup(t)];
+
+      const assignedGroups = new Set();
+      db.getDutyPoints().forEach(point => {
+        const assigned = Array.isArray(point.assignedTo || point.assigned_to)
+          ? (point.assignedTo || point.assigned_to)
+          : [];
+        const assignedToTeacher = assigned.some(item => {
+          const teacherId = String(item || '').includes(':')
+            ? String(item).split(':').slice(1).join(':')
+            : String(item || '');
+          return teacherId === String(t.id);
+        });
+        if (!assignedToTeacher) return;
+        if (point.dutyGroup === 'ครูชาย' || point.dutyGroup === 'ครูหญิง') assignedGroups.add(point.dutyGroup);
+      });
+
+      return assignedGroups.size ? [...assignedGroups] : [getTeacherDutyGroup(t)];
+    }
+
     // คืน true ถ้าจุดเวรกลุ่ม pointGroup ควรนับรวมในมุมมองของ targetGroup
     // ('ผสม' = ชาย-หญิงทำงานร่วมกัน จึงนับรวมทั้งฝั่งครูชายและครูหญิงเสมอ)
     function dutyGroupMatches(pointGroup, targetGroup) {
@@ -10132,17 +10180,19 @@
     }
 
     // จุดเวรของครู teacherId สำหรับวันที่ dateStr (YYYY-MM-DD) - เหมือน getMyDutyPoints() แต่ใช้กับครูคนอื่น/วันอื่นได้
-    function getDutyPointsForTeacher(teacherId, dateStr) {
+    function getDutyPointsForTeacher(teacherId, dateStr, dutyGroupOverride = null) {
       const points = db.getDutyPoints();
       const teacher = db.getTeachers().find(t => t.id === teacherId);
       if (!teacher) return [];
       const dayName = getThaiDayNameForDate(dateStr);
-      const group = getTeacherDutyGroup(teacher);
+      const groups = dutyGroupOverride === 'all'
+        ? ['ครูชาย', 'ครูหญิง']
+        : dutyGroupOverride ? [dutyGroupOverride] : [getTeacherDutyGroup(teacher)];
       const settings = db.getSettings();
       const defaultDay = settings.dutyDay || 'อังคาร';
 
       return points.filter(p => {
-        if (!dutyGroupMatches(p.dutyGroup, group)) return false;
+        if (!groups.some(group => dutyGroupMatches(p.dutyGroup, group))) return false;
         const list = p.assignedTo || p.assigned_to || [];
         return list.some(item => {
           if (item.includes(':')) {
