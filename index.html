@@ -921,7 +921,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.35.13';
+    const APP_VERSION = '1.35.14';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -6178,9 +6178,12 @@
         ...row,
         ...calculateAwardPerformanceForDetails(row.details)
       }));
-      const rows = awardRows.filter(row => row.awardEligible);
+      // แสดงทุกคนที่มีข้อมูลเวรในเอกสาร ส่วนผู้ที่ข้อมูลไม่ถึงเกณฑ์จะแสดง "ไม่จัดอันดับ"
+      // เพื่อไม่ให้รายชื่อหายจากเอกสารตรวจสอบ เพียงเพราะไม่เข้าเกณฑ์รับการจัดอันดับ
+      const rows = awardRows;
+      const eligibleRows = awardRows.filter(row => row.awardEligible);
       const excludedRows = awardRows.filter(row => !row.awardEligible);
-      const totals = rows.reduce((sum, row) => {
+      const totals = awardRows.reduce((sum, row) => {
         ['evaluatedScheduled', 'submitted', 'normal', 'problem', 'leave', 'late', 'missing', 'exempted'].forEach(key => {
           sum[key] += Number(row[key] || 0);
         });
@@ -6192,7 +6195,7 @@
       totals.operationRate = totals.evaluatedScheduled
         ? Math.round(((totals.normal + totals.problem) / totals.evaluatedScheduled) * 100)
         : 0;
-      return { ...standardModel, rows, excludedRows, totals };
+      return { ...standardModel, rows, eligibleRows, excludedRows, totals };
     }
 
     function buildPerformanceReportModel(reports) {
@@ -6394,8 +6397,11 @@
 
     function renderAwardSummaryTable(rows, excludedRows = []) {
       const exclusionNote = excludedRows.length ? `<div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] text-slate-600">ไม่จัดอันดับ ${excludedRows.length} คน เนื่องจากมีเวรที่ไม่ถูกยกเว้นสำหรับประเมินน้อยกว่า ${AWARD_MIN_EVALUATED_DUTIES} เวร: ${excludedRows.map(row => `${escapeHtml(row.name)} (${row.evaluatedScheduled} เวร)`).join(' · ')}</div>` : '';
-      if (!rows.length) return `<div class="p-10 text-center text-sm text-slate-400">ยังไม่มีผู้ที่มีข้อมูลปฏิบัติจริงครบตามเกณฑ์ขั้นต่ำสำหรับจัดอันดับ</div>${exclusionNote}`;
-      const sortedRows = sortAwardRows(rows);
+      if (!rows.length) return '<div class="p-10 text-center text-sm text-slate-400">ไม่พบข้อมูลเวรในช่วงที่เลือก</div>';
+      const rankedRows = sortAwardRows(rows.filter(row => row.awardEligible));
+      const unrankedRows = sortAwardRows(rows.filter(row => !row.awardEligible));
+      const sortedRows = [...rankedRows, ...unrankedRows];
+      const rankByTeacherId = new Map(rankedRows.map((row, index) => [String(row.teacherId), index + 1]));
       return `
         <div class="overflow-x-auto performance-summary-table-wrap">
           <table class="w-full text-[12px] min-w-[1180px] border-collapse performance-summary-table">
@@ -6426,7 +6432,7 @@
             <tbody class="divide-y divide-slate-100">
               ${sortedRows.map((row, index) => `
                 <tr class="hover:bg-slate-50">
-                  <td class="px-3 py-2 text-center font-black">${index + 1}</td>
+                  <td class="px-3 py-2 text-center font-black ${row.awardEligible ? '' : 'text-slate-400'}">${rankByTeacherId.get(String(row.teacherId)) || '—'}</td>
                   <td class="px-3 py-2 font-mono font-bold text-slate-500">${escapeHtml(row.teacherId)}</td>
                   <td class="px-3 py-2 font-bold text-slate-800">${escapeHtml(row.name)}</td>
                   <td class="px-3 py-2 text-center font-bold">${row.evaluatedScheduled}</td>
@@ -6435,12 +6441,12 @@
                   <td class="px-3 py-2 text-center text-rose-700 font-bold">${row.missing}</td>
                   <td class="px-3 py-2 text-center text-orange-700">${row.late}</td>
                   <td class="px-3 py-2 text-center text-sky-700">${row.exempted}</td>
-                  <td class="px-3 py-2 text-center font-black">${row.completionRate}%</td>
-                  <td class="px-3 py-2 text-center font-black">${row.operationRate}%</td>
-                  <td class="px-3 py-2 text-center font-black">${row.compliance}%</td>
-                  <td class="px-3 py-2 text-center font-black">${row.punctuality}%</td>
-                  <td class="px-3 py-2 text-center font-black text-brand-900">${row.score}</td>
-                  <td class="px-3 py-2 text-center"><span class="${row.badgeClass} px-2 py-0.5 rounded font-black">${row.grade}</span></td>
+                  <td class="px-3 py-2 text-center font-black">${row.completionRate === null ? '—' : `${row.completionRate}%`}</td>
+                  <td class="px-3 py-2 text-center font-black">${row.operationRate === null ? '—' : `${row.operationRate}%`}</td>
+                  <td class="px-3 py-2 text-center font-black">${row.compliance === null ? '—' : `${row.compliance}%`}</td>
+                  <td class="px-3 py-2 text-center font-black">${row.punctuality === null ? '—' : `${row.punctuality}%`}</td>
+                  <td class="px-3 py-2 text-center font-black text-brand-900">${row.score === null ? '—' : row.score}</td>
+                  <td class="px-3 py-2 text-center">${row.awardEligible ? `<span class="${row.badgeClass} px-2 py-0.5 rounded font-black">${row.grade}</span>` : '<span class="text-slate-400 font-bold">ไม่จัดอันดับ</span>'}</td>
                   <td class="px-3 py-2 text-center no-print"><button type="button" onclick="printPerformanceTeacherReport('${escapeHtml(row.teacherId)}')" class="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-brand-800 text-white font-bold hover:bg-brand-700"><i data-lucide="printer" class="w-3 h-3"></i> รายบุคคล</button></td>
                 </tr>
               `).join('')}
@@ -6559,7 +6565,7 @@
           ${currentDocumentsMode === 'individual' && selectedRow ? renderPerformanceDetail(selectedRow) : `
             <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 no-print">
               ${isAwardMode
-                ? `${renderPerformanceMetric('ผู้มีสิทธิ์จัดอันดับ', teachers.length, 'blue')}${renderPerformanceMetric('เวรที่ใช้ประเมิน', totals.evaluatedScheduled, 'slate')}${renderPerformanceMetric('ส่งรายงาน', totals.submitted, 'emerald')}${renderPerformanceMetric('ปฏิบัติจริง', totals.normal + totals.problem, 'emerald')}${renderPerformanceMetric('ขาดรายงาน', totals.missing, 'rose')}${renderPerformanceMetric('รายงานสาย', totals.late, 'amber')}${renderPerformanceMetric('เวรที่ยกเว้น', totals.exempted, 'sky')}${renderPerformanceMetric('อัตราครบ', `${totals.completionRate}%`, 'blue')}`
+                ? `${renderPerformanceMetric('ผู้มีสิทธิ์จัดอันดับ', data.eligibleRows.length, 'blue')}${renderPerformanceMetric('เวรที่ใช้ประเมิน', totals.evaluatedScheduled, 'slate')}${renderPerformanceMetric('ส่งรายงาน', totals.submitted, 'emerald')}${renderPerformanceMetric('ปฏิบัติจริง', totals.normal + totals.problem, 'emerald')}${renderPerformanceMetric('ขาดรายงาน', totals.missing, 'rose')}${renderPerformanceMetric('รายงานสาย', totals.late, 'amber')}${renderPerformanceMetric('เวรที่ยกเว้น', totals.exempted, 'sky')}${renderPerformanceMetric('อัตราครบ', `${totals.completionRate}%`, 'blue')}`
                 : `${renderPerformanceMetric('ครูที่มีเวร', teachers.length, 'blue')}${renderPerformanceMetric('เวรตามแผน', totals.scheduled, 'slate')}${renderPerformanceMetric('ส่งรายงาน', totals.submitted, 'emerald')}${renderPerformanceMetric('ปฏิบัติจริง', totals.normal + totals.problem, 'emerald')}${renderPerformanceMetric('ลา', totals.leave, 'slate')}${renderPerformanceMetric('ยกเว้น', totals.exempted, 'sky')}${renderPerformanceMetric('ขาดรายงาน', totals.missing, 'rose')}${renderPerformanceMetric('อัตราครบ', `${totals.completionRate}%`, 'blue')}`}
             </div>
             <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden print-container print-performance-page ${currentPrintOrientation === 'landscape' ? 'print-landscape' : 'print-portrait'}"><div class="p-5 pb-2">${renderPerformancePrintHeader(documentTitle)}</div><div class="px-4 py-3 border-y bg-slate-50 flex items-center justify-between"><h4 class="font-bold text-slate-800">${isAwardMode ? 'อันดับผู้ปฏิบัติงานดีเด่น' : 'สรุปผลรายบุคคล'}</h4><span class="text-[10px] text-slate-500">${isAwardMode ? 'เรียงตามเกณฑ์ประกาศรางวัลตายตัว โดยไม่ใช้จำนวนเวรยกเว้น' : 'อัตราครบ = ส่งรายงานหรือได้รับยกเว้น ÷ เวรตามแผน'}</span></div>${isAwardMode ? renderAwardSummaryTable(teachers, data.excludedRows) : renderPerformanceSummaryTable(teachers)}</div>
