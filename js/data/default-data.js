@@ -1554,7 +1554,8 @@ CREATE TABLE IF NOT EXISTS duty_points (
   min_duty_minutes INTEGER,
   lat2 DOUBLE PRECISION,
   lng2 DOUBLE PRECISION,
-  radius2 INTEGER
+  radius2 INTEGER,
+  locations JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 
 -- 3. สร้างตารางรายงานผลการปฏิบัติหน้าที่เวร
@@ -1651,6 +1652,16 @@ ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS min_duty_minutes INTEGER;
 ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS lat2 DOUBLE PRECISION;
 ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS lng2 DOUBLE PRECISION;
 ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS radius2 INTEGER;
+ALTER TABLE duty_points ADD COLUMN IF NOT EXISTS locations JSONB NOT NULL DEFAULT '[]'::jsonb;
+UPDATE duty_points
+SET locations = jsonb_build_array(
+  jsonb_build_object('lat', lat, 'lng', lng, 'radius', radius),
+  jsonb_build_object('lat', lat2, 'lng', lng2, 'radius', COALESCE(radius2, radius))
+)
+WHERE locations = '[]'::jsonb AND lat2 IS NOT NULL AND lng2 IS NOT NULL;
+UPDATE duty_points
+SET locations = jsonb_build_array(jsonb_build_object('lat', lat, 'lng', lng, 'radius', radius))
+WHERE locations = '[]'::jsonb;
 
 -- อัปเกรดตาราง reports เพื่อรองรับการเก็บรูปหลักฐานใน Supabase Storage และ thumbnail
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS photo_thumb TEXT;

@@ -485,8 +485,58 @@
     let useSupabase = false;
 
     // --- DATABASE MAPPING FUNCTIONS (DTO MAPPERS) ---
+    function getDutyPointLocations(point) {
+      if (!point) return [];
+      const primary = {
+        lat: Number(point.lat),
+        lng: Number(point.lng),
+        radius: Number(point.radius) || 50
+      };
+      const stored = Array.isArray(point.locations) ? point.locations : [];
+      const locations = [primary];
+      const second = point.lat2 != null && point.lng2 != null
+        ? { lat: Number(point.lat2), lng: Number(point.lng2), radius: Number(point.radius2) || primary.radius }
+        : stored[1];
+      if (second && Number.isFinite(Number(second.lat)) && Number.isFinite(Number(second.lng))) {
+        locations.push({ lat: Number(second.lat), lng: Number(second.lng), radius: Number(second.radius) || primary.radius });
+      }
+      stored.slice(2).forEach(location => {
+        const lat = Number(location?.lat);
+        const lng = Number(location?.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          locations.push({ lat, lng, radius: Number(location.radius) || primary.radius });
+        }
+      });
+      return locations.filter(location => Number.isFinite(location.lat) && Number.isFinite(location.lng));
+    }
+
+    function addDutyPointLocationsToMap(map, point, fillOpacity = 0.18) {
+      const colors = ['#14532d', '#2563eb', '#7c3aed', '#d97706', '#db2777', '#0891b2', '#65a30d'];
+      return getDutyPointLocations(point).map((location, index) => {
+        const color = colors[index % colors.length];
+        const circle = L.circle([location.lat, location.lng], {
+          color,
+          fillColor: color,
+          fillOpacity,
+          weight: 2,
+          radius: location.radius
+        }).addTo(map);
+        L.marker([location.lat, location.lng], {
+          icon: L.divIcon({
+            html: `<div style="background:${color};width:15px;height:15px;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.45)"></div>`,
+            className: '',
+            iconSize: [15, 15],
+            iconAnchor: [7.5, 7.5]
+          })
+        }).addTo(map).bindPopup(`📍 ${index === 0 ? 'จุดเวรหลัก' : `บริเวณที่ ${index + 1}`} · รัศมี ${location.radius} ม.`);
+        return circle.getBounds();
+      });
+    }
+
     function mapDutyPointFromDB(dbPt) {
       if (!dbPt) return null;
+      const locations = getDutyPointLocations(dbPt);
+      const second = locations[1] || null;
       return {
         id: dbPt.id,
         name: dbPt.name,
@@ -500,15 +550,18 @@
         minDutyMinutes: dbPt.min_duty_minutes !== undefined && dbPt.min_duty_minutes !== null
           ? dbPt.min_duty_minutes
           : (dbPt.minDutyMinutes !== undefined && dbPt.minDutyMinutes !== null ? dbPt.minDutyMinutes : null),
-        lat2: dbPt.lat2 ?? null,
-        lng2: dbPt.lng2 ?? null,
-        radius2: dbPt.radius2 ?? null,
+        lat2: second?.lat ?? null,
+        lng2: second?.lng ?? null,
+        radius2: second?.radius ?? null,
+        locations,
         restrictedDay: dbPt.restricted_day ?? dbPt.restrictedDay ?? null
       };
     }
 
     function mapDutyPointToDB(jsPt) {
       if (!jsPt) return null;
+      const locations = getDutyPointLocations(jsPt);
+      const second = locations[1] || null;
       return {
         id: jsPt.id,
         name: jsPt.name,
@@ -522,9 +575,10 @@
         min_duty_minutes: jsPt.minDutyMinutes !== undefined && jsPt.minDutyMinutes !== null && jsPt.minDutyMinutes !== ''
           ? parseNonNegativeMinutes(jsPt.minDutyMinutes, null)
           : null,
-        lat2: jsPt.lat2 ?? null,
-        lng2: jsPt.lng2 ?? null,
-        radius2: jsPt.radius2 ?? null,
+        lat2: second?.lat ?? null,
+        lng2: second?.lng ?? null,
+        radius2: second?.radius ?? null,
+        locations,
         restricted_day: jsPt.restrictedDay ?? null
       };
     }
@@ -922,7 +976,7 @@
     };
 
     // Keep track of app version in localStorage without wiping database cache
-    const APP_VERSION = '1.35.15';
+    const APP_VERSION = '1.35.16';
     if (localStorage.getItem('wen_app_version') !== APP_VERSION) {
       localStorage.setItem('wen_app_version', APP_VERSION);
       console.log('App version updated to', APP_VERSION);
@@ -1802,9 +1856,8 @@
     let currentMapInstance = null; // Leaflet map reference
     let pointCardMaps = {}; // pointId -> Leaflet map instance (mini-map inline ในการ์ดจุดเวร)
     let modalMapInstance = null; // Map picker inside the point creation/edit modal
-    let modalMapMarker = null;
-    let modalMapMarker2 = null; // marker for บริเวณที่ 2 (lat2/lng2)
-    let modalPickerTarget = 'primary'; // 'primary' | 'secondary' - บริเวณที่กำลังเลือกจากแผนที่
+    let modalMapMarkers = [];
+    let modalPickerTarget = 0; // zero-based index of the area currently selected on the map
 
     const DEFAULT_IKHLAS_CONFIRM_TEXT = 'ท่านขอยืนยันด้วยความสัตย์จริงต่อตนเองและอัลลอฮฺ (ซ.บ.) ว่า ผู้ร่วมปฏิบัติหน้าที่เวรที่เพิ่มเข้ามาในรายงานนี้ ได้ร่วมอยู่ปฏิบัติหน้าที่ ณ พิกัดจุดเวรจริงเป็นเวลาไม่ต่ำกว่าระยะเวลาขั้นต่ำที่ระบบกำหนดสำหรับจุดเวรนั้น ตามเงื่อนไขของระบบ';
 
@@ -2546,7 +2599,7 @@
     }
 
     // Toggle mini-map inside a teacher duty point card
-    function toggleMyDutyMap(pointId, lat, lng, radius, lat2, lng2, radius2) {
+    function toggleMyDutyMap(pointId) {
       const container = document.getElementById(`my-duty-map-wrap-${pointId}`);
       if (!container) return;
 
@@ -2561,32 +2614,12 @@
           setTimeout(() => {
             const mapEl = document.getElementById(`my-duty-map-${pointId}`);
             if (!mapEl) return;
-
-            const map = L.map(`my-duty-map-${pointId}`, { zoomControl: true, attributionControl: false }).setView([lat, lng], 17);
+            const point = db.getDutyPoints().find(item => String(item.id) === String(pointId));
+            if (!point) return;
+            const locations = getDutyPointLocations(point);
+            const map = L.map(`my-duty-map-${pointId}`, { zoomControl: true, attributionControl: false }).setView([locations[0].lat, locations[0].lng], 17);
             L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: '© Google Maps' }).addTo(map);
-
-            // Primary zone (green)
-            L.circle([lat, lng], { color: '#14532d', fillColor: '#14532d', fillOpacity: 0.14, weight: 2, radius }).addTo(map);
-            L.marker([lat, lng], {
-              icon: L.divIcon({
-                className: '',
-                html: `<div style="width:13px;height:13px;background:#14532d;border-radius:50%;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>`,
-                iconSize: [13, 13], iconAnchor: [6.5, 6.5]
-              })
-            }).addTo(map).bindPopup('📍 จุดเวรหลัก').openPopup();
-
-            // Secondary zone if exists (purple)
-            if (lat2 != null && lng2 != null) {
-              const r2 = radius2 || radius;
-              L.circle([lat2, lng2], { color: '#7c3aed', fillColor: '#7c3aed', fillOpacity: 0.12, weight: 2, radius: r2 }).addTo(map);
-              L.marker([lat2, lng2], {
-                icon: L.divIcon({
-                  className: '',
-                  html: `<div style="width:13px;height:13px;background:#7c3aed;border-radius:50%;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>`,
-                  iconSize: [13, 13], iconAnchor: [6.5, 6.5]
-                })
-              }).addTo(map).bindPopup('📍 จุดเวรบริเวณที่ 2');
-            }
+            const locationBounds = addDutyPointLocationsToMap(map, point, 0.14);
 
             // Current GPS position (blue pulsing dot)
             const gpsMarker = L.circleMarker([currentLatitude, currentLongitude], {
@@ -2598,8 +2631,8 @@
             }).addTo(map).bindPopup('🔵 ตำแหน่งของคุณ');
 
             // Fit map to show both duty point and current GPS
-            const bounds = L.latLngBounds([[lat, lng], [currentLatitude, currentLongitude]]);
-            if (lat2 != null && lng2 != null) bounds.extend([lat2, lng2]);
+            const bounds = L.latLngBounds([[locations[0].lat, locations[0].lng], [currentLatitude, currentLongitude]]);
+            locationBounds.forEach(locationBoundsItem => bounds.extend(locationBoundsItem));
             map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
 
             map.invalidateSize();
@@ -2616,9 +2649,12 @@
 
     let execPointMapInstance = null;
 
-    function openExecutivePointMap(pointId, lat, lng, radius, lat2, lng2, radius2, pointName) {
+    function openExecutivePointMap(pointId, locationsJson, pointName) {
       const modal = document.getElementById('exec-point-map-modal');
       if (!modal) return;
+      let locations = [];
+      try { locations = JSON.parse(decodeURIComponent(locationsJson)); } catch {}
+      if (!locations.length) return;
 
       modal.classList.remove('hidden');
       document.getElementById('exec-point-map-title').innerText = 'พิกัดแผนที่: ' + pointName;
@@ -2632,31 +2668,13 @@
           execPointMapInstance = null;
         }
 
-        const map = L.map('exec-point-map', { zoomControl: true, attributionControl: false }).setView([lat, lng], 17);
+        const map = L.map('exec-point-map', { zoomControl: true, attributionControl: false }).setView([locations[0].lat, locations[0].lng], 17);
         execPointMapInstance = map;
 
         L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: '© Google Maps' }).addTo(map);
 
-        L.circle([lat, lng], { color: '#14532d', fillColor: '#14532d', fillOpacity: 0.14, weight: 2, radius }).addTo(map);
-        L.marker([lat, lng], {
-          icon: L.divIcon({
-            className: '',
-            html: `<div style="width:13px;height:13px;background:#14532d;border-radius:50%;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>`,
-            iconSize: [13, 13], iconAnchor: [6.5, 6.5]
-          })
-        }).addTo(map).bindPopup('📍 จุดเวรหลัก').openPopup();
-
-        if (lat2 != null && lng2 != null) {
-          const r2 = radius2 || radius;
-          L.circle([lat2, lng2], { color: '#7c3aed', fillColor: '#7c3aed', fillOpacity: 0.12, weight: 2, radius: r2 }).addTo(map);
-          L.marker([lat2, lng2], {
-            icon: L.divIcon({
-              className: '',
-              html: `<div style="width:13px;height:13px;background:#7c3aed;border-radius:50%;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>`,
-              iconSize: [13, 13], iconAnchor: [6.5, 6.5]
-            })
-          }).addTo(map).bindPopup('📍 จุดเวรบริเวณที่ 2');
-        }
+        const bounds = addDutyPointLocationsToMap(map, { locations, lat: locations[0].lat, lng: locations[0].lng, radius: locations[0].radius }, 0.14);
+        if (bounds.length) map.fitBounds(bounds.reduce((result, item) => result.extend(item), bounds[0]), { padding: [24, 24], maxZoom: 18 });
         
         setTimeout(() => {
           map.invalidateSize();
@@ -4617,7 +4635,7 @@
                       ` : ''}
                     </div>
                     <div class="mt-3 flex items-center justify-between border-t pt-2 text-[10px]">
-                      <button onclick="openExecutivePointMap(${point.id}, ${point.lat}, ${point.lng}, ${point.radius}, ${point.lat2 ?? 'null'}, ${point.lng2 ?? 'null'}, ${point.radius2 ?? 'null'}, '${escapeHtml(point.name)}')" 
+                      <button onclick="openExecutivePointMap(${point.id}, '${encodeURIComponent(JSON.stringify(getDutyPointLocations(point)))}', '${escapeHtml(point.name)}')"
                               class="scale-spring-active text-brand-850 hover:text-brand-950 font-bold flex items-center gap-1">
                         <i data-lucide="map" class="w-3.5 h-3.5"></i> ดูพิกัดจุดเวร
                       </button>
@@ -5634,15 +5652,14 @@
                         <i data-lucide="external-link" class="w-3 h-3"></i> ดู Google Maps
                       </a>
                     </p>
-                    ${p.lat2 != null && p.lng2 != null ? `
+                    ${getDutyPointLocations(p).slice(1).map((location, index) => `
                     <p class="flex items-center gap-1 text-slate-700">
                       <i data-lucide="map-pin" class="w-3.5 h-3.5 text-blue-500"></i>
-                      <span>บริเวณที่ 2: ${p.lat2.toFixed(6)}, ${p.lng2.toFixed(6)} (รัศมี ${p.radius2 || p.radius} ม.)</span>
-                      <a href="https://www.google.com/maps/search/?api=1&query=${p.lat2},${p.lng2}" target="_blank" class="text-blue-600 hover:underline inline-flex items-center gap-0.5 ml-2 font-bold" title="เปิดแผนที่ Google Maps">
+                      <span>บริเวณที่ ${index + 2}: ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)} (รัศมี ${location.radius} ม.)</span>
+                      <a href="https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lng}" target="_blank" class="text-blue-600 hover:underline inline-flex items-center gap-0.5 ml-2 font-bold" title="เปิดแผนที่ Google Maps">
                         <i data-lucide="external-link" class="w-3 h-3"></i> ดู Google Maps
                       </a>
-                    </p>
-                    ` : ''}
+                    </p>`).join('')}
                     <p class="flex items-center gap-1 text-slate-700">
                       <i data-lucide="timer" class="w-3.5 h-3.5 text-amber-500"></i>
                       <span>${isMinDutyTimeEnabled() ? `ส่งรายงานได้หลังเช็คอินครบ ${getRequiredDutyMinutes(p)} นาที${p.minDutyMinutes !== undefined && p.minDutyMinutes !== null && p.minDutyMinutes !== '' ? ' (กำหนดเฉพาะจุด)' : ' (ใช้ค่ากลาง)'}` : 'ปิดการบังคับเวลาขั้นต่ำ — รายงานได้โดยไม่ต้องเช็คอินล่วงหน้า'}</span>
@@ -5762,10 +5779,10 @@
                 
                 <!-- Expanded Map Picker Container -->
                 <div id="modal-map-picker-container" class="mt-2 hidden border rounded-lg overflow-hidden flex flex-col space-y-2 p-2 bg-slate-50">
-                  <!-- บริเวณที่กำลังเลือกจากแผนที่ (แสดงเมื่อมีบริเวณที่ 2) -->
-                  <div id="modal-picker-target-toggle" class="hidden gap-1 text-[10px]">
-                    <button type="button" onclick="setModalPickerTarget('primary')" id="picker-target-primary-btn" class="flex-1 py-1.5 rounded font-bold border transition">📍 เลือกบริเวณที่ 1</button>
-                    <button type="button" onclick="setModalPickerTarget('secondary')" id="picker-target-secondary-btn" class="flex-1 py-1.5 rounded font-bold border transition">📍 เลือกบริเวณที่ 2</button>
+                  <!-- เลือกพิกัดเป้าหมายสำหรับคลิกบนแผนที่ -->
+                  <div id="modal-picker-target-toggle" class="hidden flex-col gap-1 text-[10px]">
+                    <span class="font-bold text-slate-500">เลือกบริเวณที่จะปักหมุด:</span>
+                    <div id="modal-picker-target-buttons" class="flex flex-wrap gap-1"></div>
                   </div>
                   <!-- Nominatim Place Search Bar -->
                   <div class="flex gap-1 relative">
@@ -5785,37 +5802,12 @@
                 </div>
               </div>
 
-              <div class="border-t pt-2 mt-2">
-                <label class="flex items-center gap-2 text-slate-600 font-bold cursor-pointer">
-                  <input type="checkbox" id="point-form-has-second-location" onchange="toggleSecondLocationFields()" class="rounded">
-                  จุดนี้มีการปฏิบัติหน้าที่ 2 บริเวณ (เพิ่มพิกัดสำรอง)
-                </label>
-
-                <div id="second-location-fields" class="hidden mt-2 space-y-2 bg-slate-50 border rounded-lg p-3">
-                  <p class="text-[10px] text-slate-400 font-bold">พิกัดบริเวณที่ 2:</p>
-                  <div class="grid grid-cols-2 gap-2">
-                    <div>
-                      <label class="block text-slate-500 mb-1 font-bold">ละติจูด (Lat):</label>
-                      <input type="number" step="any" id="point-form-lat2" placeholder="6.787680" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
-                    </div>
-                    <div>
-                      <label class="block text-slate-500 mb-1 font-bold">ลองจิจูด (Lng):</label>
-                      <input type="number" step="any" id="point-form-lng2" placeholder="101.408120" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
-                    </div>
-                  </div>
-                  <div class="grid grid-cols-2 gap-2">
-                    <div>
-                      <label class="block text-slate-500 mb-1 font-bold">ขอบเขตรัศมี (เมตร):</label>
-                      <input type="number" id="point-form-radius2" placeholder="50" class="w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
-                    </div>
-                    <div class="flex items-end">
-                      <button type="button" onclick="autoDetectCoordinates2()" class="w-full bg-blue-50 text-blue-750 border border-blue-200 py-2.5 rounded-lg hover:bg-blue-100 transition font-bold flex items-center justify-center gap-1">
-                        <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ใช้พิกัดโรงเรียน
-                      </button>
-                    </div>
-                  </div>
-                  <p class="text-[10px] text-slate-400">เปิด "เลือกพิกัดจากแผนที่ในตัว" ด้านบน แล้วกดปุ่ม "เลือกบริเวณที่ 2" เพื่อคลิกเลือกพิกัดบนแผนที่</p>
-                </div>
+              <div class="border-t pt-2 mt-2 space-y-2">
+                <div id="point-form-additional-locations" class="space-y-2"></div>
+                <button type="button" onclick="addDutyPointLocationField()" class="w-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 py-2.5 rounded-lg transition font-bold">
+                  ＋ เพิ่มพิกัดบริเวณ
+                </button>
+                <p class="text-[10px] text-slate-400">เพิ่มได้หลายพิกัด แต่ละบริเวณกำหนดรัศมีได้ และเลือกปักหมุดจากแผนที่ด้านบนได้</p>
               </div>
 
               <div class="flex gap-2 pt-2 border-t mt-2 flex-shrink-0">
@@ -8096,7 +8088,7 @@
           .map(id => getTeacherName(id));
 
         // Geo args for map toggle
-        const mapArgs = `${p.id},${p.lat},${p.lng},${p.radius},${p.lat2 ?? 'null'},${p.lng2 ?? 'null'},${p.radius2 ?? 'null'}`;
+        const mapArgs = `${p.id}`;
 
         return `
                 <div id="my-duty-card-${p.id}" data-is-done="${isDone || !!pointExemption}" class="premium-duty-card bg-white border-2 ${pointExemption ? 'border-sky-200' : isLeaveReport ? 'border-slate-200' : isDone ? (hasProblem ? 'border-red-200' : 'border-green-200') : 'border-slate-100'} rounded-2xl shadow-sm overflow-hidden transition">
@@ -8151,10 +8143,10 @@
                     <div class="flex gap-1.5 items-center">
                       <svg class="w-3.5 h-3.5 text-brand-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
                       <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" class="text-brand-800 hover:text-brand-900 font-bold hover:underline">นำทาง Google Maps →</a>
-                      ${p.lat2 != null ? `
+                      ${getDutyPointLocations(p).slice(1).map((location, index) => `
                         <span class="text-slate-300">|</span>
-                        <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat2},${p.lng2}" target="_blank" class="text-purple-700 hover:text-purple-900 font-bold hover:underline">บริเวณที่ 2 →</a>
-                      ` : ''}
+                        <a href="https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}" target="_blank" class="text-purple-700 hover:text-purple-900 font-bold hover:underline">บริเวณที่ ${index + 2} →</a>
+                      `).join('')}
                     </div>
                   </div>
 
@@ -8163,7 +8155,10 @@
                     <div id="my-duty-map-${p.id}" class="duty-mini-map"></div>
                     <div class="flex items-center gap-3 mt-1.5 text-[10px] text-slate-400">
                       <span class="flex items-center gap-1"><span style="width:10px;height:10px;background:#14532d;border-radius:50%;display:inline-block;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span> จุดเวร</span>
-                      ${p.lat2 != null ? `<span class="flex items-center gap-1"><span style="width:10px;height:10px;background:#7c3aed;border-radius:50%;display:inline-block;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span> บริเวณที่ 2</span>` : ''}
+                      ${getDutyPointLocations(p).slice(1).map((_, index) => {
+                        const colors = ['#2563eb', '#7c3aed', '#d97706', '#db2777', '#0891b2', '#65a30d'];
+                        return `<span class="flex items-center gap-1"><span style="width:10px;height:10px;background:${colors[index % colors.length]};border-radius:50%;display:inline-block;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span> บริเวณที่ ${index + 2}</span>`;
+                      }).join('')}
                       <span class="flex items-center gap-1"><span style="width:10px;height:10px;background:#3b82f6;border-radius:50%;display:inline-block;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span> ตำแหน่งคุณ</span>
                     </div>
                   </div>
@@ -10638,13 +10633,16 @@
     }
 
 
-    // ระยะทาง+รัศมีของบริเวณที่ใกล้ที่สุด (รองรับจุดเวรที่มี 2 บริเวณผ่าน lat2/lng2/radius2)
+    // ใช้ระยะจากบริเวณที่ใกล้ที่สุดที่ GPS อยู่ในรัศมี หากอยู่นอกทุกบริเวณ คืนบริเวณที่ใกล้ที่สุด
     function getDutyGeofenceDistance(p, lat, lng) {
-      const d1 = checkTeacherDistanceToPoint(lat, lng, p.lat, p.lng);
-      if (p.lat2 == null || p.lng2 == null) return { distance: d1, radius: p.radius, zone: 1 };
-      const d2 = checkTeacherDistanceToPoint(lat, lng, p.lat2, p.lng2);
-      const r2 = p.radius2 || p.radius;
-      return (d1 <= p.radius || d1 <= d2) ? { distance: d1, radius: p.radius, zone: 1 } : { distance: d2, radius: r2, zone: 2 };
+      const zones = getDutyPointLocations(p).map((location, index) => ({
+        distance: checkTeacherDistanceToPoint(lat, lng, location.lat, location.lng),
+        radius: location.radius,
+        zone: index + 1
+      }));
+      const inRadius = zones.filter(zone => zone.distance <= zone.radius);
+      const candidates = inRadius.length ? inRadius : zones;
+      return candidates.sort((a, b) => a.distance - b.distance)[0] || { distance: Infinity, radius: p.radius || 0, zone: 1 };
     }
 
     function setupThaiToEnglishKeyboardConverter() {
@@ -11044,9 +11042,21 @@
           console.warn("Cloud save points with minimum duty minutes failed, attempting fallback without new column:", error);
           const baseDbPoints = dbPoints.map(({ min_duty_minutes, restricted_day, ...rest }) => rest);
           const fallbackResult = await supabaseClient.from('duty_points').upsert(baseDbPoints);
-          if (fallbackResult.error) console.error("Cloud save points error:", fallbackResult.error);
+          if (fallbackResult.error) {
+            if (points.some(point => getDutyPointLocations(point).length > 2)) {
+              console.error("Cloud save needs the duty_points.locations migration before saving more than two areas:", fallbackResult.error);
+              return false;
+            }
+            const legacyDbPoints = dbPoints.map(({ min_duty_minutes, restricted_day, locations, ...rest }) => rest);
+            const legacyResult = await supabaseClient.from('duty_points').upsert(legacyDbPoints);
+            if (legacyResult.error) {
+              console.error("Cloud save points error:", legacyResult.error);
+              return false;
+            }
+          }
         }
       }
+      return true;
     }
 
     let modalNonAssignedTeachers = [];
@@ -11402,15 +11412,7 @@
     }
 
     function autoDetectCoordinates2() {
-      const settings = db.getSettings();
-      const lat = Number(settings.centerLat) || currentLatitude;
-      const lng = Number(settings.centerLng) || currentLongitude;
-      document.getElementById('point-form-lat2').value = lat.toFixed(6);
-      document.getElementById('point-form-lng2').value = lng.toFixed(6);
-      if (modalMapInstance) {
-        updateModalMapMarker2(lat, lng);
-      }
-      showToast('ตั้งพิกัดบริเวณที่ 2 เป็นพิกัดโรงเรียนสำเร็จ', 'info');
+      autoDetectDutyLocation(1);
     }
 
     function onDutyPointsGroupTabChange(group) {
@@ -11436,36 +11438,7 @@
       }).addTo(currentMapInstance);
 
       const points = db.getDutyPoints().filter(p => dutyGroupMatches(p.dutyGroup, currentDutyPointsGroupTab));
-      points.forEach(p => {
-        L.marker([p.lat, p.lng]).addTo(currentMapInstance)
-          .bindPopup(`<b>จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name}</b><br>เวลาเวร: ${p.time}`);
-
-        L.circle([p.lat, p.lng], {
-          color: '#15803d',
-          fillColor: '#86efac',
-          fillOpacity: 0.3,
-          radius: p.radius
-        }).addTo(currentMapInstance);
-
-        if (p.lat2 != null && p.lng2 != null) {
-          L.marker([p.lat2, p.lng2], {
-            icon: L.divIcon({
-              html: '<div style="background:#2563eb;width:16px;height:16px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.5)"></div>',
-              className: '',
-              iconSize: [16, 16],
-              iconAnchor: [8, 8]
-            })
-          }).addTo(currentMapInstance)
-            .bindPopup(`<b>จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name}</b><br>บริเวณที่ 2`);
-
-          L.circle([p.lat2, p.lng2], {
-            color: '#2563eb',
-            fillColor: '#93c5fd',
-            fillOpacity: 0.3,
-            radius: p.radius2 || p.radius
-          }).addTo(currentMapInstance);
-        }
-      });
+      points.forEach(p => addDutyPointLocationsToMap(currentMapInstance, p, 0.3));
 
       setTimeout(() => currentMapInstance.invalidateSize(), 150);
     }
@@ -11495,43 +11468,14 @@
       const p = points.find(pt => pt.id === pointId);
       if (!p) return;
 
-      const map = L.map(`point-map-${pointId}`, { attributionControl: false }).setView([p.lat, p.lng], 17);
+      const locations = getDutyPointLocations(p);
+      const map = L.map(`point-map-${pointId}`, { attributionControl: false }).setView([locations[0].lat, locations[0].lng], 17);
       L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
         attribution: '&copy; Google Maps'
       }).addTo(map);
 
-      L.marker([p.lat, p.lng]).addTo(map)
-        .bindPopup(`<b>จุดที่ ${getDutyPointDisplayNumber(p)}: ${p.name}</b>`);
-
-      const circle1 = L.circle([p.lat, p.lng], {
-        color: '#15803d',
-        fillColor: '#86efac',
-        fillOpacity: 0.3,
-        radius: p.radius
-      }).addTo(map);
-
-      let bounds = circle1.getBounds();
-
-      if (p.lat2 != null && p.lng2 != null) {
-        L.marker([p.lat2, p.lng2], {
-          icon: L.divIcon({
-            html: '<div style="background:#2563eb;width:16px;height:16px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.5)"></div>',
-            className: '',
-            iconSize: [16, 16],
-            iconAnchor: [8, 8]
-          })
-        }).addTo(map).bindPopup('บริเวณที่ 2');
-
-        const circle2 = L.circle([p.lat2, p.lng2], {
-          color: '#2563eb',
-          fillColor: '#93c5fd',
-          fillOpacity: 0.3,
-          radius: p.radius2 || p.radius
-        }).addTo(map);
-
-        bounds = bounds.extend(circle2.getBounds());
-      }
-
+      const boundsList = addDutyPointLocationsToMap(map, p, 0.3);
+      const bounds = boundsList.slice(1).reduce((result, item) => result.extend(item), boundsList[0]);
       map.fitBounds(bounds, { padding: [20, 20] });
       pointCardMaps[pointId] = map;
       setTimeout(() => map.invalidateSize(), 50);
@@ -11684,6 +11628,88 @@
       }
     }
 
+    function getPointFormLocations() {
+      const primary = {
+        lat: document.getElementById('point-form-lat').value,
+        lng: document.getElementById('point-form-lng').value,
+        radius: document.getElementById('point-form-radius').value
+      };
+      const extras = [...document.querySelectorAll('#point-form-additional-locations .point-location-extra')].map(card => ({
+        lat: card.querySelector('[data-location-lat]').value,
+        lng: card.querySelector('[data-location-lng]').value,
+        radius: card.querySelector('[data-location-radius]').value
+      }));
+      return [primary, ...extras];
+    }
+
+    function renderAdditionalDutyPointLocations(locations = []) {
+      const host = document.getElementById('point-form-additional-locations');
+      if (!host) return;
+      host.innerHTML = locations.map((location, offset) => {
+        const index = offset + 1;
+        return `
+          <div class="point-location-extra space-y-2 bg-slate-50 border rounded-lg p-3" data-location-index="${index}">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-[10px] text-slate-500 font-bold">พิกัดบริเวณที่ ${index + 1}</p>
+              <button type="button" onclick="removeDutyPointLocationField(${index})" class="text-red-600 hover:text-red-800 text-xs font-bold px-2 py-1 rounded hover:bg-red-50">ลบบริเวณนี้</button>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="block text-slate-500 text-xs font-bold">ละติจูด (Lat)
+                <input type="number" step="any" data-location-lat value="${location.lat ?? ''}" placeholder="6.787680" class="mt-1 w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+              </label>
+              <label class="block text-slate-500 text-xs font-bold">ลองจิจูด (Lng)
+                <input type="number" step="any" data-location-lng value="${location.lng ?? ''}" placeholder="101.408120" class="mt-1 w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+              </label>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="block text-slate-500 text-xs font-bold">ขอบเขตรัศมี (เมตร)
+                <input type="number" min="1" data-location-radius value="${location.radius ?? ''}" placeholder="50" class="mt-1 w-full border rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-brand-500">
+              </label>
+              <button type="button" onclick="autoDetectDutyLocation(${index})" class="self-end bg-blue-50 text-blue-750 border border-blue-200 py-2.5 rounded-lg hover:bg-blue-100 transition font-bold">📍 ใช้พิกัดโรงเรียน</button>
+            </div>
+          </div>`;
+      }).join('');
+      renderModalPickerTargetButtons();
+    }
+
+    function addDutyPointLocationField() {
+      const locations = getPointFormLocations();
+      locations.push({ lat: '', lng: '', radius: document.getElementById('point-form-radius').value || db.getSettings().defaultRadius || 50 });
+      renderAdditionalDutyPointLocations(locations.slice(1));
+      if (modalMapInstance) renderModalPickerMarkers();
+    }
+
+    function removeDutyPointLocationField(index) {
+      const locations = getPointFormLocations();
+      if (index <= 0 || index >= locations.length) return;
+      locations.splice(index, 1);
+      modalPickerTarget = Math.min(modalPickerTarget, locations.length - 1);
+      renderAdditionalDutyPointLocations(locations.slice(1));
+      if (modalMapInstance) renderModalPickerMarkers();
+    }
+
+    function autoDetectDutyLocation(index) {
+      const settings = db.getSettings();
+      const lat = Number(settings.centerLat) || currentLatitude;
+      const lng = Number(settings.centerLng) || currentLongitude;
+      setPointFormLocationCoordinates(index, lat, lng);
+      showToast(`ตั้งพิกัดบริเวณที่ ${index + 1} เป็นพิกัดโรงเรียนสำเร็จ`, 'info');
+    }
+
+    function setPointFormLocationCoordinates(index, lat, lng) {
+      if (index === 0) {
+        document.getElementById('point-form-lat').value = Number(lat).toFixed(6);
+        document.getElementById('point-form-lng').value = Number(lng).toFixed(6);
+        updateGmapsModalLink();
+      } else {
+        const card = document.querySelector(`#point-form-additional-locations [data-location-index="${index}"]`);
+        if (!card) return;
+        card.querySelector('[data-location-lat]').value = Number(lat).toFixed(6);
+        card.querySelector('[data-location-lng]').value = Number(lng).toFixed(6);
+        if (modalMapInstance) renderModalPickerMarkers();
+      }
+    }
+
     function openDutyPointModal(pointId = null) {
       const modal = document.getElementById('point-form-modal');
       const title = document.getElementById('point-modal-title');
@@ -11697,13 +11723,11 @@
       const latInput = document.getElementById('point-form-lat');
       const lngInput = document.getElementById('point-form-lng');
       const radInput = document.getElementById('point-form-radius');
-      const hasSecondCheckbox = document.getElementById('point-form-has-second-location');
-      const lat2Input = document.getElementById('point-form-lat2');
-      const lng2Input = document.getElementById('point-form-lng2');
-      const radius2Input = document.getElementById('point-form-radius2');
+      let additionalLocations = [];
 
       if (pointId) {
         const p = db.getDutyPoints().find(x => x.id === pointId);
+        if (!p) return;
         title.textContent = 'แก้ไขพิกัดจุดเวร';
         idFlag.value = p.id;
         nameInput.value = p.name;
@@ -11712,21 +11736,11 @@
         timeInput.value = p.time;
         reportWindowInput.value = p.reportWindow || '';
         minDutyMinutesInput.value = p.minDutyMinutes !== undefined && p.minDutyMinutes !== null ? p.minDutyMinutes : '';
-        latInput.value = p.lat;
-        lngInput.value = p.lng;
-        radInput.value = p.radius;
-
-        if (p.lat2 != null && p.lng2 != null) {
-          hasSecondCheckbox.checked = true;
-          lat2Input.value = p.lat2;
-          lng2Input.value = p.lng2;
-          radius2Input.value = p.radius2 || p.radius;
-        } else {
-          hasSecondCheckbox.checked = false;
-          lat2Input.value = '';
-          lng2Input.value = '';
-          radius2Input.value = '';
-        }
+        const locations = getDutyPointLocations(p);
+        latInput.value = locations[0]?.lat ?? p.lat;
+        lngInput.value = locations[0]?.lng ?? p.lng;
+        radInput.value = locations[0]?.radius ?? p.radius;
+        additionalLocations = locations.slice(1);
       } else {
         const settings = db.getSettings();
         title.textContent = 'สร้างพิกัดจุดเวรเพิ่มเติม';
@@ -11740,22 +11754,15 @@
         latInput.value = settings.centerLat || currentLatitude;
         lngInput.value = settings.centerLng || currentLongitude;
         radInput.value = settings.defaultRadius || 50;
-
-        hasSecondCheckbox.checked = false;
-        lat2Input.value = '';
-        lng2Input.value = '';
-        radius2Input.value = '';
       }
 
-      toggleSecondLocationFields();
-
+      renderAdditionalDutyPointLocations(additionalLocations);
+      modalPickerTarget = 0;
+      if (modalMapInstance) renderModalPickerTargetButtons();
       modal.classList.remove('hidden');
       updateGmapsModalLink();
-
-      // Bind updates on manual coordinate entry
       latInput.oninput = updateGmapsModalLink;
       lngInput.oninput = updateGmapsModalLink;
-
       lucide.createIcons();
     }
 
@@ -11763,14 +11770,10 @@
       const lat = parseFloat(document.getElementById('point-form-lat').value) || currentLatitude;
       const lng = parseFloat(document.getElementById('point-form-lng').value) || currentLongitude;
       const btn = document.getElementById('btn-open-gmaps');
-      if (btn) {
-        btn.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-      }
-
-      // Update modal picker map if active and visible
+      if (btn) btn.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
       const container = document.getElementById('modal-map-picker-container');
       if (modalMapInstance && container && !container.classList.contains('hidden')) {
-        updateModalMapMarker(lat, lng);
+        renderModalPickerMarkers();
         modalMapInstance.panTo([lat, lng]);
       }
     }
@@ -11780,19 +11783,8 @@
       if (container.classList.contains('hidden')) {
         container.classList.remove('hidden');
         initModalPickerMap();
-
-        const hasSecond = document.getElementById('point-form-has-second-location').checked;
-        const toggle = document.getElementById('modal-picker-target-toggle');
-        if (toggle) {
-          if (hasSecond) {
-            toggle.classList.remove('hidden');
-            toggle.classList.add('flex');
-          } else {
-            toggle.classList.add('hidden');
-            toggle.classList.remove('flex');
-          }
-        }
-        setModalPickerTarget('primary');
+        renderModalPickerTargetButtons();
+        setModalPickerTarget(0);
       } else {
         container.classList.add('hidden');
       }
@@ -11801,112 +11793,74 @@
     function initModalPickerMap() {
       const lat = parseFloat(document.getElementById('point-form-lat').value) || currentLatitude;
       const lng = parseFloat(document.getElementById('point-form-lng').value) || currentLongitude;
-
       if (!modalMapInstance) {
         modalMapInstance = L.map('modal-picker-map').setView([lat, lng], 17);
-        L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-          attribution: '&copy; Google Maps'
-        }).addTo(modalMapInstance);
-
-        // Add map click listener
-        modalMapInstance.on('click', function (e) {
-          const clickedLat = e.latlng.lat;
-          const clickedLng = e.latlng.lng;
-
-          if (modalPickerTarget === 'secondary') {
-            document.getElementById('point-form-lat2').value = clickedLat.toFixed(6);
-            document.getElementById('point-form-lng2').value = clickedLng.toFixed(6);
-            updateModalMapMarker2(clickedLat, clickedLng);
-          } else {
-            document.getElementById('point-form-lat').value = clickedLat.toFixed(6);
-            document.getElementById('point-form-lng').value = clickedLng.toFixed(6);
-            updateModalMapMarker(clickedLat, clickedLng);
-          }
+        L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: '&copy; Google Maps' }).addTo(modalMapInstance);
+        modalMapInstance.on('click', e => {
+          setPointFormLocationCoordinates(modalPickerTarget, e.latlng.lat, e.latlng.lng);
+          renderModalPickerMarkers();
         });
       } else {
         modalMapInstance.setView([lat, lng], 17);
       }
-
       setTimeout(() => {
         modalMapInstance.invalidateSize();
-        updateModalMapMarker(lat, lng);
-
-        const lat2 = parseFloat(document.getElementById('point-form-lat2').value);
-        const lng2 = parseFloat(document.getElementById('point-form-lng2').value);
-        if (!isNaN(lat2) && !isNaN(lng2)) {
-          updateModalMapMarker2(lat2, lng2);
-        } else if (modalMapMarker2) {
-          modalMapInstance.removeLayer(modalMapMarker2);
-          modalMapMarker2 = null;
-        }
+        renderModalPickerMarkers();
       }, 150);
     }
 
-    function updateModalMapMarker(lat, lng) {
-      if (modalMapMarker) {
-        modalMapInstance.removeLayer(modalMapMarker);
-      }
-      modalMapMarker = L.marker([lat, lng]).addTo(modalMapInstance)
-        .bindPopup("พิกัดจุดปฏิบัติหน้าที่")
-        .openPopup();
-    }
-
-    function updateModalMapMarker2(lat, lng) {
-      if (modalMapMarker2) {
-        modalMapInstance.removeLayer(modalMapMarker2);
-      }
-      const icon2 = L.divIcon({
-        html: '<div style="background:#2563eb;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.5)"></div>',
-        className: '',
-        iconSize: [14, 14],
-        iconAnchor: [7, 7]
+    function renderModalPickerMarkers() {
+      if (!modalMapInstance) return;
+      modalMapMarkers.forEach(marker => modalMapInstance.removeLayer(marker));
+      modalMapMarkers = [];
+      const colors = ['#14532d', '#2563eb', '#7c3aed', '#d97706', '#db2777', '#0891b2', '#65a30d'];
+      getPointFormLocations().forEach((location, index) => {
+        const lat = Number(location.lat);
+        const lng = Number(location.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        const color = colors[index % colors.length];
+        const marker = L.marker([lat, lng], {
+          icon: L.divIcon({ html: `<div style="background:${color};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,.5)"></div>`, className: '', iconSize: [14, 14], iconAnchor: [7, 7] })
+        }).addTo(modalMapInstance).bindPopup(`พิกัดบริเวณที่ ${index + 1}`);
+        modalMapMarkers.push(marker);
       });
-      modalMapMarker2 = L.marker([lat, lng], { icon: icon2 }).addTo(modalMapInstance)
-        .bindPopup("พิกัดบริเวณที่ 2")
-        .openPopup();
     }
 
-    function setModalPickerTarget(target) {
-      modalPickerTarget = target;
-      const primaryBtn = document.getElementById('picker-target-primary-btn');
-      const secondaryBtn = document.getElementById('picker-target-secondary-btn');
+    // Compatibility helper for existing location search and GPS picker actions.
+    function updateModalMapMarker(lat, lng) {
+      setPointFormLocationCoordinates(0, lat, lng);
+      renderModalPickerMarkers();
+    }
+
+    function renderModalPickerTargetButtons() {
+      const wrap = document.getElementById('modal-picker-target-toggle');
+      const host = document.getElementById('modal-picker-target-buttons');
+      if (!wrap || !host) return;
+      const count = getPointFormLocations().length;
+      if (count <= 1) {
+        wrap.classList.add('hidden');
+        wrap.classList.remove('flex');
+        return;
+      }
+      wrap.classList.remove('hidden');
+      wrap.classList.add('flex');
+      host.innerHTML = Array.from({ length: count }, (_, index) => `
+        <button type="button" onclick="setModalPickerTarget(${index})" data-picker-target="${index}" class="px-2 py-1.5 rounded font-bold border transition">📍 บริเวณที่ ${index + 1}</button>
+      `).join('');
+      setModalPickerTarget(modalPickerTarget);
+    }
+
+    function setModalPickerTarget(index) {
+      modalPickerTarget = Math.max(0, Number(index) || 0);
       const activeClass = 'bg-blue-600 text-white border-blue-600';
       const inactiveClass = 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100';
-      if (primaryBtn && secondaryBtn) {
-        primaryBtn.className = `flex-1 py-1.5 rounded font-bold border transition ${target === 'primary' ? activeClass : inactiveClass}`;
-        secondaryBtn.className = `flex-1 py-1.5 rounded font-bold border transition ${target === 'secondary' ? activeClass : inactiveClass}`;
+      document.querySelectorAll('[data-picker-target]').forEach(button => {
+        button.className = `px-2 py-1.5 rounded font-bold border transition ${Number(button.dataset.pickerTarget) === modalPickerTarget ? activeClass : inactiveClass}`;
+      });
+      const selected = getPointFormLocations()[modalPickerTarget];
+      if (modalMapInstance && selected && Number.isFinite(Number(selected.lat)) && Number.isFinite(Number(selected.lng))) {
+        modalMapInstance.panTo([Number(selected.lat), Number(selected.lng)]);
       }
-    }
-
-    function toggleSecondLocationFields() {
-      const checked = document.getElementById('point-form-has-second-location').checked;
-      const fields = document.getElementById('second-location-fields');
-      const toggle = document.getElementById('modal-picker-target-toggle');
-
-      if (checked) {
-        fields.classList.remove('hidden');
-      } else {
-        fields.classList.add('hidden');
-        document.getElementById('point-form-lat2').value = '';
-        document.getElementById('point-form-lng2').value = '';
-        document.getElementById('point-form-radius2').value = '';
-        if (modalMapMarker2 && modalMapInstance) {
-          modalMapInstance.removeLayer(modalMapMarker2);
-          modalMapMarker2 = null;
-        }
-      }
-
-      const pickerContainer = document.getElementById('modal-map-picker-container');
-      if (toggle) {
-        if (checked && pickerContainer && !pickerContainer.classList.contains('hidden')) {
-          toggle.classList.remove('hidden');
-          toggle.classList.add('flex');
-        } else {
-          toggle.classList.add('hidden');
-          toggle.classList.remove('flex');
-        }
-      }
-      setModalPickerTarget('primary');
     }
 
     async function searchLocationOnMap() {
@@ -11943,12 +11897,11 @@
     }
 
     function selectSearchResult(lat, lon, displayName) {
-      document.getElementById('point-form-lat').value = lat.toFixed(6);
-      document.getElementById('point-form-lng').value = lon.toFixed(6);
+      setPointFormLocationCoordinates(modalPickerTarget, lat, lon);
 
       if (modalMapInstance) {
         modalMapInstance.setView([lat, lon], 17);
-        updateModalMapMarker(lat, lon);
+        renderModalPickerMarkers();
       }
 
       document.getElementById('modal-map-search-input').value = displayName;
@@ -12070,9 +12023,8 @@
       const gpsPosition = await ensureRealGPSLocation({ showPrompt: true, requireFresh: true });
       if (!gpsPosition || !modalMapInstance) return;
       modalMapInstance.setView([gpsPosition.latitude, gpsPosition.longitude], 18);
-      document.getElementById('point-form-lat').value = gpsPosition.latitude.toFixed(6);
-      document.getElementById('point-form-lng').value = gpsPosition.longitude.toFixed(6);
-      updateModalMapMarker(gpsPosition.latitude, gpsPosition.longitude);
+      setPointFormLocationCoordinates(modalPickerTarget, gpsPosition.latitude, gpsPosition.longitude);
+      renderModalPickerMarkers();
     }
 
     function closeDutyPointModal() {
@@ -12090,8 +12042,7 @@
       if (modalMapInstance) {
         modalMapInstance.remove();
         modalMapInstance = null;
-        modalMapMarker = null;
-        modalMapMarker2 = null;
+        modalMapMarkers = [];
       }
     }
 
@@ -12183,10 +12134,12 @@
       const lat = settings.centerLat || currentLatitude;
       const lng = settings.centerLng || currentLongitude;
 
+      const originalPoints = JSON.parse(JSON.stringify(db.getDutyPoints()));
       const points = db.getDutyPoints();
       points.forEach(p => {
         p.lat = lat;
         p.lng = lng;
+        p.locations = getDutyPointLocations(p).map(location => ({ ...location, lat, lng }));
         if (p.lat2 !== undefined && p.lat2 !== null) {
           p.lat2 = lat;
         }
@@ -12196,7 +12149,12 @@
       });
 
       showToast('กำลังบันทึกและซิงค์พิกัดจุดเวรชุดใหม่ไปยัง Supabase...', 'info');
-      await saveDutyPointsDB(points);
+      const saved = await saveDutyPointsDB(points);
+      if (!saved) {
+        db.saveDutyPoints(originalPoints);
+        showToast('บันทึกไม่สำเร็จ: ฐานข้อมูลยังไม่มีคอลัมน์ locations สำหรับเก็บพิกัดหลายจุด กรุณารัน SQL patch ก่อน แล้วลองใหม่', 'error');
+        return;
+      }
       showToast('รีเซ็ตพิกัดจุดเวรทั้งหมดมายังจุดศูนย์กลางโรงเรียนและอัปเดตคลาวด์สำเร็จแล้ว', 'success');
       renderPage('settings');
     }
@@ -12340,15 +12298,27 @@
       const reportWindow = document.getElementById('point-form-report-window').value.trim() || null;
       const minDutyMinutesRaw = document.getElementById('point-form-min-duty-minutes').value.trim();
       const minDutyMinutes = minDutyMinutesRaw === '' ? null : parseNonNegativeMinutes(minDutyMinutesRaw, 0);
-      const lat = parseFloat(document.getElementById('point-form-lat').value);
-      const lng = parseFloat(document.getElementById('point-form-lng').value);
-      const radius = parseInt(document.getElementById('point-form-radius').value);
+      const locations = getPointFormLocations().map(location => ({
+        lat: parseFloat(location.lat),
+        lng: parseFloat(location.lng),
+        radius: parseInt(location.radius, 10)
+      }));
+      const incompleteIndex = locations.findIndex(location =>
+        !Number.isFinite(location.lat) || location.lat < -90 || location.lat > 90 ||
+        !Number.isFinite(location.lng) || location.lng < -180 || location.lng > 180 ||
+        !Number.isFinite(location.radius) || location.radius < 1
+      );
+      if (incompleteIndex >= 0) {
+        showToast(`กรุณาตรวจสอบละติจูด ลองจิจูด และรัศมีของบริเวณที่ ${incompleteIndex + 1}`, 'warning');
+        return;
+      }
+      const [primary, second = null] = locations;
+      const { lat, lng, radius } = primary;
+      const lat2 = second?.lat ?? null;
+      const lng2 = second?.lng ?? null;
+      const radius2 = second?.radius ?? null;
 
-      const hasSecond = document.getElementById('point-form-has-second-location').checked;
-      const lat2 = hasSecond ? parseFloat(document.getElementById('point-form-lat2').value) : null;
-      const lng2 = hasSecond ? parseFloat(document.getElementById('point-form-lng2').value) : null;
-      const radius2 = hasSecond ? parseInt(document.getElementById('point-form-radius2').value) : null;
-
+      const originalPoints = JSON.parse(JSON.stringify(db.getDutyPoints()));
       const points = db.getDutyPoints();
       let ptObj = null;
 
@@ -12367,6 +12337,7 @@
           points[pIndex].lat2 = lat2;
           points[pIndex].lng2 = lng2;
           points[pIndex].radius2 = radius2;
+          points[pIndex].locations = locations;
           ptObj = points[pIndex];
         }
       } else {
@@ -12385,12 +12356,18 @@
           lat2: lat2,
           lng2: lng2,
           radius2: radius2,
+          locations: locations,
           assignedTo: []
         };
         points.push(ptObj);
       }
 
-      await saveDutyPointsDB(points);
+      const saved = await saveDutyPointsDB(points);
+      if (!saved) {
+        db.saveDutyPoints(originalPoints);
+        showToast('บันทึกไม่สำเร็จ: ฐานข้อมูลยังไม่มีคอลัมน์ locations สำหรับเก็บพิกัดหลายจุด กรุณารัน SQL patch ก่อน แล้วลองใหม่', 'error');
+        return;
+      }
       closeDutyPointModal();
       renderPage('duty-points');
       showToast('บันทึกข้อมูลพิกัดจุดเวรสำเร็จแล้ว', 'success');
